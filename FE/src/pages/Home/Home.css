@@ -1,0 +1,232 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Be+Vietnam+Pro:wght@400;500;700&display=swap');
+
+.rbac-home {
+  --ink: #222d5f;
+  --soft-ink: #4a588f;
+  --line: rgba(59, 81, 173, 0.22);
+
+  display: grid;
+  gap: 14px;
+  text-align: left;
+  color: var(--ink);
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+
+.hero-panel,
+.panel,
+.bottom-strip article {
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(245, 249, 255, 0.84)),
+    radial-gradient(circle at 100% 0%, rgba(255, 154, 91, 0.16), transparent 32%);
+  box-shadow: 0 16px 30px rgba(34, 45, 95, 0.11);
+}
+
+.hero-panel {
+  padding: clamp(18px, 4vw, 34px);
+}
+
+.tagline {
+  margin: 0;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #f35e3f, #3e61e8);
+}
+
+.hero-panel h2 {
+  margin: 12px 0 0;
+  max-width: 760px;
+  color: #1e2859;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(1.4rem, 3vw, 2.4rem);
+  line-height: 1.15;
+}
+
+.lead {
+  margin: 10px 0 0;
+  max-width: 800px;
+  color: var(--soft-ink);
+  line-height: 1.72;
+}
+
+.action-row {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-main {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 11px;
+  text-decoration: none;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f45f40, #3961e8);
+  box-shadow: 0 10px 18px rgba(57, 97, 232, 0.28);
+}
+
+.chip {
+  height: 30px;
+  border-radius: 999px;
+  padding: 0 11px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  color: #2e4aa8;
+  background: #e8efff;
+}
+
+.metric-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric-card {
+  border-radius: 14px;
+  border: 1px solid rgba(78, 102, 195, 0.22);
+  background: linear-gradient(165deg, #fff, #f4f7ff);
+  padding: 12px;
+}
+
+.metric-card h3 {
+  margin: 0;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  color: #1f326f;
+}
+
+.metric-card p {
+  margin: 4px 0 0;
+  color: #526293;
+  font-size: 12px;
+}
+
+.ops-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1.25fr 1fr;
+}
+
+.panel {
+  padding: clamp(16px, 2.2vw, 24px);
+}
+
+.mini {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: #5670ce;
+  font-weight: 700;
+}
+
+.panel h3 {
+  margin: 6px 0 0;
+  color: #1f2e68;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(1.14rem, 2.1vw, 1.56rem);
+}
+
+.timeline ul {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.timeline li {
+  border-left: 3px solid #4264e8;
+  background: rgba(226, 235, 255, 0.6);
+  padding: 8px 10px;
+  color: #334782;
+  border-radius: 0 10px 10px 0;
+}
+
+.focus > p {
+  margin: 12px 0 0;
+  color: #455487;
+  line-height: 1.7;
+}
+
+.callout {
+  margin-top: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(85, 108, 200, 0.24);
+  background: #f7f9ff;
+  padding: 10px;
+}
+
+.callout strong {
+  color: #2e3b75;
+  font-size: 12px;
+}
+
+.callout p {
+  margin: 6px 0 0;
+  color: #4a578a;
+  line-height: 1.55;
+  font-size: 13px;
+}
+
+.bottom-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.bottom-strip article {
+  padding: 16px;
+}
+
+.bottom-strip h3 {
+  margin: 6px 0 0;
+  color: #1f2b61;
+  font-family: 'Bricolage Grotesque', sans-serif;
+}
+
+.bottom-strip p {
+  margin: 10px 0 0;
+  color: #4b5889;
+  line-height: 1.65;
+}
+
+@media (max-width: 1100px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-grid,
+  .bottom-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .action-row {
+    align-items: stretch;
+  }
+
+  .btn-main {
+    width: 100%;
+  }
+}

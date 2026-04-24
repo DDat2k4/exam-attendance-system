@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Be+Vietnam+Pro:wght@400;600&display=swap');
+
+.forbidden-page {
+  min-height: 60vh;
+  border-radius: 22px;
+  border: 1px solid rgba(68, 93, 196, 0.2);
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 142, 84, 0.22), transparent 30%),
+    linear-gradient(165deg, #fff8f1, #f1f6ff);
+  padding: clamp(20px, 5vw, 54px);
+  display: grid;
+  gap: 10px;
+  align-content: center;
+  text-align: left;
+}
+
+.forbidden-code {
+  margin: 0;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(2.8rem, 9vw, 5.4rem);
+  line-height: 1;
+  color: #f25b3c;
+}
+
+.forbidden-page h1 {
+  margin: 0;
+  max-width: 640px;
+  color: #1f2a5e;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(1.2rem, 3vw, 2rem);
+}
+
+.forbidden-page p {
+  margin: 0;
+  max-width: 680px;
+  color: #3b497d;
+  line-height: 1.7;
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+
+.forbidden-page a {
+  margin-top: 12px;
+  width: fit-content;
+  text-decoration: none;
+  border-radius: 12px;
+  background: linear-gradient(140deg, #f35e3e, #3a62e8);
+  color: #fff;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 700;
+  padding: 11px 16px;
+}

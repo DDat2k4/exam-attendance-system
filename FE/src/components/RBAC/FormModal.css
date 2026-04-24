@@ -1,0 +1,180 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  max-width: 620px;
+  width: 90%;
+  max-height: 88vh;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.modal-body {
+  padding: 20px 24px 24px;
+  display: grid;
+  gap: 14px;
+  overflow-y: auto;
+  max-height: calc(88vh - 90px);
+}
+
+.modal-body input:not([type='checkbox']),
+.modal-body textarea,
+.modal-body select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  background: #fff;
+  color: #1e293b;
+  transition: border-color 0.2s;
+}
+
+.modal-body input::placeholder,
+.modal-body textarea::placeholder {
+  color: #a0aec0;
+}
+
+.modal-body input:not([type='checkbox']):focus,
+.modal-body textarea:focus,
+.modal-body select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+}
+
+.modal-body label {
+  display: block;
+  margin: 4px 0 2px;
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 14px;
+}
+
+.modal-body .inline-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.modal-body .inline-checkbox input[type='checkbox'] {
+  width: auto;
+  accent-color: #0d6efd;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 14px 24px 16px;
+  margin: 8px -24px -24px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  position: sticky;
+  bottom: -1px;
+  z-index: 2;
+}
+
+.modal-footer button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.25);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.35);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-light {
+  background: #e2e8f0;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.btn-light:hover {
+  background: #cbd5e1;
+  color: #1e293b;
+}
+
+.btn-light:active {
+  transform: scale(0.98);
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+@media (max-width: 768px) {
+  .modal-content {
+    width: 94%;
+    max-height: 92vh;
+  }
+
+  .modal-header {
+    padding: 18px;
+  }
+
+  .modal-body {
+    padding: 16px 18px 20px;
+    max-height: calc(92vh - 82px);
+    gap: 12px;
+  }
+
+  .modal-footer {
+    margin: 8px -18px -20px;
+    padding: 12px 18px 14px;
+  }
+}
