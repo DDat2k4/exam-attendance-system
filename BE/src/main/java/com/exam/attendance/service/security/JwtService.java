@@ -1,4 +1,4 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.security;
 
 import com.exam.attendance.data.pojo.JwtProperties;
 import io.jsonwebtoken.Claims;

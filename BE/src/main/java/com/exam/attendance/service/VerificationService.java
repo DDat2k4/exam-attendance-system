@@ -1,8 +1,8 @@
 package com.exam.attendance.service;
 
 import com.exam.attendance.data.entity.*;
-import com.exam.attendance.data.pojo.AttendanceStatus;
-import com.exam.attendance.data.pojo.ExamSessionStatus;
+import com.exam.attendance.data.pojo.enums.AttendanceStatus;
+import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
 import com.exam.attendance.data.request.VerifyRequest;
 import com.exam.attendance.data.response.UploadResponse;
 import com.exam.attendance.repository.*;
@@ -10,7 +10,6 @@ import com.exam.attendance.service.uploads.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Base64;

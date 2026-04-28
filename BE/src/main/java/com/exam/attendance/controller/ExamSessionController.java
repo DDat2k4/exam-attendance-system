@@ -1,18 +1,21 @@
 package com.exam.attendance.controller;
 
-import com.exam.attendance.data.entity.ExamSession;
-import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.mapper.ExamSessionMapper;
 import com.exam.attendance.data.pojo.ProctorDashboardDTO;
+import com.exam.attendance.data.pojo.enums.Action;
+import com.exam.attendance.data.pojo.enums.Resource;
 import com.exam.attendance.data.request.ExamSessionStartRequest;
 import com.exam.attendance.data.request.ProctorDashboardFilterRequest;
 import com.exam.attendance.data.response.ApiResponse;
 import com.exam.attendance.data.response.ExamSessionResponse;
 import com.exam.attendance.service.ExamSessionService;
 import com.exam.attendance.service.ProctorService;
+import com.exam.attendance.service.security.AccessControlService;
+import com.exam.attendance.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -26,19 +29,22 @@ public class ExamSessionController {
 
     private final ExamSessionService sessionService;
     private final ProctorService proctorService;
+    private final AccessControlService accessControlService;
 
-    // START EXAM (STUDENT)
+    // Bắt đầu bài thi
     @PostMapping("/start")
-    @PreAuthorize("hasAuthority('EXAM_SESSION_START')")
+    @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<ApiResponse<ExamSessionResponse>> startExam(
             @RequestBody ExamSessionStartRequest request,
-            Authentication authentication
+            Authentication auth
     ) {
 
-        User user = (User) authentication.getPrincipal();
+        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.CREATE);
+
+        Long userId = SecurityUtils.getCurrentUserId();
 
         ExamSessionResponse session = sessionService.startExam(
-                user.getId(),
+                userId,
                 request.getExamId(),
                 request.getDeviceId()
         );
@@ -47,13 +53,25 @@ public class ExamSessionController {
                 new ApiResponse<>(true, "Exam started", session));
     }
 
-
-    // END EXAM
+    // Kết thúc bài thi
     @PostMapping("/{sessionId}/end")
-    @PreAuthorize("hasAuthority('EXAM_SESSION_END')")
+    @PreAuthorize("hasAnyAuthority('STUDENT', 'PROCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> endExam(
-            @PathVariable Long sessionId
+            @PathVariable Long sessionId,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.UPDATE);
+
+        var session = sessionService.getEntity(sessionId);
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.UPDATE,
+                session.getUserId(),
+                SecurityUtils.getCurrentUserId()
+        );
 
         sessionService.endExam(sessionId);
 
@@ -62,30 +80,40 @@ public class ExamSessionController {
         );
     }
 
-    // GET BY ID
+    // Lấy danh sách bài thi theo id
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('EXAM_SESSION_VIEW')")
+    @PreAuthorize("hasAnyAuthority('STUDENT', 'PROCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<ExamSessionResponse>> getById(
             @PathVariable Long id,
-            Authentication authentication
+            Authentication auth
     ) {
 
-        User user = (User) authentication.getPrincipal();
-        ExamSessionResponse session = sessionService.getExamSessionById(id);
+        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.READ);
 
-        if (isStudent(authentication)
-                && !session.getUserId().equals(user.getId())) {
-            throw new RuntimeException("Forbidden");
+        var session = sessionService.getEntity(id);
+
+        // owner check cho student
+        if (!accessControlService.hasPermission(auth, Resource.EXAM_SESSION, Action.READ)
+                || !session.getUserId().equals(SecurityUtils.getCurrentUserId())) {
+
+            // cho phép admin/proctor bypass
+            if (!isPrivileged(auth)) {
+                throw new AccessDeniedException("Forbidden");
+            }
         }
 
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Success", session));
     }
 
-    // GET ALL
+    // Lấy toàn bộ
     @GetMapping
-    @PreAuthorize("hasAuthority('EXAM_SESSION_LIST')")
-    public ResponseEntity<ApiResponse<List<ExamSessionResponse>>> getAll() {
+    @PreAuthorize("hasAnyAuthority('STUDENT', 'PROCTOR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<List<ExamSessionResponse>>> getAll(
+            Authentication auth
+    ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.READ);
 
         var data = sessionService.getAll()
                 .stream()
@@ -97,41 +125,50 @@ public class ExamSessionController {
         );
     }
 
-    // MY SESSIONS
+    // Lấy danh sách bài thi của chính mình
     @GetMapping("/me")
-    @PreAuthorize("hasAuthority('EXAM_SESSION_VIEW_OWN')")
+    @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<ApiResponse<List<ExamSessionResponse>>> getMySessions(
-            Authentication authentication
+            Authentication auth
     ) {
 
-        User user = (User) authentication.getPrincipal();
+        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.READ);
 
-        var data = sessionService.getByUser(user.getId());
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        var data = sessionService.getByUser(userId);
 
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Success", data)
         );
     }
 
-    // DASHBOARD (PROCTOR)
+    // Dashboard
     @GetMapping("/dashboard")
-    @PreAuthorize("hasAuthority('EXAM_SESSION_DASHBOARD')")
+    @PreAuthorize("hasAuthority('PROCTOR')")
     public ResponseEntity<ApiResponse<Page<ProctorDashboardDTO>>> dashboard(
-            @ModelAttribute ProctorDashboardFilterRequest req
+            @ModelAttribute ProctorDashboardFilterRequest req,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.READ);
+
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Dashboard",
                         proctorService.getDashboard(req))
         );
     }
 
-    // FLAG
+    // Gán cờ
     @PostMapping("/{sessionId}/flag")
-    @PreAuthorize("hasAuthority('EXAM_SESSION_FLAG')")
+    @PreAuthorize("hasAuthority('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> flag(
             @PathVariable Long sessionId,
-            @RequestParam String reason
+            @RequestParam String reason,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.UPDATE);
 
         proctorService.flag(sessionId, reason);
 
@@ -140,30 +177,35 @@ public class ExamSessionController {
         );
     }
 
-    // APPROVE
+    // Duyệt bài thi
     @PostMapping("/{sessionId}/approve")
-    @PreAuthorize("hasAuthority('EXAM_SESSION_APPROVE')")
+    @PreAuthorize("hasAuthority('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> approve(
             @PathVariable Long sessionId,
-            Authentication authentication
+            Authentication auth
     ) {
 
-        User user = (User) authentication.getPrincipal();
+        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.UPDATE);
 
-        proctorService.approve(sessionId, user.getId());
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        proctorService.approve(sessionId, userId);
 
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Approved", null)
         );
     }
 
-    // REJECT
+    // Từ chối bài thi
     @PostMapping("/{sessionId}/reject")
-    @PreAuthorize("hasAuthority('EXAM_SESSION_REJECT')")
+    @PreAuthorize("hasAuthority('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> reject(
             @PathVariable Long sessionId,
-            @RequestParam String reason
+            @RequestParam String reason,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.UPDATE);
 
         proctorService.reject(sessionId, reason);
 
@@ -172,12 +214,15 @@ public class ExamSessionController {
         );
     }
 
-    // HISTORY VERIFY
+    // Lịch sử verify
     @GetMapping("/{sessionId}/verifications")
-    @PreAuthorize("hasAuthority('EXAM_SESSION_VERIFY_HISTORY')")
+    @PreAuthorize("hasAuthority('PROCTOR')")
     public ResponseEntity<ApiResponse<?>> history(
-            @PathVariable Long sessionId
+            @PathVariable Long sessionId,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.READ);
 
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "History",
@@ -185,8 +230,11 @@ public class ExamSessionController {
         );
     }
 
-    private boolean isStudent(Authentication auth) {
+    private boolean isPrivileged(Authentication auth) {
         return auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"));
+                .anyMatch(a ->
+                        a.getAuthority().equals("admin")
+                                || a.getAuthority().equals("proctor")
+                );
     }
 }

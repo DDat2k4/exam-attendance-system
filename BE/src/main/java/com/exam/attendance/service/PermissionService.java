@@ -2,7 +2,9 @@ package com.exam.attendance.service;
 
 import com.exam.attendance.data.entity.Permission;
 import com.exam.attendance.data.mapper.PermissionMapper;
+import com.exam.attendance.data.pojo.enums.Action;
 import com.exam.attendance.data.pojo.PermissionDTO;
+import com.exam.attendance.data.pojo.enums.Resource;
 import com.exam.attendance.data.request.PermissionRequest;
 import com.exam.attendance.data.response.PermissionGroupResponse;
 import com.exam.attendance.data.response.PermissionItem;
@@ -29,27 +31,54 @@ public class PermissionService {
                 .orElseThrow(() -> new RuntimeException("Permission not found"));
     }
 
-    public Page<PermissionDTO> getAll(String code, Pageable pageable) {
-        return repo.findAll(pageable)
-                .map(PermissionMapper::toDTO);
+    public Page<PermissionDTO> getAll(String resource, Pageable pageable) {
+        Page<Permission> page;
+
+        if (resource != null && !resource.isBlank()) {
+            Resource resEnum = Resource.valueOf(resource.toUpperCase());
+            page = repo.findByResource(resEnum, pageable);
+        } else {
+            page = repo.findAll(pageable);
+        }
+
+        return page.map(PermissionMapper::toDTO);
     }
 
     public Long create(PermissionRequest request) {
-        if (repo.findByCode(request.getCode()).isPresent()) {
-            throw new RuntimeException("Code already exists");
+
+        Resource resource = request.getResource();
+        Action action = request.getAction();
+
+        if (repo.existsByResourceAndAction(resource, action)) {
+            throw new RuntimeException("Permission already exists");
         }
-        Permission entity = PermissionMapper.toEntity(request);
+
+        Permission entity = new Permission();
+        entity.setResource(resource);
+        entity.setAction(action);
+        entity.setDescription(request.getDescription());
+
         return repo.save(entity).getId();
     }
 
     public void update(Long id, PermissionRequest request) {
+
         Permission entity = repo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Permission not found"));
 
-        if (repo.findByCode(request.getCode()).isPresent()) {
-            throw new RuntimeException("Code already exists");
+        Resource resource = request.getResource();
+        Action action = request.getAction();
+
+        boolean exists = repo.existsByResourceAndAction(resource, action);
+
+        if (exists && (!entity.getResource().equals(resource) || !entity.getAction().equals(action))) {
+            throw new RuntimeException("Permission already exists");
         }
-        PermissionMapper.updateEntity(entity, request);
+
+        entity.setResource(resource);
+        entity.setAction(action);
+        entity.setDescription(request.getDescription());
+
         repo.save(entity);
     }
 
@@ -71,13 +100,12 @@ public class PermissionService {
     public List<PermissionGroupResponse> getGroupedPermissions() {
 
         return repo.findAll().stream()
-                .filter(p -> p.getCode() != null && p.getCode().contains("_"))
                 .collect(Collectors.groupingBy(
-                        p -> p.getCode().split("_")[0], // GROUP
+                        p -> p.getResource().name(),
                         Collectors.mapping(p -> {
                             PermissionItem item = new PermissionItem();
                             item.setId(p.getId());
-                            item.setAction(p.getCode().split("_")[1]);
+                            item.setAction(p.getAction().name());
                             return item;
                         }, Collectors.toList())
                 ))

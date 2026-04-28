@@ -2,15 +2,19 @@ package com.exam.attendance.controller;
 
 import com.exam.attendance.data.mapper.PermissionMapper;
 import com.exam.attendance.data.pojo.PermissionDTO;
+import com.exam.attendance.data.pojo.enums.Action;
+import com.exam.attendance.data.pojo.enums.Resource;
 import com.exam.attendance.data.request.PermissionRequest;
 import com.exam.attendance.data.response.*;
 import com.exam.attendance.service.PermissionService;
 
+import com.exam.attendance.service.security.AccessControlService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.*;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,10 +25,17 @@ import java.util.List;
 public class PermissionController {
 
     private final PermissionService service;
+    private final AccessControlService accessControl;
 
+    // Lấy permission theo id
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('PERMISSION_READ')")
-    public ResponseEntity<ApiResponse<PermissionResponse>> getById(@PathVariable Long id) {
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponse<PermissionResponse>> getById(
+            @PathVariable Long id,
+            Authentication auth
+    ) {
+
+        accessControl.checkPermission(auth, Resource.PERMISSION, Action.READ);
 
         PermissionDTO dto = service.getById(id);
 
@@ -34,18 +45,22 @@ public class PermissionController {
         );
     }
 
+    // Phân trang, lọc permission
     @GetMapping
-    @PreAuthorize("hasAuthority('PERMISSION_READ')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Page<PermissionResponse>>> getAll(
-            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String resource,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            Authentication auth
     ) {
+
+        accessControl.checkPermission(auth, Resource.PERMISSION, Action.READ);
 
         Pageable pageable = PageRequest.of(page - 1, size);
 
         Page<PermissionResponse> result = service
-                .getAll(code, pageable)
+                .getAll(resource, pageable)
                 .map(PermissionMapper::toResponse);
 
         return ResponseEntity.ok(
@@ -53,11 +68,15 @@ public class PermissionController {
         );
     }
 
+    // Tạo mới permission
     @PostMapping
-    @PreAuthorize("hasAuthority('PERMISSION_CREATE')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Long>> create(
-            @RequestBody PermissionRequest request
+            @RequestBody PermissionRequest request,
+            Authentication auth
     ) {
+
+        accessControl.checkPermission(auth, Resource.PERMISSION, Action.CREATE);
 
         Long id = service.create(request);
 
@@ -65,12 +84,16 @@ public class PermissionController {
                 .body(new ApiResponse<>(true, "Permission created", id));
     }
 
+    // Cập nhật permission
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('PERMISSION_UPDATE')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> update(
             @PathVariable Long id,
-            @RequestBody PermissionRequest request
+            @RequestBody PermissionRequest request,
+            Authentication auth
     ) {
+
+        accessControl.checkPermission(auth, Resource.PERMISSION, Action.UPDATE);
 
         service.update(id, request);
 
@@ -79,9 +102,15 @@ public class PermissionController {
         );
     }
 
+    // Xóa permission
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('PERMISSION_DELETE')")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @PathVariable Long id,
+            Authentication auth
+    ) {
+
+        accessControl.checkPermission(auth, Resource.PERMISSION, Action.DELETE);
 
         service.delete(id);
 
@@ -90,9 +119,14 @@ public class PermissionController {
         );
     }
 
+    // Trả về danh sách permission
     @GetMapping("/grouped")
-    @PreAuthorize("hasAuthority('PERMISSION_READ')")
-    public ResponseEntity<ApiResponse<List<PermissionGroupResponse>>> getGrouped() {
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponse<List<PermissionGroupResponse>>> getGrouped(
+            Authentication auth
+    ) {
+
+        accessControl.checkPermission(auth, Resource.PERMISSION, Action.READ);
 
         return ResponseEntity.ok(
                 new ApiResponse<>(

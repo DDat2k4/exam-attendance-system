@@ -1,4 +1,4 @@
-package com.exam.attendance.service.sso;
+package com.exam.attendance.service.security.sso;
 
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.entity.UserProfile;
@@ -7,7 +7,7 @@ import com.exam.attendance.data.response.AuthResponse;
 import com.exam.attendance.repository.UserProfileRepository;
 import com.exam.attendance.repository.UserRepository;
 import com.exam.attendance.service.UserService;
-import com.exam.attendance.service.JwtService;
+import com.exam.attendance.service.security.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

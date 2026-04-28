@@ -32,15 +32,15 @@ spring:
               - profile
             redirect-uri: http://localhost:8080/login/oauth2/code/google
             client-name: Google
-
-          facebook:
-            client-id: ${FACEBOOK_CLIENT_ID}
-            client-secret: ${FACEBOOK_CLIENT_SECRET}
-            scope:
-              - email
-              - public_profile
-            redirect-uri: http://localhost:8080/login/oauth2/code/facebook
-            client-name: Facebook
+#
+#          facebook:
+#            client-id: ${FACEBOOK_CLIENT_ID}
+#            client-secret: ${FACEBOOK_CLIENT_SECRET}
+#            scope:
+#              - email
+#              - public_profile
+#            redirect-uri: http://localhost:8080/login/oauth2/code/facebook
+#            client-name: Facebook
 
         provider:
           facebook:

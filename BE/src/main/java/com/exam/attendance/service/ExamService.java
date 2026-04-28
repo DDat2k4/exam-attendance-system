@@ -122,4 +122,9 @@ public class ExamService {
     public void deleteRoom(Long roomId) {
         roomRepository.deleteById(roomId);
     }
+
+    public ExamResponse getExamEntity(Long id) {
+        Exam exam = getById(id);
+        return ExamMapper.toResponse(exam);
+    }
 }

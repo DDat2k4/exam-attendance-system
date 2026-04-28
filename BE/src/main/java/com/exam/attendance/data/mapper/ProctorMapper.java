@@ -3,9 +3,9 @@ package com.exam.attendance.data.mapper;
 import com.exam.attendance.data.entity.AttendanceSession;
 import com.exam.attendance.data.entity.ExamSession;
 import com.exam.attendance.data.entity.IdentityVerification;
-import com.exam.attendance.data.pojo.AttendanceStatus;
+import com.exam.attendance.data.pojo.enums.AttendanceStatus;
 import com.exam.attendance.data.pojo.ProctorDashboardDTO;
-import com.exam.attendance.data.pojo.RiskLevel;
+import com.exam.attendance.data.pojo.enums.RiskLevel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -79,7 +79,7 @@ public class ProctorMapper {
             score += 3;
         }
 
-        // 2. NO IDENTITY VERIFICATION
+        // 2. NO IDENTITY_VERIFICATION
         if (iv == null || confidence == null) {
             score += 2;
         } else {

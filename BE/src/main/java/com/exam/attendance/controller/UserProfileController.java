@@ -2,10 +2,14 @@ package com.exam.attendance.controller;
 
 import com.exam.attendance.data.mapper.UserProfileMapper;
 import com.exam.attendance.data.pojo.UserProfileDTO;
+import com.exam.attendance.data.pojo.enums.Action;
+import com.exam.attendance.data.pojo.enums.Resource;
 import com.exam.attendance.data.request.UserProfileRequest;
 import com.exam.attendance.data.response.ApiResponse;
 import com.exam.attendance.data.response.UserProfileResponse;
 import com.exam.attendance.service.UserProfileService;
+import com.exam.attendance.service.security.AccessControlService;
+import com.exam.attendance.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -13,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,25 +26,42 @@ import org.springframework.web.bind.annotation.*;
 public class UserProfileController {
 
     private final UserProfileService service;
+    private final AccessControlService accessControlService;
 
+    // Lấy profile theo id
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('USER_PROFILE_READ')")
-    public ResponseEntity<ApiResponse<UserProfileResponse>> getById(@PathVariable Long id) {
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> getById(@PathVariable Long id,
 
+                                                                    Authentication auth) {
         UserProfileDTO dto = service.getById(id);
+
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.USER_PROFILE,
+                Action.READ,
+                dto.getUserId(),
+                currentUserId
+        );
 
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Profile fetched", UserProfileMapper.toResponse(dto))
         );
     }
 
+    // Lấy danh sách profile (phân trang)
     @GetMapping
-    @PreAuthorize("hasAuthority('USER_PROFILE_READ_PAGE')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Page<UserProfileResponse>>> getAll(
             @RequestParam(required = false) String name,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.USER_PROFILE, Action.READ);
 
         Pageable pageable = PageRequest.of(page - 1, size);
 
@@ -52,11 +74,15 @@ public class UserProfileController {
         );
     }
 
+    // Tạo profile
     @PostMapping
-    @PreAuthorize("hasAuthority('USER_PROFILE_CREATE')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Long>> create(
-            @RequestBody UserProfileRequest request
+            @RequestBody UserProfileRequest request,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.USER_PROFILE, Action.CREATE);
 
         Long id = service.create(request);
 
@@ -64,12 +90,16 @@ public class UserProfileController {
                 .body(new ApiResponse<>(true, "Profile created", id));
     }
 
+    // Cập nhật profile
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('USER_PROFILE_UPDATE')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> update(
             @PathVariable Long id,
-            @RequestBody UserProfileRequest request
+            @RequestBody UserProfileRequest request,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.USER_PROFILE, Action.UPDATE);
 
         service.update(id, request);
 
@@ -78,9 +108,13 @@ public class UserProfileController {
         );
     }
 
+    // Xóa profile
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('USER_PROFILE_DELETE')")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR')")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id,
+                                                    Authentication auth) {
+
+        accessControlService.checkPermission(auth, Resource.USER_PROFILE, Action.DELETE);
 
         service.delete(id);
 

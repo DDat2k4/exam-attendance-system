@@ -1,9 +1,9 @@
 package com.exam.attendance.config;
 
-import com.exam.attendance.service.sso.CustomOidcUserService;
-import com.exam.attendance.service.sso.CustomOAuth2UserService;
-import com.exam.attendance.service.sso.OAuth2FailureHandler;
-import com.exam.attendance.service.sso.OAuth2SuccessHandler;
+import com.exam.attendance.service.security.sso.CustomOidcUserService;
+import com.exam.attendance.service.security.sso.CustomOAuth2UserService;
+import com.exam.attendance.service.security.sso.OAuth2FailureHandler;
+import com.exam.attendance.service.security.sso.OAuth2SuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

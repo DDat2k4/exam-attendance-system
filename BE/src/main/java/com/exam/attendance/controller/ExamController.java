@@ -1,14 +1,16 @@
 package com.exam.attendance.controller;
 
-import com.exam.attendance.data.entity.User;
+import com.exam.attendance.data.pojo.enums.Action;
+import com.exam.attendance.data.pojo.enums.Resource;
 import com.exam.attendance.data.request.ExamRequest;
 import com.exam.attendance.data.request.ExamRoomRequest;
 import com.exam.attendance.data.response.*;
 import com.exam.attendance.service.ExamService;
+import com.exam.attendance.service.security.AccessControlService;
+import com.exam.attendance.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,45 +20,50 @@ import org.springframework.web.bind.annotation.*;
 public class ExamController {
 
     private final ExamService examService;
+    private final AccessControlService accessControlService;
 
     // Tạo exam
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('EXAM_CREATE')")
     public ResponseEntity<ApiResponse<ExamResponse>> createExam(
             @RequestBody ExamRequest request,
-            Authentication authentication
+            Authentication auth
     ) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("Unauthorized");
-        }
-        User user = (User) authentication.getPrincipal();
-        var exam = examService.createExam(request, user.getId());
+
+        accessControlService.checkPermission(auth, Resource.EXAM, Action.CREATE);
+
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        var exam = examService.createExam(request, userId);
 
         return ResponseEntity.status(201)
                 .body(new ApiResponse<>(true, "Created", exam));
     }
 
-    // Get all không có rooms, lọc, phân trang
+    // Phân trang exam
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('EXAM_PAGE')")
     public ResponseEntity<ApiResponse<Page<ExamResponse>>> getExams(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM, Action.READ);
+
         return ResponseEntity.ok(
-                new ApiResponse<>(
-                        true,
-                        "Success",
-                        examService.getExams(keyword, page, size)
-                )
+                new ApiResponse<>(true, "Success",
+                        examService.getExams(keyword, page, size))
         );
     }
 
-    // Get có rooms
+    // Tìm exam theo id
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('EXAM_READ')")
-    public ResponseEntity<ApiResponse<ExamResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ExamResponse>> getById(
+            @PathVariable Long id,
+            Authentication auth
+    ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM, Action.READ);
 
         var exam = examService.getExamById(id);
 
@@ -64,41 +71,65 @@ public class ExamController {
                 new ApiResponse<>(true, "Success", exam));
     }
 
-    // Cập nhật
+    // Cập nhật exam theo id
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('EXAM_UPDATE')")
     public ResponseEntity<ApiResponse<ExamResponse>> update(
             @PathVariable Long id,
             @RequestBody ExamRequest request,
-            Authentication authentication
+            Authentication auth
     ) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("Unauthorized");
-        }
-        User user = (User) authentication.getPrincipal();
-        var exam = examService.updateExam(id, request, user.getId());
+
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        var exam = examService.getExamEntity(id);
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM,
+                Action.UPDATE,
+                exam.getCreatedById(),
+                currentUserId
+        );
+
+        var updated = examService.updateExam(id, request, currentUserId);
 
         return ResponseEntity.ok(
-                new ApiResponse<>(true, "Updated", exam));
+                new ApiResponse<>(true, "Updated", updated));
     }
 
-    // Xóa
+    // Xóa exam theo id
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('EXAM_DELETE')")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @PathVariable Long id,
+            Authentication auth
+    ) {
+
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        var exam = examService.getExamEntity(id);
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM,
+                Action.DELETE,
+                exam.getCreatedById(),
+                currentUserId
+        );
 
         examService.deleteExam(id);
 
         return ResponseEntity.ok(new ApiResponse<>(true, "Deleted", null));
     }
 
-    // Tạo room
+    // Tạo room theo examId
     @PostMapping("/{examId}/rooms")
-    @PreAuthorize("hasAnyAuthority('EXAM_ROOM_CREATE')")
     public ResponseEntity<ApiResponse<ExamRoomResponse>> createRoom(
             @PathVariable Long examId,
-            @RequestBody ExamRoomRequest request
+            @RequestBody ExamRoomRequest request,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.CREATE);
 
         var room = examService.createRoom(examId, request);
 
@@ -108,8 +139,12 @@ public class ExamController {
 
     // Xóa room
     @DeleteMapping("/rooms/{roomId}")
-    @PreAuthorize("hasAnyAuthority('EXAM_ROOM_DELETE')")
-    public ResponseEntity<ApiResponse<Void>> deleteRoom(@PathVariable Long roomId) {
+    public ResponseEntity<ApiResponse<Void>> deleteRoom(
+            @PathVariable Long roomId,
+            Authentication auth
+    ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.DELETE);
 
         examService.deleteRoom(roomId);
 

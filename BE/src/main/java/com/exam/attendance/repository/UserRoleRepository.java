@@ -1,5 +1,6 @@
 package com.exam.attendance.repository;
 
+import com.exam.attendance.data.entity.Permission;
 import com.exam.attendance.data.entity.UserRole;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -28,14 +29,14 @@ public interface UserRoleRepository extends JpaRepository<UserRole, Long> {
 
     // Lấy permissions của user
     @Query("""
-        SELECT DISTINCT p.code
-        FROM UserRole ur
-        JOIN ur.role r
-        JOIN RolePermission rp ON rp.role.id = r.id
-        JOIN rp.permission p
-        WHERE ur.user.id = :userId
-    """)
-    Set<String> findPermissionsByUserId(@Param("userId") Long userId);
+    SELECT DISTINCT p
+    FROM UserRole ur
+    JOIN ur.role r
+    JOIN RolePermission rp ON rp.role.id = r.id
+    JOIN rp.permission p
+    WHERE ur.user.id = :userId
+""")
+    Set<Permission> findPermissionsByUserId(@Param("userId") Long userId);
 
     // Xóa role của user
     @Modifying

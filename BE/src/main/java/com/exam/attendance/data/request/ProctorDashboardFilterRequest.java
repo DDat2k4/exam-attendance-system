@@ -1,7 +1,6 @@
 package com.exam.attendance.data.request;
 
-import com.exam.attendance.data.pojo.ExamSessionStatus;
-import com.exam.attendance.data.pojo.RiskLevel;
+import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
 import lombok.Data;
 
 @Data

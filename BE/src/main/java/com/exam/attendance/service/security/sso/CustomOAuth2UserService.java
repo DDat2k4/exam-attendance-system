@@ -1,4 +1,4 @@
-package com.exam.attendance.service.sso;
+package com.exam.attendance.service.security.sso;
 
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.entity.UserToken;
@@ -7,7 +7,7 @@ import com.exam.attendance.data.response.UserDetailResponse;
 import com.exam.attendance.data.mapper.UserMapper;
 import com.exam.attendance.repository.UserRepository;
 import com.exam.attendance.repository.UserTokenRepository;
-import com.exam.attendance.service.JwtService;
+import com.exam.attendance.service.security.JwtService;
 import com.exam.attendance.service.UserService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;

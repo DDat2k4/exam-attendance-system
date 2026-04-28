@@ -4,8 +4,8 @@ import com.exam.attendance.data.entity.AttendanceSession;
 import com.exam.attendance.data.entity.ExamSession;
 import com.exam.attendance.data.entity.IdentityVerification;
 import com.exam.attendance.data.mapper.ProctorMapper;
-import com.exam.attendance.data.pojo.AttendanceStatus;
-import com.exam.attendance.data.pojo.ExamSessionStatus;
+import com.exam.attendance.data.pojo.enums.AttendanceStatus;
+import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
 import com.exam.attendance.data.pojo.ProctorDashboardDTO;
 import com.exam.attendance.data.request.ProctorDashboardFilterRequest;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 
 @Service

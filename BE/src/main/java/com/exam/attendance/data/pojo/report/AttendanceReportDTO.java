@@ -1,6 +1,6 @@
 package com.exam.attendance.data.pojo.report;
 
-import com.exam.attendance.data.pojo.AttendanceStatus;
+import com.exam.attendance.data.pojo.enums.AttendanceStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

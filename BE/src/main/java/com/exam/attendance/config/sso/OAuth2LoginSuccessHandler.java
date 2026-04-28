@@ -8,7 +8,7 @@ import com.exam.attendance.data.response.AuthResponse;
 import com.exam.attendance.repository.UserProfileRepository;
 import com.exam.attendance.repository.UserRepository;
 import com.exam.attendance.repository.UserTokenRepository;
-import com.exam.attendance.service.JwtService;
+import com.exam.attendance.service.security.JwtService;
 import com.exam.attendance.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;

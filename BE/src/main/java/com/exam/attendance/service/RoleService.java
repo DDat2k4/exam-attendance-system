@@ -41,24 +41,26 @@ public class RoleService {
 
         // lấy page role
         Page<Role> rolePage = repo.search(keyword, pageable);
-
         List<Role> roles = rolePage.getContent();
 
-        // lấy permissions theo roleIds
+        // lấy roleIds
         List<Long> roleIds = roles.stream()
                 .map(Role::getId)
                 .toList();
 
+        // lấy role-permissions
         List<RolePermission> rpList = roleIds.isEmpty()
                 ? List.of()
                 : rolePermissionRepository.findByRoleIds(roleIds);
 
-        // map roleId -> permissionCodes
         Map<Long, List<String>> permissionMap = rpList.stream()
                 .collect(Collectors.groupingBy(
                         rp -> rp.getRole().getId(),
                         Collectors.mapping(
-                                rp -> rp.getPermission().getCode(),
+                                rp -> buildCode(
+                                        rp.getPermission().getResource().toString(),
+                                        rp.getPermission().getAction().toString()
+                                ),
                                 Collectors.toList()
                         )
                 ));
@@ -70,7 +72,6 @@ public class RoleService {
             return dto;
         }).toList();
 
-        // return page mới
         return new PageImpl<>(dtoList, pageable, rolePage.getTotalElements());
     }
 
@@ -105,5 +106,9 @@ public class RoleService {
         }
 
         repo.deleteById(id);
+    }
+
+    private String buildCode(String resource, String action) {
+        return resource.toLowerCase() + ":" + action.toLowerCase();
     }
 }

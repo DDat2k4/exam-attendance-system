@@ -1,4 +1,4 @@
-package com.exam.attendance.data.pojo;
+package com.exam.attendance.data.pojo.enums;
 
 public enum ExamSessionStatus {
     STARTED,

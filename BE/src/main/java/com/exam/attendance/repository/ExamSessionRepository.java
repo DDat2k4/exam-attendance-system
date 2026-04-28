@@ -1,7 +1,7 @@
 package com.exam.attendance.repository;
 
 import com.exam.attendance.data.entity.ExamSession;
-import com.exam.attendance.data.pojo.ExamSessionStatus;
+import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
 import com.exam.attendance.data.pojo.ProctorDashboardDTO;
 import com.exam.attendance.data.pojo.report.SummaryDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -110,11 +110,10 @@ AND (
     @Query("""
 SELECT new com.exam.attendance.data.pojo.report.SummaryDTO(
     COUNT(DISTINCT es.id),
-
-    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.AttendanceStatus.VERIFIED THEN 1L ELSE 0L END), 0L),
-    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.AttendanceStatus.FAILED THEN 1L ELSE 0L END), 0L),
-    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.AttendanceStatus.BLOCKED THEN 1L ELSE 0L END), 0L),
-    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.AttendanceStatus.PENDING THEN 1L ELSE 0L END), 0L)
+    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.enums.AttendanceStatus.VERIFIED THEN 1L ELSE 0L END), 0L),
+    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.enums.AttendanceStatus.FAILED THEN 1L ELSE 0L END), 0L),
+    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.enums.AttendanceStatus.BLOCKED THEN 1L ELSE 0L END), 0L),
+    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.enums.AttendanceStatus.PENDING THEN 1L ELSE 0L END), 0L)
 
 )
 FROM ExamSession es

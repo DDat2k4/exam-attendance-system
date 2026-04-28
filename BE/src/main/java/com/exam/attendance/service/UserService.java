@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,7 +41,10 @@ public class UserService {
 
         Set<String> permissions = Optional
                 .ofNullable(userRoleRepository.findPermissionsByUserId(userId))
-                .orElse(Collections.emptySet());
+                .orElse(Collections.emptySet())
+                .stream()
+                .map(Permission::toAuthority)
+                .collect(Collectors.toSet());
 
         List<String> tokens = userTokenRepository.findActiveTokensByUserId(userId)
                 .stream()

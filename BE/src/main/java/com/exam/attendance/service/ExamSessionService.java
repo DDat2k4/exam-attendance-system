@@ -2,10 +2,10 @@ package com.exam.attendance.service;
 
 import com.exam.attendance.data.entity.*;
 import com.exam.attendance.data.mapper.ExamSessionMapper;
-import com.exam.attendance.data.pojo.AttendanceStatus;
-import com.exam.attendance.data.pojo.ExamSessionStatus;
+import com.exam.attendance.data.pojo.enums.AttendanceStatus;
+import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
 import com.exam.attendance.data.pojo.ProctorDashboardDTO;
-import com.exam.attendance.data.pojo.RiskLevel;
+import com.exam.attendance.data.pojo.enums.RiskLevel;
 import com.exam.attendance.data.request.ProctorDashboardFilterRequest;
 import com.exam.attendance.data.response.ExamSessionResponse;
 import com.exam.attendance.repository.*;
@@ -236,5 +236,11 @@ public class ExamSessionService {
         if (score >= 2) return RiskLevel.MEDIUM;
 
         return RiskLevel.LOW;
+    }
+
+    public ExamSessionResponse getEntity(Long id) {
+        ExamSession session = examSessionRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Session not found"));
+        return ExamSessionMapper.toResponse(session);
     }
 }

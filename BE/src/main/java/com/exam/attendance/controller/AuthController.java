@@ -5,7 +5,7 @@ import com.exam.attendance.data.request.RegisterRequest;
 import com.exam.attendance.data.request.RefreshRequest;
 import com.exam.attendance.data.response.ApiResponse;
 import com.exam.attendance.data.response.AuthResponse;
-import com.exam.attendance.service.AuthService;
+import com.exam.attendance.service.security.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;

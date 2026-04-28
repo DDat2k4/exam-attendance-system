@@ -1,20 +1,19 @@
 package com.exam.attendance.controller;
 
-import com.exam.attendance.data.entity.ExamRegistration;
-import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.mapper.ExamRegistrationMapper;
+import com.exam.attendance.data.pojo.enums.Action;
+import com.exam.attendance.data.pojo.enums.Resource;
 import com.exam.attendance.data.request.ExamRegistrationRequest;
 import com.exam.attendance.data.response.*;
 import com.exam.attendance.service.ExamRegistrationService;
 
-import com.exam.attendance.service.UserService;
+import com.exam.attendance.service.security.AccessControlService;
+import com.exam.attendance.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.*;
 import org.springframework.http.*;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,23 +22,31 @@ import org.springframework.web.bind.annotation.*;
 public class ExamRegistrationController {
 
     private final ExamRegistrationService service;
+    private final AccessControlService accessControlService;
 
     // Lấy theo ID
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('EXAM_REGISTRATION_READ')")
-    public ResponseEntity<ApiResponse<ExamRegistrationResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ExamRegistrationResponse>> getById(
+            @PathVariable Long id,
+            Authentication auth
+    ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_REGISTRATION, Action.READ);
+
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Exam registration fetched", service.getById(id)));
     }
 
     // Lấy danh sách theo exam
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('EXAM_REGISTRATION_PAGE')")
     public ResponseEntity<ApiResponse<Page<ExamRegistrationResponse>>> getAll(
             @RequestParam Long examId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_REGISTRATION, Action.READ);
 
         Pageable pageable = PageRequest.of(page - 1, size);
 
@@ -54,11 +61,14 @@ public class ExamRegistrationController {
 
     // Add 1 user vào exam
     @PostMapping("/single")
-    @PreAuthorize("hasAnyAuthority('EXAM_REGISTRATION_CREATE')")
     public ResponseEntity<ApiResponse<Void>> addUser(
             @RequestParam Long userId,
-            @RequestParam Long examId
+            @RequestParam Long examId,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_REGISTRATION, Action.CREATE);
+
         service.addUserToExam(userId, examId);
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -67,10 +77,13 @@ public class ExamRegistrationController {
 
     // Add nhiều user
     @PostMapping("/batch")
-    @PreAuthorize("hasAnyAuthority('EXAM_REGISTRATION_CREATE')")
     public ResponseEntity<ApiResponse<Void>> addUsers(
-            @RequestBody ExamRegistrationRequest request
+            @RequestBody ExamRegistrationRequest request,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_REGISTRATION, Action.CREATE);
+
         service.addUsersToExam(request.getUserIds(), request.getExamId());
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -79,11 +92,13 @@ public class ExamRegistrationController {
 
     // Remove user khỏi exam
     @DeleteMapping
-    @PreAuthorize("hasAnyAuthority('EXAM_REGISTRATION_DELETE')")
     public ResponseEntity<ApiResponse<Void>> removeUser(
             @RequestParam Long userId,
-            @RequestParam Long examId
+            @RequestParam Long examId,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_REGISTRATION, Action.DELETE);
 
         service.removeUserFromExam(userId, examId);
 
@@ -94,11 +109,13 @@ public class ExamRegistrationController {
 
     // Check user có trong exam không
     @GetMapping("/check")
-    @PreAuthorize("hasAnyAuthority('EXAM_REGISTRATION_READ')")
     public ResponseEntity<ApiResponse<Boolean>> check(
             @RequestParam Long userId,
-            @RequestParam Long examId
+            @RequestParam Long examId,
+            Authentication auth
     ) {
+
+        accessControlService.checkPermission(auth, Resource.EXAM_REGISTRATION, Action.READ);
 
         boolean exists = service.isRegistered(userId, examId);
 
@@ -108,20 +125,22 @@ public class ExamRegistrationController {
     }
 
     @GetMapping("/my-exams")
-    @PreAuthorize("hasAnyAuthority('EXAM_REGISTRATION_READ_OWN')")
     public ResponseEntity<ApiResponse<Page<ExamRegistrationResponse>>> getMyExams(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            Authentication authentication
+            Authentication auth
     ) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("Unauthorized");
-        }
-        User user = (User) authentication.getPrincipal();
+
+        accessControlService.checkPermission(auth, Resource.EXAM_REGISTRATION, Action.READ);
+
+        Long userId = SecurityUtils.getCurrentUserId();
+
         Pageable pageable = PageRequest.of(page - 1, size);
+
         Page<ExamRegistrationResponse> result = service
-                .getByUserId(user.getId(), pageable)
+                .getByUserId(userId, pageable)
                 .map(ExamRegistrationMapper::toResponse);
+
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "My exams fetched", result)
         );

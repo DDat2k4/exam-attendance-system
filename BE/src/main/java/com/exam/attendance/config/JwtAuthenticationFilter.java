@@ -2,7 +2,7 @@ package com.exam.attendance.config;
 
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.repository.UserRepository;
-import com.exam.attendance.service.JwtService;
+import com.exam.attendance.service.security.JwtService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

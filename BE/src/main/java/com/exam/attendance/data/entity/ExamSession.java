@@ -1,6 +1,6 @@
 package com.exam.attendance.data.entity;
 
-import com.exam.attendance.data.pojo.ExamSessionStatus;
+import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
