@@ -93,8 +93,8 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                 : new HashSet<>();
 
         // Sinh token
-        String accessToken = jwtService.generateToken(user.getUsername(), roles, permissions);
-        String refreshToken = jwtService.generateRefreshToken(user.getUsername());
+        String accessToken = jwtService.generateToken(user.getId(), roles, permissions);
+        String refreshToken = jwtService.generateRefreshToken(user.getId());
 
         // Trả về response
         AuthResponse authResponse = new AuthResponse();

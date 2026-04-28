@@ -21,9 +21,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -37,45 +35,56 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     @Override
     @Transactional
-    public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        OAuth2User oauth2User = new DefaultOAuth2UserService().loadUser(userRequest);
+    public OAuth2User loadUser(OAuth2UserRequest userRequest)
+            throws OAuth2AuthenticationException {
+
+        OAuth2User oauth2User =
+                new DefaultOAuth2UserService().loadUser(userRequest);
+
+        String provider = userRequest.getClientRegistration()
+                .getRegistrationId();
 
         String email = (String) oauth2User.getAttributes().get("email");
-        String tmpUsername = email != null ? email : "fb-" + oauth2User.getAttributes().get("id");
+        String providerId = String.valueOf(oauth2User.getAttributes().get("id"));
 
-        // provision local user
-        User user = userRepository.findByEmail(email).orElseGet(() -> {
-            User u = new User();
-            u.setUid(UUID.randomUUID());
-            u.setUsername(tmpUsername);
-            u.setEmail(email);
-            u.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
-            u.setActive((short) 1);
-            u.setCreatedAt(LocalDateTime.now());
-            u.setFailedAttempts(0);
-            return userRepository.save(u);
-        });
+        String username = email != null ? email : provider + "-" + providerId;
+
+        // identity = provider + providerId
+        User user = userRepository
+                .findByProviderAndProviderId(provider, providerId)
+                .orElseGet(() -> {
+                    User u = new User();
+                    u.setUid(UUID.randomUUID());
+                    u.setUsername(username);
+                    u.setEmail(email);
+                    u.setProvider(provider);
+                    u.setProviderId(providerId);
+                    u.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+                    u.setActive((short) 1);
+                    u.setCreatedAt(LocalDateTime.now());
+                    u.setFailedAttempts(0);
+                    return userRepository.save(u);
+                });
 
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
 
-        // revoke old tokens
-        userTokenRepository.findActiveTokensByUserId(user.getId()).forEach(t -> {
-            t.setRevoked(true);
-            userTokenRepository.save(t);
-        });
+        // revoke tokens
+        userTokenRepository.revokeAllTokensByUserId(user.getId());
 
-        // Lấy roles + permissions qua UserService + UserMapper
         UserDTO dto = userService.getUserById(user.getId());
         UserDetailResponse userDetail = UserMapper.toResponse(dto);
 
-        // issue new tokens
+        Set<String> roles = new HashSet<>(userDetail.getRoles());
+        Set<String> permissions = new HashSet<>(userDetail.getPermissions());
+
         String accessToken = jwtService.generateToken(
-                user.getUsername(),
-                userDetail.getRoles(),
-                userDetail.getPermissions()
+                user.getId(),
+                roles,
+                permissions
         );
-        String refreshToken = jwtService.generateRefreshToken(user.getUsername());
+
+        String refreshToken = jwtService.generateRefreshToken(user.getId());
 
         UserToken ut = new UserToken();
         ut.setUser(user);
@@ -85,15 +94,17 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         ut.setRevoked(false);
         userTokenRepository.save(ut);
 
-        // attach local tokens + roles/permissions
+        // CLEAN OAuth2 attributes
         Map<String, Object> attrs = new HashMap<>(oauth2User.getAttributes());
-        attrs.put("localAccessToken", accessToken);
-        attrs.put("localRefreshToken", refreshToken);
-        attrs.put("localUsername", user.getUsername());
-        attrs.put("roles", userDetail.getRoles());
-        attrs.put("permissions", userDetail.getPermissions());
+        attrs.put("userId", user.getId());
+        attrs.put("email", email);
+        attrs.put("roles", roles);
+        attrs.put("permissions", permissions);
 
-        return new DefaultOAuth2User(oauth2User.getAuthorities(), attrs, "id");
+        return new DefaultOAuth2User(
+                oauth2User.getAuthorities(),
+                attrs,
+                "sub"
+        );
     }
 }
-

@@ -73,7 +73,7 @@ public class AuthService {
         UserDetailResponse userDetail = UserMapper.toResponse(dto);
 
         String newAccessToken = jwtService.generateToken(
-                user.getUsername(),
+                user.getId(),
                 userDetail.getRoles(),
                 userDetail.getPermissions()
         );
@@ -161,12 +161,12 @@ public class AuthService {
         UserDetailResponse userDetail = UserMapper.toResponse(dto);
 
         String accessToken = jwtService.generateToken(
-                user.getUsername(),
+                user.getId(),
                 userDetail.getRoles(),
                 userDetail.getPermissions()
         );
 
-        String refreshToken = jwtService.generateRefreshToken(user.getUsername());
+        String refreshToken = jwtService.generateRefreshToken(user.getId());
 
         UserToken userToken = new UserToken();
         userToken.setUser(user);

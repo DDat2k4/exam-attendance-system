@@ -91,4 +91,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     );
 
     Optional<User> findByCitizenCardCitizenId(String citizenId);
+
+    Optional<User> findByProviderAndProviderId(String provider, String providerId);
 }

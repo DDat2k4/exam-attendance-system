@@ -2,6 +2,7 @@ package com.exam.attendance.config;
 
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.repository.UserRepository;
+import com.exam.attendance.security.CustomUserPrincipal;
 import com.exam.attendance.service.security.JwtService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -20,87 +21,98 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserRepository userRepository;
 
     private static final String COOKIE_NAME = "ACCESS_TOKEN";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
-        String token = null;
-
-        // Lấy token từ header
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-        } else if (request.getCookies() != null) {
-            // Hoặc từ cookie
-            Optional<Cookie> accessCookie = Arrays.stream(request.getCookies())
-                    .filter(c -> COOKIE_NAME.equals(c.getName()))
-                    .findFirst();
-            if (accessCookie.isPresent()) {
-                token = accessCookie.get().getValue();
-            }
-        }
+        String token = extractToken(request);
 
         if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String username;
         try {
-            username = jwtService.extractUsername(token);
-        } catch (Exception ex) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+            Long userId = jwtService.extractUserId(token);
+            Claims claims = jwtService.parseClaims(token);
 
-        // Nếu chưa có auth trong context thì mới set
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            User user = userRepository.findByUsername(username).orElse(null);
-
-            if (user != null && jwtService.validateToken(token, user.getUsername())) {
-                // Lấy claims từ token
-                Claims claims = jwtService.parseClaims(token);
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
 
                 List<String> roles = claims.get("roles", List.class);
                 List<String> perms = claims.get("permissions", List.class);
 
-                // Map roles & perms thành GrantedAuthority
                 Collection<GrantedAuthority> authorities = new ArrayList<>();
+
                 if (roles != null) {
                     authorities.addAll(
                             roles.stream()
                                     .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
-                                    .collect(Collectors.toList())
+                                    .toList()
                     );
                 }
+
                 if (perms != null) {
                     authorities.addAll(
                             perms.stream()
                                     .map(SimpleGrantedAuthority::new)
-                                    .collect(Collectors.toList())
+                                    .toList()
                     );
                 }
 
-                var authToken = new UsernamePasswordAuthenticationToken(
-                        user, null, authorities
+                CustomUserPrincipal principal = new CustomUserPrincipal(
+                        userId,
+                        null, // hoặc username nếu bạn muốn decode thêm
+                        authorities,
+                        true
                 );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                UsernamePasswordAuthenticationToken auth =
+                        new UsernamePasswordAuthenticationToken(
+                                principal,
+                                null,
+                                authorities
+                        );
+
+                auth.setDetails(
+                        new WebAuthenticationDetailsSource().buildDetails(request)
+                );
+
+                SecurityContextHolder.getContext().setAuthentication(auth);
             }
+
+        } catch (Exception ex) {
+            // ignore token invalid
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String extractToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+
+        if (request.getCookies() != null) {
+            return Arrays.stream(request.getCookies())
+                    .filter(c -> COOKIE_NAME.equals(c.getName()))
+                    .map(Cookie::getValue)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        return null;
     }
 }

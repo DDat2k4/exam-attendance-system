@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -24,9 +25,9 @@ public class JwtService {
     }
 
     // Tạo Access Token
-    public String generateToken(String username, Set<String> roles, Set<String> permissions) {
+    public String generateToken(Long userId, Set<String> roles, Set<String> permissions) {
         return Jwts.builder()
-                .setSubject(username)
+                .setSubject(String.valueOf(userId))
                 .claim("roles", roles)
                 .claim("permissions", permissions)
                 .setIssuedAt(new Date())
@@ -36,11 +37,14 @@ public class JwtService {
     }
 
     // Tạo Refresh Token
-    public String generateRefreshToken(String username) {
+    public String generateRefreshToken(Long userId) {
         return Jwts.builder()
-                .setSubject(username)
+                .setSubject(String.valueOf(userId))
+                .claim("type", "refresh")
+                .claim("jti", UUID.randomUUID().toString())
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + jwtProperties.getRefreshExpiration()))
+                .setExpiration(new Date(System.currentTimeMillis()
+                        + jwtProperties.getRefreshExpiration()))
                 .signWith(secretKey, SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -71,5 +75,9 @@ public class JwtService {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    public Long extractUserId(String token) {
+        return Long.valueOf(parseClaims(token).getSubject());
     }
 }

@@ -40,40 +40,40 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
-                                        Authentication authentication) throws IOException, ServletException {
+                                        Authentication authentication)
+            throws IOException, ServletException {
 
         if (authentication == null || !(authentication.getPrincipal() instanceof OidcUser oidcUser)) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
 
-        // Lấy thông tin cơ bản từ OAuth2 Provider
         String email = oidcUser.getEmail();
-        String username = (String) oidcUser.getAttributes().get("name");
-        String avatar = (String) oidcUser.getAttributes().get("picture");
+        String providerId = oidcUser.getSubject();
         String provider = detectProvider(oidcUser);
 
         log.info("OAuth2 login success: {} via {}", email, provider);
 
-        // Lấy hoặc tạo User
-        User user = userRepository.findByEmail(email).orElseGet(() -> {
-            User u = new User();
-            u.setUsername(username);
-            u.setEmail(email);
-            return userRepository.save(u);
-        });
+        User user = userRepository.findByEmail(email)
+                .orElseGet(() -> {
+                    User u = new User();
+                    u.setEmail(email);
+                    u.setUsername(email);
+                    u.setProvider(provider);
+                    u.setProviderId(providerId);
+                    return userRepository.save(u);
+                });
 
-        // Lấy hoặc tạo UserProfile
         UserProfile profile = userProfileRepository.findByUserId(user.getId())
                 .orElseGet(() -> {
                     UserProfile p = new UserProfile();
                     p.setUser(user);
                     return p;
                 });
-        profile.setName(username);
+
+        profile.setName(email);
         userProfileRepository.save(profile);
 
-        // Lấy roles & permissions
         UserDTO detail = userService.getUserById(user.getId());
 
         Set<String> roles = detail.getRoles() != null
@@ -84,11 +84,9 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
                 ? new HashSet<>(detail.getPermissions())
                 : new HashSet<>();
 
-        // Sinh JWT access + refresh token
-        String accessToken = jwtService.generateToken(user.getUsername(), roles, permissions);
-        String refreshToken = jwtService.generateRefreshToken(user.getUsername());
+        String accessToken = jwtService.generateToken(user.getId(), roles, permissions);
+        String refreshToken = jwtService.generateRefreshToken(user.getId());
 
-        // Lưu refresh token vào DB
         UserToken userToken = new UserToken();
         userToken.setUser(user);
         userToken.setRefreshToken(refreshToken);
@@ -97,10 +95,9 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         userToken.setRevoked(false);
         userTokenRepository.save(userToken);
 
-        // Tạo response trả SPA
         AuthResponse authResponse = new AuthResponse();
         authResponse.setUserId(user.getId());
-        authResponse.setUserName(username);
+        authResponse.setUserName(user.getUsername());
         authResponse.setEmail(email);
         authResponse.setProvider(provider);
         authResponse.setAccessToken(accessToken);
@@ -108,15 +105,12 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         authResponse.setRoles(roles);
         authResponse.setPermissions(permissions);
 
-        // Trả JSON cho SPA
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_OK);
         new ObjectMapper().writeValue(response.getWriter(), authResponse);
     }
 
-    /**
-     * Detect provider theo attribute phổ biến
-     */
+     // Detect provider theo attribute phổ biến
     private String detectProvider(OidcUser oidcUser) {
         if (oidcUser.getAttributes().containsKey("sub")) return "google";
         if (oidcUser.getAttributes().containsKey("id")) return "facebook";

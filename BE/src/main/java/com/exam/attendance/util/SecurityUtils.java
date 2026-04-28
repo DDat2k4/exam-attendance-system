@@ -13,7 +13,10 @@ public class SecurityUtils {
             throw new RuntimeException("Unauthenticated");
         }
 
-        CustomUserPrincipal principal = (CustomUserPrincipal) auth.getPrincipal();
-        return principal.getId();
+        if (auth.getPrincipal() instanceof CustomUserPrincipal principal) {
+            return principal.getId();
+        }
+
+        throw new RuntimeException("Invalid principal type");
     }
 }

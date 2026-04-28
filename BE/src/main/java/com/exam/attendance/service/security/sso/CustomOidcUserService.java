@@ -32,44 +32,50 @@ public class CustomOidcUserService extends OidcUserService {
 
     @Override
     @Transactional
-    public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {
+    public OidcUser loadUser(OidcUserRequest userRequest)
+            throws OAuth2AuthenticationException {
+
         OidcUser oidcUser = super.loadUser(userRequest);
 
         String email = oidcUser.getEmail();
-        String username = (email != null) ? email : Optional.ofNullable(oidcUser.getSubject())
-                .orElse("user-" + UUID.randomUUID());
+        String providerId = oidcUser.getSubject();
+        String provider = userRequest.getClientRegistration()
+                .getRegistrationId();
 
-        // Tìm hoặc tạo user mới
-        User user = userRepository.findByEmail(email).orElseGet(() -> {
-            User u = new User();
-            u.setUid(UUID.randomUUID());
-            u.setUsername(username);
-            u.setEmail(email);
-            u.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
-            u.setActive((short) 1);
-            u.setCreatedAt(LocalDateTime.now());
-            u.setFailedAttempts(0);
-            return userRepository.save(u);
-        });
+        // identity strategy: provider + providerId
+        User user = userRepository
+                .findByProviderAndProviderId(provider, providerId)
+                .orElseGet(() -> {
+                    User u = new User();
+                    u.setUid(UUID.randomUUID());
+                    u.setUsername(email != null ? email : "user-" + UUID.randomUUID());
+                    u.setEmail(email);
+                    u.setProvider(provider);
+                    u.setProviderId(providerId);
+                    u.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+                    u.setActive((short) 1);
+                    u.setCreatedAt(LocalDateTime.now());
+                    u.setFailedAttempts(0);
+                    return userRepository.save(u);
+                });
 
-        // update last login
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
 
-        // revoke all old tokens
         userTokenRepository.revokeAllTokensByUserId(user.getId());
 
-        // Lấy roles + permissions
         var dto = userService.getUserById(user.getId());
-        var userDetail = UserMapper.toResponse(dto);
 
-        // issue new tokens
+        Set<String> roles = new HashSet<>(dto.getRoles() != null ? dto.getRoles() : Set.of());
+        Set<String> permissions = new HashSet<>(dto.getPermissions() != null ? dto.getPermissions() : Set.of());
+
         String accessToken = jwtService.generateToken(
-                user.getUsername(),
-                userDetail.getRoles(),
-                userDetail.getPermissions()
+                user.getId(),
+                roles,
+                permissions
         );
-        String refreshToken = jwtService.generateRefreshToken(user.getUsername());
+
+        String refreshToken = jwtService.generateRefreshToken(user.getId());
 
         UserToken token = new UserToken();
         token.setUser(user);
@@ -79,19 +85,17 @@ public class CustomOidcUserService extends OidcUserService {
         token.setRevoked(false);
         userTokenRepository.save(token);
 
-        // attach attrs
         Map<String, Object> attrs = new HashMap<>(oidcUser.getAttributes());
-        attrs.put("localAccessToken", accessToken);
-        attrs.put("localRefreshToken", refreshToken);
-        attrs.put("localUsername", user.getUsername());
-        attrs.put("roles", userDetail.getRoles());
-        attrs.put("permissions", userDetail.getPermissions());
+        attrs.put("userId", user.getId());
+        attrs.put("email", email);
+        attrs.put("roles", roles);
+        attrs.put("permissions", permissions);
 
         return new DefaultOidcUser(
                 oidcUser.getAuthorities(),
                 oidcUser.getIdToken(),
                 oidcUser.getUserInfo(),
-                "email"
+                "sub"
         ) {
             @Override
             public Map<String, Object> getAttributes() {

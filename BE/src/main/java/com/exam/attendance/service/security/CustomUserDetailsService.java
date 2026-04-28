@@ -23,22 +23,28 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final UserRoleRepository userRoleRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String username)
+            throws UsernameNotFoundException {
 
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        Set<Permission> permissions = userRoleRepository.findPermissionsByUserId(user.getId());
+        Set<Permission> permissions =
+                userRoleRepository.findPermissionsByUserId(user.getId());
 
-        List<GrantedAuthority> authorities = permissions.stream()
-                .map(Permission::toAuthority)
-                .map(auth -> (GrantedAuthority) new SimpleGrantedAuthority(auth))
-                .toList();
+        List<GrantedAuthority> authorities = new ArrayList<>();
+
+        if (permissions != null) {
+            authorities = permissions.stream()
+                    .map(Permission::toAuthority)
+                    .map(SimpleGrantedAuthority::new)
+                    .map(GrantedAuthority.class::cast)
+                    .toList();
+        }
 
         return new CustomUserPrincipal(
                 user.getId(),
                 user.getUsername(),
-                user.getPasswordHash(),
                 authorities,
                 user.getActive() == 1
         );
