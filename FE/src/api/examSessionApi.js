@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { dedupeGet } from './requestCache'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL
 const getToken = () => localStorage.getItem('access_token')
@@ -10,14 +11,19 @@ const authHeaders = (includeJson = false) => ({
 
 const unwrap = (res) => {
   const body = res?.data
-  if (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'success')) {
-    if (body.success === false) {
-      const msg = body.message || 'Request failed'
-      const err = new Error(msg)
-      err.response = { status: res?.status, data: body }
-      throw err
+  if (body && typeof body === 'object') {
+    if (Object.prototype.hasOwnProperty.call(body, 'data') && (Object.prototype.hasOwnProperty.call(body, 'code') || Object.prototype.hasOwnProperty.call(body, 'message'))) {
+      return body.data
     }
-    return body.data ?? body
+    if (Object.prototype.hasOwnProperty.call(body, 'success')) {
+      if (body.success === false) {
+        const msg = body.message || 'Request failed'
+        const err = new Error(msg)
+        err.response = { status: res?.status, data: body }
+        throw err
+      }
+      return body.data ?? body
+    }
   }
   return body
 }
@@ -66,7 +72,7 @@ export const endExamSession = async (sessionId) => {
 
 export const getExamSessionById = async (sessionId) => {
   try {
-    const res = await axios.get(`${API_URL}/exam-sessions/${sessionId}`, {
+    const res = await dedupeGet(axios, `${API_URL}/exam-sessions/${sessionId}`, {
       headers: authHeaders(),
     })
     return unwrap(res)
@@ -77,7 +83,7 @@ export const getExamSessionById = async (sessionId) => {
 
 export const getAllExamSessions = async () => {
   try {
-    const res = await axios.get(`${API_URL}/exam-sessions`, {
+    const res = await dedupeGet(axios, `${API_URL}/exam-sessions`, {
       headers: authHeaders(),
     })
     const data = unwrap(res)
@@ -89,7 +95,7 @@ export const getAllExamSessions = async () => {
 
 export const getMyExamSessions = async () => {
   try {
-    const res = await axios.get(`${API_URL}/exam-sessions/me`, {
+    const res = await dedupeGet(axios, `${API_URL}/exam-sessions/me`, {
       headers: authHeaders(),
     })
     const data = unwrap(res)
@@ -107,7 +113,7 @@ export const getExamSessionDashboard = async (params = {}) => {
   }
 
   try {
-    const res = await axios.get(`${API_URL}/exam-sessions/dashboard`, {
+    const res = await dedupeGet(axios, `${API_URL}/exam-sessions/dashboard`, {
       params: {
         roomId: parsedRoomId,
         page,
@@ -163,7 +169,7 @@ export const rejectExamSession = async (sessionId, reason) => {
 
 export const getExamSessionVerificationHistory = async (sessionId) => {
   try {
-    const res = await axios.get(`${API_URL}/exam-sessions/${sessionId}/verifications`, {
+    const res = await dedupeGet(axios, `${API_URL}/exam-sessions/${sessionId}/verifications`, {
       headers: authHeaders(),
     })
     return unwrap(res)

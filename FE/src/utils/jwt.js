@@ -14,9 +14,16 @@ export const getUserFromToken = () => {
       decoded?.id ??
       subAsNum ??
       (lsUid != null ? (Number(lsUid) || lsUid) : undefined);
+    const resolvedUsername =
+      decoded?.username ??
+      decoded?.userName ??
+      decoded?.preferred_username ??
+      decoded?.name ??
+      decoded?.email ??
+      null;
 
     return {
-      username: decoded.sub,
+      username: resolvedUsername,
       roles: decoded.roles || [],
       permissions: decoded.permissions || [],
       exp: decoded.exp,

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { DEFAULT_PAGE_SIZE } from '../../hooks/useRbacManagement'
 import FormModal from './FormModal'
 
-const emptyPermissionForm = { code: '', description: '' }
+const emptyPermissionForm = { resource: '', action: '', description: '' }
 
 export default function PermissionsSection({
   permissionForm,
@@ -31,24 +31,56 @@ export default function PermissionsSection({
 
     return assignmentPermissions.filter((item) => {
       const code = String(item?.code || '').toLowerCase()
+      const resource = String(item?.resource || '').toLowerCase()
+      const action = String(item?.action || '').toLowerCase()
       const description = String(item?.description || '').toLowerCase()
       const id = String(item?.id || '')
-      return code.includes(keyword) || description.includes(keyword) || id.includes(keyword)
+      return (
+        code.includes(keyword) ||
+        resource.includes(keyword) ||
+        action.includes(keyword) ||
+        description.includes(keyword) ||
+        id.includes(keyword)
+      )
     })
   }, [assignmentPermissions, permissionCodeFilter])
+
+  const groupedPermissions = useMemo(() => {
+    const groups = new Map()
+
+    filteredPermissions.forEach((permission) => {
+      const resource = String(permission?.resource || 'UNKNOWN').trim() || 'UNKNOWN'
+      const current = groups.get(resource) || {
+        resource,
+        permissions: [],
+        actions: [],
+      }
+
+      current.permissions.push(permission)
+      current.actions.push({
+        id: permission.id,
+        action: permission.action || '-',
+        code: permission.code || '-',
+        description: permission.description || '-',
+      })
+      groups.set(resource, current)
+    })
+
+    return Array.from(groups.values())
+  }, [filteredPermissions])
 
   const normalizedPageSize = Number(permissionPageSize) > 0 ? Number(permissionPageSize) : DEFAULT_PAGE_SIZE
 
   const localTotalPages = useMemo(() => {
-    if (filteredPermissions.length === 0) return 0
-    return Math.ceil(filteredPermissions.length / normalizedPageSize)
-  }, [filteredPermissions.length, normalizedPageSize])
+    if (groupedPermissions.length === 0) return 0
+    return Math.ceil(groupedPermissions.length / normalizedPageSize)
+  }, [groupedPermissions.length, normalizedPageSize])
 
   const paginatedPermissions = useMemo(() => {
-    if (filteredPermissions.length === 0) return []
+    if (groupedPermissions.length === 0) return []
     const startIndex = (localPermissionPage - 1) * normalizedPageSize
-    return filteredPermissions.slice(startIndex, startIndex + normalizedPageSize)
-  }, [filteredPermissions, localPermissionPage, normalizedPageSize])
+    return groupedPermissions.slice(startIndex, startIndex + normalizedPageSize)
+  }, [groupedPermissions, localPermissionPage, normalizedPageSize])
 
   const localIsFirst = localPermissionPage <= 1
   const localIsLast = localTotalPages === 0 || localPermissionPage >= localTotalPages
@@ -88,6 +120,19 @@ export default function PermissionsSection({
     handleCloseModal()
   }
 
+  const getActionColor = (action) => {
+    const colors = {
+      READ: { bg: '#4caf50', border: '#2e7d32', text: '#fff' },
+      CREATE: { bg: '#2196f3', border: '#1565c0', text: '#fff' },
+      UPDATE: { bg: '#ff9800', border: '#e65100', text: '#fff' },
+      DELETE: { bg: '#f44336', border: '#c62828', text: '#fff' },
+      VERIFY: { bg: '#9c27b0', border: '#6a1b9a', text: '#fff' },
+      CHECKIN: { bg: '#e91e63', border: '#880e4f', text: '#fff' },
+      EXPORT: { bg: '#3f51b5', border: '#283593', text: '#fff' },
+    }
+    return colors[action] || { bg: '#757575', border: '#424242', text: '#fff' }
+  }
+
   const handleEditClick = (permission) => {
     handleEditPermission(permission)
     setIsModalOpen(true)
@@ -122,11 +167,18 @@ export default function PermissionsSection({
         onClose={handleCloseModal}
         onSubmit={handleSubmitForm}
       >
-        <label>Mã Permission</label>
+        <label>Resource</label>
         <input
-          value={permissionForm.code}
-          onChange={(e) => setPermissionForm((prev) => ({ ...prev, code: e.target.value }))}
-          placeholder="VD: EXAM_CREATE"
+          value={permissionForm.resource}
+          onChange={(e) => setPermissionForm((prev) => ({ ...prev, resource: e.target.value.toUpperCase() }))}
+          placeholder="VD: PERMISSION"
+          required
+        />
+        <label>Action</label>
+        <input
+          value={permissionForm.action}
+          onChange={(e) => setPermissionForm((prev) => ({ ...prev, action: e.target.value.toUpperCase() }))}
+          placeholder="VD: READ"
           required
         />
         <label>Mô tả</label>
@@ -142,31 +194,72 @@ export default function PermissionsSection({
           <thead>
             <tr>
               <th>#</th>
-              <th>Mã</th>
-              <th>Mô tả</th>
+              <th>Resource</th>
+              <th>Actions</th>
+              <th>Số quyền</th>
               <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {paginatedPermissions.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>
                   Không có quyền phù hợp
                 </td>
               </tr>
             ) : (
-              paginatedPermissions.map((permission, idx) => (
-                <tr key={permission.id}>
+              paginatedPermissions.map((group, idx) => (
+                <tr key={group.resource}>
                   <td>{(localPermissionPage - 1) * normalizedPageSize + idx + 1}</td>
-                  <td>{permission.code || '-'}</td>
-                  <td>{permission.description || '-'}</td>
+                  <td>{group.resource}</td>
+                  <td>
+                    <div className="action-buttons" style={{ flexWrap: 'wrap', gap: '6px' }}>
+                      {group.actions.map((item) => {
+                        const colors = getActionColor(item.action)
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              const perm = group.permissions.find((p) => p.id === item.id)
+                              if (perm) handleEditClick(perm)
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '6px 14px',
+                              borderRadius: '999px',
+                              background: colors.bg,
+                              border: `2px solid ${colors.border}`,
+                              color: colors.text,
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              whiteSpace: 'nowrap',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'scale(1.08)'
+                              e.currentTarget.style.boxShadow = `0 4px 12px ${colors.bg}80`
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'scale(1)'
+                              e.currentTarget.style.boxShadow = 'none'
+                            }}
+                            title={`${item.code} · ${item.description}`}
+                          >
+                            {item.action}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </td>
+                  <td>{group.actions.length}</td>
                   <td>
                     <div className="action-buttons">
-                      <button type="button" className="btn-edit" onClick={() => handleEditClick(permission)}>
-                        Sửa
-                      </button>
-                      <button type="button" className="btn-delete" onClick={() => handleDeletePermission(permission.id)}>
-                        Xóa
+                      <button type="button" className="btn-edit" onClick={() => setIsModalOpen(true)}>
+                        + Thêm
                       </button>
                     </div>
                   </td>

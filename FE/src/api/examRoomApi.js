@@ -1,18 +1,24 @@
 import axios from 'axios'
+import { dedupeGet } from './requestCache'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL
 const getToken = () => localStorage.getItem('access_token')
 
 const unwrap = (res) => {
   const body = res?.data
-  if (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'success')) {
-    if (body.success === false) {
-      const msg = body.message || 'Request failed'
-      const err = new Error(msg)
-      err.response = { status: res?.status, data: body }
-      throw err
+  if (body && typeof body === 'object') {
+    if (Object.prototype.hasOwnProperty.call(body, 'data') && (Object.prototype.hasOwnProperty.call(body, 'code') || Object.prototype.hasOwnProperty.call(body, 'message'))) {
+      return body.data
     }
-    return body.data ?? body
+    if (Object.prototype.hasOwnProperty.call(body, 'success')) {
+      if (body.success === false) {
+        const msg = body.message || 'Request failed'
+        const err = new Error(msg)
+        err.response = { status: res?.status, data: body }
+        throw err
+      }
+      return body.data ?? body
+    }
   }
   return body
 }
@@ -40,7 +46,7 @@ export const getExamRoomById = async (roomId) => {
   }
 
   try {
-    const res = await axios.get(`${API_URL}/exam-rooms/${parsedRoomId}`, {
+    const res = await dedupeGet(axios, `${API_URL}/exam-rooms/${parsedRoomId}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
     return unwrap(res)
@@ -106,7 +112,7 @@ export const getRoomsByExamPaginated = async (examId, page = 0, size = 10) => {
   if (!Number.isInteger(parsedExamId) || parsedExamId <= 0) return { content: [], totalElements: 0, totalPages: 0, empty: true }
 
   try {
-    const res = await axios.get(`${API_URL}/exam-rooms`, {
+    const res = await dedupeGet(axios, `${API_URL}/exam-rooms`, {
       params: {
         examId: parsedExamId,
         page: parsedPage,

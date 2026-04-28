@@ -10,14 +10,19 @@ const authHeaders = (includeJson = false) => ({
 
 const unwrap = (res) => {
   const body = res?.data
-  if (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'success')) {
-    if (body.success === false) {
-      const msg = body.message || 'Request failed'
-      const err = new Error(msg)
-      err.response = { status: res?.status, data: body }
-      throw err
+  if (body && typeof body === 'object') {
+    if (Object.prototype.hasOwnProperty.call(body, 'data') && (Object.prototype.hasOwnProperty.call(body, 'code') || Object.prototype.hasOwnProperty.call(body, 'message'))) {
+      return body.data
     }
-    return body.data ?? body
+    if (Object.prototype.hasOwnProperty.call(body, 'success')) {
+      if (body.success === false) {
+        const msg = body.message || 'Request failed'
+        const err = new Error(msg)
+        err.response = { status: res?.status, data: body }
+        throw err
+      }
+      return body.data ?? body
+    }
   }
   return body
 }

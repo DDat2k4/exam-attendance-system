@@ -1,18 +1,24 @@
 import axios from "axios";
+import { dedupeGet } from "./requestCache";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const getToken = () => localStorage.getItem("access_token");
 
 const unwrap = (res) => {
 	const body = res?.data;
-	if (body && typeof body === "object" && Object.prototype.hasOwnProperty.call(body, "success")) {
-		if (body.success === false) {
-			const msg = body.message || "Request failed";
-			const err = new Error(msg);
-			err.response = { status: res?.status, data: body };
-			throw err;
+	if (body && typeof body === "object") {
+		if (Object.prototype.hasOwnProperty.call(body, "data") && (Object.prototype.hasOwnProperty.call(body, "code") || Object.prototype.hasOwnProperty.call(body, "message"))) {
+			return body.data;
 		}
-		return body.data ?? body;
+		if (Object.prototype.hasOwnProperty.call(body, "success")) {
+			if (body.success === false) {
+				const msg = body.message || "Request failed";
+				const err = new Error(msg);
+				err.response = { status: res?.status, data: body };
+				throw err;
+			}
+			return body.data ?? body;
+		}
 	}
 	return body;
 };
@@ -30,17 +36,17 @@ const rethrow = (err) => {
 	throw err;
 };
 
-// GET /permissions?page=&size=&code=
+// GET /permissions?page=&size=&resource=
 export const getPermissions = async ({ page = 1, limit = 10, sort, filters = {} } = {}) => {
 	try {
 		const size = Number(limit) > 0 ? Number(limit) : 10;
 		const params = {
-			...(filters?.code ? { code: filters.code } : {}),
+			...(filters?.resource ? { resource: filters.resource } : {}),
 			page,
 			size,
 			...(sort ? { sort } : {}),
 		};
-		const res = await axios.get(`${API_URL}/permissions`, {
+		const res = await dedupeGet(axios, `${API_URL}/permissions`, {
 			params,
 			headers: { Authorization: `Bearer ${getToken()}` },
 		});
@@ -61,7 +67,7 @@ export const getPermissions = async ({ page = 1, limit = 10, sort, filters = {} 
 // Get permission by id
 export const getPermissionById = async (id) => {
 	try {
-		const res = await axios.get(`${API_URL}/permissions/${id}`, {
+		const res = await dedupeGet(axios, `${API_URL}/permissions/${id}`, {
 			headers: { Authorization: `Bearer ${getToken()}` },
 		});
 		return unwrap(res);
@@ -73,7 +79,7 @@ export const getPermissionById = async (id) => {
 // GET /permissions/grouped
 export const getGroupedPermissions = async () => {
 	try {
-		const res = await axios.get(`${API_URL}/permissions/grouped`, {
+		const res = await dedupeGet(axios, `${API_URL}/permissions/grouped`, {
 			headers: { Authorization: `Bearer ${getToken()}` },
 		});
 		return unwrap(res);

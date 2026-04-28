@@ -49,7 +49,7 @@ export default function RegistrationsSection({
               id="registrationUserSearch"
               value={registrationUserQuery}
               onChange={(e) => setRegistrationUserQuery(e.target.value)}
-              placeholder="Tìm theo ID, username, email hoặc name"
+              placeholder="Tìm theo ID, email hoặc tài khoản"
             />
             <select
               value={registrationUserRole}
@@ -88,14 +88,15 @@ export default function RegistrationsSection({
               filteredRegistrationUsers.map((u) => {
                 const uid = Number(u?.id)
                 const isChecked = selectedRegistrationUserIds.includes(uid)
+                const displayName = u?.name || u?.username || '-'
                 return (
-                  <label key={u?.id ?? `${u?.username}-${u?.email}`} className="registration-user-item">
+                  <label key={u?.id ?? `${displayName}-${u?.email}`} className="registration-user-item">
                     <input
                       type="checkbox"
                       checked={isChecked}
                       onChange={() => toggleRegistrationUser(uid)}
                     />
-                    <span>#{u?.id ?? '-'} | {u?.username || '-'} | {u?.email || '-'}</span>
+                    <span>#{u?.id ?? '-'} | {displayName} | {u?.email || '-'}</span>
                   </label>
                 )
               })

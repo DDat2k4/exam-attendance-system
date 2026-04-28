@@ -16,7 +16,7 @@ const USER_LOOKUP_SIZE = 100
 const ROLE_LOOKUP_PAGE_SIZE = 100
 
 const emptyRoleForm = { name: '', description: '' }
-const emptyPermissionForm = { code: '', description: '' }
+const emptyPermissionForm = { resource: '', action: '', description: '' }
 const ASSIGNMENT_PERMISSION_PAGE_SIZE = 100
 
 export default function useRbacManagement() {
@@ -89,12 +89,20 @@ export default function useRbacManagement() {
   const filteredAssignmentPermissions = useMemo(() => {
     const keyword = assignmentPermissionSearch.trim().toLowerCase()
     if (!keyword) return assignmentPermissions
-    return assignmentPermissions.filter(
-      (item) =>
-        String(item?.code || '')
-          .toLowerCase()
-          .includes(keyword) || String(item?.id || '').includes(keyword),
-    )
+    return assignmentPermissions.filter((item) => {
+      const code = String(item?.code || '').toLowerCase()
+      const resource = String(item?.resource || '').toLowerCase()
+      const action = String(item?.action || '').toLowerCase()
+      const description = String(item?.description || '').toLowerCase()
+      const id = String(item?.id || '')
+      return (
+        code.includes(keyword) ||
+        resource.includes(keyword) ||
+        action.includes(keyword) ||
+        description.includes(keyword) ||
+        id.includes(keyword)
+      )
+    })
   }, [assignmentPermissions, assignmentPermissionSearch])
 
   const assignmentPermissionTotalPages = useMemo(() => {
@@ -166,16 +174,19 @@ export default function useRbacManagement() {
       Number(result.page || page) >= Number(result.totalPages || 0)
     setRoleIsFirst(Boolean(result.meta?.first ?? Number(result.page || page) <= 1))
     setRoleIsLast(Boolean(result.meta?.last ?? fallbackIsLast))
+    return result
   }
 
-  const fetchAllRoles = async () => {
-    const firstPage = await getRoles({
-      page: 1,
-      limit: ROLE_LOOKUP_PAGE_SIZE,
-    })
+  const fetchAllRoles = async (firstPage) => {
+    const resolvedFirstPage =
+      firstPage ??
+      (await getRoles({
+        page: 1,
+        limit: ROLE_LOOKUP_PAGE_SIZE,
+      }))
 
-    const totalPages = Math.max(Number(firstPage.totalPages || 0), 1)
-    const nextItems = [...(firstPage.items || [])]
+    const totalPages = Math.max(Number(resolvedFirstPage.totalPages || 0), 1)
+    const nextItems = [...(resolvedFirstPage.items || [])]
 
     for (let page = 2; page <= totalPages; page += 1) {
       const pageResult = await getRoles({
@@ -188,15 +199,15 @@ export default function useRbacManagement() {
     setAllRoles(nextItems)
   }
 
-  const fetchPermissions = async (page = permissionPage, code = permissionCodeFilter, pageSize = permissionPageSize) => {
-    const normalizedCode = String(code || '')
+  const fetchPermissions = async (page = permissionPage, resource = permissionCodeFilter, pageSize = permissionPageSize) => {
+    const normalizedResource = String(resource || '')
       .trim()
       .toUpperCase()
 
     const result = await getPermissions({
       page,
       limit: pageSize,
-      filters: { code: normalizedCode || undefined },
+      filters: { resource: normalizedResource || undefined },
     })
     setPermissions(result.items || [])
     setPermissionTotalPages(Number(result.totalPages || 0))
@@ -208,16 +219,19 @@ export default function useRbacManagement() {
       Number(result.page || page) >= Number(result.totalPages || 0)
     setPermissionIsFirst(Number(result.page || page) <= 1)
     setPermissionIsLast(fallbackIsLast)
+    return result
   }
 
-  const fetchAllAssignmentPermissions = async () => {
-    const firstPage = await getPermissions({
-      page: 1,
-      limit: ASSIGNMENT_PERMISSION_PAGE_SIZE,
-    })
+  const fetchAllAssignmentPermissions = async (firstPage) => {
+    const resolvedFirstPage =
+      firstPage ??
+      (await getPermissions({
+        page: 1,
+        limit: ASSIGNMENT_PERMISSION_PAGE_SIZE,
+      }))
 
-    const totalPages = Math.max(Number(firstPage.totalPages || 0), 1)
-    const nextItems = [...(firstPage.items || [])]
+    const totalPages = Math.max(Number(resolvedFirstPage.totalPages || 0), 1)
+    const nextItems = [...(resolvedFirstPage.items || [])]
 
     for (let page = 2; page <= totalPages; page += 1) {
       const pageResult = await getPermissions({
@@ -233,6 +247,7 @@ export default function useRbacManagement() {
   const fetchUsers = async () => {
     const result = await getUsers({ page: 1, limit: USER_LOOKUP_SIZE })
     setUsers(result.items || [])
+    return result
   }
 
   const fetchRolePermissions = async (roleId) => {
@@ -258,11 +273,14 @@ export default function useRbacManagement() {
       setLoading(true)
       clearNotice()
       try {
-        await Promise.all([
+        const [rolesPage, permissionsPage] = await Promise.all([
           fetchRoles(1, ''),
-          fetchAllRoles(),
           fetchPermissions(1, ''),
-          fetchAllAssignmentPermissions(),
+        ])
+
+        await Promise.all([
+          fetchAllRoles(rolesPage),
+          fetchAllAssignmentPermissions(permissionsPage),
           fetchUsers(),
         ])
       } catch (err) {
@@ -318,8 +336,8 @@ export default function useRbacManagement() {
 
       setRoleForm(emptyRoleForm)
       setEditingRoleId(null)
-      await fetchRoles(rolePage, roleNameFilter)
-      await fetchAllRoles()
+      const refreshedRoles = await fetchRoles(rolePage, roleNameFilter)
+      await fetchAllRoles(refreshedRoles)
     } catch (err) {
       setError(err.message || 'Không thể lưu role')
     } finally {
@@ -353,8 +371,8 @@ export default function useRbacManagement() {
         setSelectedRoleId(null)
         setSelectedRolePermissionIds(new Set())
       }
-      await fetchRoles(rolePage, roleNameFilter)
-      await fetchAllRoles()
+      const refreshedRoles = await fetchRoles(rolePage, roleNameFilter)
+      await fetchAllRoles(refreshedRoles)
     } catch (err) {
       setError(err.message || 'Không thể xóa role')
     } finally {
@@ -366,31 +384,43 @@ export default function useRbacManagement() {
     e.preventDefault()
     clearNotice()
 
-    if (!permissionForm.code.trim()) {
-      setError('Mã permission không được để trống')
+    const normalizedResource = String(permissionForm.resource || '')
+      .trim()
+      .toUpperCase()
+    const normalizedAction = String(permissionForm.action || '')
+      .trim()
+      .toUpperCase()
+
+    if (!normalizedResource) {
+      setError('Resource không được để trống')
       return
+    }
+
+    if (!normalizedAction) {
+      setError('Action không được để trống')
+      return
+    }
+
+    const payload = {
+      resource: normalizedResource,
+      action: normalizedAction,
+      description: permissionForm.description.trim() || null,
     }
 
     setLoading(true)
     try {
       if (editingPermissionId) {
-        await updatePermission(editingPermissionId, {
-          code: permissionForm.code.trim().toUpperCase(),
-          description: permissionForm.description.trim() || null,
-        })
+        await updatePermission(editingPermissionId, payload)
         setMessage('Cập nhật permission thành công')
       } else {
-        await createPermission({
-          code: permissionForm.code.trim().toUpperCase(),
-          description: permissionForm.description.trim() || null,
-        })
+        await createPermission(payload)
         setMessage('Tạo permission thành công')
       }
 
       setPermissionForm(emptyPermissionForm)
       setEditingPermissionId(null)
-      await fetchPermissions(permissionPage, permissionCodeFilter)
-      await fetchAllAssignmentPermissions()
+      const refreshedPermissions = await fetchPermissions(permissionPage, permissionCodeFilter)
+      await fetchAllAssignmentPermissions(refreshedPermissions)
     } catch (err) {
       setError(err.message || 'Không thể lưu permission')
     } finally {
@@ -401,7 +431,8 @@ export default function useRbacManagement() {
   const handleEditPermission = (permission) => {
     setEditingPermissionId(Number(permission.id))
     setPermissionForm({
-      code: permission.code || '',
+      resource: permission.resource || '',
+      action: permission.action || '',
       description: permission.description || '',
     })
     clearNotice()
@@ -425,8 +456,8 @@ export default function useRbacManagement() {
         clone.delete(Number(permissionId))
         setSelectedRolePermissionIds(clone)
       }
-      await fetchPermissions(permissionPage, permissionCodeFilter)
-      await fetchAllAssignmentPermissions()
+      const refreshedPermissions = await fetchPermissions(permissionPage, permissionCodeFilter)
+      await fetchAllAssignmentPermissions(refreshedPermissions)
     } catch (err) {
       setError(err.message || 'Không thể xóa permission')
     } finally {

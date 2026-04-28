@@ -1,18 +1,24 @@
 import axios from "axios";
+import { dedupeGet } from "./requestCache";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const getToken = () => localStorage.getItem("access_token");
 
 const unwrap = (res) => {
 	const body = res?.data;
-	if (body && typeof body === "object" && Object.prototype.hasOwnProperty.call(body, "success")) {
-		if (body.success === false) {
-			const msg = body.message || "Request failed";
-			const err = new Error(msg);
-			err.response = { status: res?.status, data: body };
-			throw err;
+	if (body && typeof body === "object") {
+		if (Object.prototype.hasOwnProperty.call(body, "data") && (Object.prototype.hasOwnProperty.call(body, "code") || Object.prototype.hasOwnProperty.call(body, "message"))) {
+			return body.data;
 		}
-		return body.data ?? body;
+		if (Object.prototype.hasOwnProperty.call(body, "success")) {
+			if (body.success === false) {
+				const msg = body.message || "Request failed";
+				const err = new Error(msg);
+				err.response = { status: res?.status, data: body };
+				throw err;
+			}
+			return body.data ?? body;
+		}
 	}
 	return body;
 };
@@ -40,7 +46,7 @@ export const getRoles = async ({ page = 1, limit = 10, sort, filters = {} } = {}
 			size,
 			...(sort ? { sort } : {}),
 		};
-		const res = await axios.get(`${API_URL}/roles`, {
+		const res = await dedupeGet(axios, `${API_URL}/roles`, {
 			params,
 			headers: { Authorization: `Bearer ${getToken()}` },
 		});
@@ -76,7 +82,7 @@ export const getRoles = async ({ page = 1, limit = 10, sort, filters = {} } = {}
 // Get role by id
 export const getRoleById = async (id) => {
 	try {
-		const res = await axios.get(`${API_URL}/roles/${id}`, {
+		const res = await dedupeGet(axios, `${API_URL}/roles/${id}`, {
 			headers: { Authorization: `Bearer ${getToken()}` },
 		});
 		return unwrap(res);

@@ -128,7 +128,7 @@ export default function AppShell() {
 
           <div className="user-box">
             <div className="identity">
-              <p>{user?.username || 'Tài khoản'}</p>
+              <p>{user?.userId != null ? `User #${user.userId}` : user?.username || 'Tài khoản'}</p>
             </div>
             <button type="button" onClick={handleLogout}>
               Logout

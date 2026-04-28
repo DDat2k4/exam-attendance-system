@@ -1,4 +1,5 @@
 import axios from "axios";
+import { dedupeGet } from "./requestCache";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const getToken = () => localStorage.getItem("access_token");
@@ -10,14 +11,19 @@ const authHeaders = (includeJson = false) => ({
 
 const unwrap = (res) => {
   const body = res?.data;
-  if (body && typeof body === "object" && Object.prototype.hasOwnProperty.call(body, "success")) {
-    if (body.success === false) {
-      const message = body.message || "Request failed";
-      const err = new Error(message);
-      err.response = { status: res?.status, data: body };
-      throw err;
+  if (body && typeof body === "object") {
+    if (Object.prototype.hasOwnProperty.call(body, "data") && (Object.prototype.hasOwnProperty.call(body, "code") || Object.prototype.hasOwnProperty.call(body, "message"))) {
+      return body.data;
     }
-    return body.data ?? body;
+    if (Object.prototype.hasOwnProperty.call(body, "success")) {
+      if (body.success === false) {
+        const msg = body.message || "Request failed";
+        const err = new Error(msg);
+        err.response = { status: res?.status, data: body };
+        throw err;
+      }
+      return body.data ?? body;
+    }
   }
   return body;
 };
@@ -56,7 +62,7 @@ const normalizeActiveToShort = (active) => {
 export const getUsers = async ({ page = 1, limit = 10, role } = {}) => {
   try {
     const size = Number(limit) > 0 ? Number(limit) : 10;
-    const res = await axios.get(`${API_URL}/users`, {
+    const res = await dedupeGet(axios, `${API_URL}/users`, {
       params: {
         ...(role ? { role } : {}),
         page,
@@ -83,7 +89,7 @@ export const getUsers = async ({ page = 1, limit = 10, role } = {}) => {
 // GET /users/{id}
 export const getUserById = async (id) => {
   try {
-    const res = await axios.get(`${API_URL}/users/${id}`, {
+    const res = await dedupeGet(axios, `${API_URL}/users/${id}`, {
       headers: authHeaders(),
     });
     return unwrap(res);

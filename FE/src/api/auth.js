@@ -5,8 +5,13 @@ const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const unwrapAuthPayload = (response) => {
   const body = response?.data;
-  if (body && typeof body === "object" && Object.prototype.hasOwnProperty.call(body, "success")) {
-    return body.data ?? body;
+  if (body && typeof body === "object") {
+    if (Object.prototype.hasOwnProperty.call(body, "data") && (Object.prototype.hasOwnProperty.call(body, "code") || Object.prototype.hasOwnProperty.call(body, "message"))) {
+      return body.data ?? {};
+    }
+    if (Object.prototype.hasOwnProperty.call(body, "success")) {
+      return body.data ?? body;
+    }
   }
   return body ?? {};
 };
@@ -17,9 +22,8 @@ export const login = async (username, password) => {
   const data = unwrapAuthPayload(response);
   const accessToken = data.accessToken ?? data.access_token ?? data.token;
   const refreshToken = data.refreshToken ?? data.refresh_token ?? data.refresh;
-  const user = data.userName ?? data.username ?? data.user ?? username;
+  const user = data.userName ?? data.username ?? data.user ?? null;
   const avatar = data.avatar ?? null;
-  const uid = data.userId ?? data.id ?? data.user_id;
 
   if (!accessToken) {
     throw new Error("Login response did not include an access token.");
@@ -27,11 +31,14 @@ export const login = async (username, password) => {
 
   localStorage.setItem("access_token", accessToken);
   if (refreshToken) localStorage.setItem("refresh_token", refreshToken);
-  localStorage.setItem("username", user);
+  const currentUser = getUserFromToken();
+  const uid = data.userId ?? data.id ?? data.user_id ?? currentUser?.userId ?? currentUser?.id;
+
+  if (user) localStorage.setItem("username", user);
   if (avatar) localStorage.setItem("avatar", avatar);
   if (uid !== undefined && uid !== null) localStorage.setItem("userId", String(uid));
 
-  return { accessToken, refreshToken, username: user, avatar, userId: uid };
+  return { accessToken, refreshToken, username: user ?? currentUser?.username ?? null, avatar, userId: uid };
 };
 
 // SIGNUP
@@ -45,7 +52,7 @@ export const signup = async (formData) => {
   const response = await axios.post(`${API_URL}/auth/register`, payload, {
     headers: { "Content-Type": "application/json" },
   });
-  return response.data;
+  return unwrapAuthPayload(response);
 };
 
 // LOGOUT
@@ -181,5 +188,5 @@ export const changePassword = async (oldPassword, newPassword) => {
   const res = await axios.post(`${API_URL}/auth/change-password`, null, {
     params: { oldPassword, newPassword },
   });
-  return res.data;
+  return unwrapAuthPayload(res);
 };

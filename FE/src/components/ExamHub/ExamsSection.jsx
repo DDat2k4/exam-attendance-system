@@ -89,12 +89,12 @@ export default function ExamsSection({
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Tieu de</th>
-                    <th>Nguoi tao</th>
-                    <th>Bat dau</th>
-                    <th>Ket thuc</th>
-                    <th>So phong</th>
-                    <th>Thao tac</th>
+                    <th>Tiêu đề</th>
+                    <th>Người tạo</th>
+                    <th>Bắt đầu</th>
+                    <th>Kết thúc</th>
+                    <th>Số phòng</th>
+                    <th>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -102,7 +102,7 @@ export default function ExamsSection({
                     <tr key={exam.id}>
                       <td>{exam.id}</td>
                       <td>{exam.title || '-'}</td>
-                      <td>{exam.createdByUsername || '-'}</td>
+                      <td>{exam.createdByUserId ?? exam.createdByUsername ?? '-'}</td>
                       <td>{formatDateTime(exam.startTime)}</td>
                       <td>{formatDateTime(exam.endTime)}</td>
                       <td>{Array.isArray(exam.rooms) ? exam.rooms.length : 0}</td>

@@ -161,7 +161,7 @@ export default function UsersSection({
           <input
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="Tìm theo username, email, phone hoặc ID..."
+            placeholder="Tìm theo ID, email, phone hoặc tài khoản..."
           />
           <button type="button" onClick={() => fetchUsers(1, roleFilter)} className="btn-search">
             🔍
@@ -299,7 +299,7 @@ export default function UsersSection({
           <thead>
             <tr>
               <th>#</th>
-              <th>Tên đăng nhập</th>
+              <th>Tài khoản</th>
               <th>Email</th>
               <th>Số điện thoại</th>
               <th>Vai trò</th>
