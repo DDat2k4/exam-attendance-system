@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -23,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/user-profiles")
 @RequiredArgsConstructor
-public class UserProfileController {
+public class UserProfileController extends BaseController {
 
     private final UserProfileService service;
     private final AccessControlService accessControlService;
@@ -31,9 +30,11 @@ public class UserProfileController {
     // Lấy profile theo id
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
-    public ResponseEntity<ApiResponse<UserProfileResponse>> getById(@PathVariable Long id,
+    public ResponseEntity<ApiResponse<UserProfileResponse>> getById(
+            @PathVariable Long id,
+            Authentication auth
+    ) {
 
-                                                                    Authentication auth) {
         UserProfileDTO dto = service.getById(id);
 
         Long currentUserId = SecurityUtils.getCurrentUserId();
@@ -46,9 +47,7 @@ public class UserProfileController {
                 currentUserId
         );
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Profile fetched", UserProfileMapper.toResponse(dto))
-        );
+        return success(UserProfileMapper.toResponse(dto));
     }
 
     // Lấy danh sách profile (phân trang)
@@ -69,9 +68,7 @@ public class UserProfileController {
                 .getAll(name, pageable)
                 .map(UserProfileMapper::toResponse);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Profiles fetched", result)
-        );
+        return success(result);
     }
 
     // Tạo profile
@@ -86,8 +83,7 @@ public class UserProfileController {
 
         Long id = service.create(request);
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse<>(true, "Profile created", id));
+        return created(id);
     }
 
     // Cập nhật profile
@@ -103,23 +99,21 @@ public class UserProfileController {
 
         service.update(id, request);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Profile updated", null)
-        );
+        return updated(null);
     }
 
     // Xóa profile
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR')")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id,
-                                                    Authentication auth) {
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @PathVariable Long id,
+            Authentication auth
+    ) {
 
         accessControlService.checkPermission(auth, Resource.USER_PROFILE, Action.DELETE);
 
         service.delete(id);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Profile deleted", null)
-        );
+        return deleted();
     }
 }

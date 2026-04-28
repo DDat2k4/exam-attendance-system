@@ -10,109 +10,80 @@ import com.exam.attendance.service.security.AccessControlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/exam-rooms")
 @RequiredArgsConstructor
-public class ExamRoomController {
+public class ExamRoomController extends BaseController {
 
     private final ExamRoomService examRoomService;
     private final AccessControlService accessControlService;
 
     // Lấy room theo id
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<ExamRoomDTO>> getById(
             @PathVariable Long id,
             Authentication auth
     ) {
-
         accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.READ);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        true,
-                        "Room detail",
-                        examRoomService.getById(id)
-                )
-        );
+        return success(examRoomService.getById(id));
     }
 
     // Tạo room
     @PostMapping
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<ExamRoomDTO>> create(
             @RequestBody ExamRoom request,
             Authentication auth
     ) {
-
         accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.CREATE);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        true,
-                        "Room created",
-                        examRoomService.create(request)
-                )
-        );
+        return created(examRoomService.create(request));
     }
 
     // Cập nhật room
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<ExamRoomDTO>> update(
             @PathVariable Long id,
             @RequestBody ExamRoom request,
             Authentication auth
     ) {
-
         accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.UPDATE);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        true,
-                        "Room updated",
-                        examRoomService.update(id, request)
-                )
-        );
+        return updated(examRoomService.update(id, request));
     }
 
     // Xóa room
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable Long id,
             Authentication auth
     ) {
-
         accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.DELETE);
 
         examRoomService.delete(id);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        true,
-                        "Room deleted",
-                        null
-                )
-        );
+        return deleted();
     }
 
     // Phân trang, lọc
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<Page<ExamRoomDTO>>> getRooms(
             @RequestParam Long examId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication auth
     ) {
-
         accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.READ);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        true,
-                        "Rooms fetched",
-                        examRoomService.getRoomsByExam(examId, page, size)
-                )
-        );
+        return success(examRoomService.getRoomsByExam(examId, page, size));
     }
 }

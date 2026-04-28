@@ -6,26 +6,26 @@ import com.exam.attendance.data.pojo.enums.Resource;
 import com.exam.attendance.data.request.ExamRegistrationRequest;
 import com.exam.attendance.data.response.*;
 import com.exam.attendance.service.ExamRegistrationService;
-
 import com.exam.attendance.service.security.AccessControlService;
 import com.exam.attendance.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.data.domain.*;
-import org.springframework.http.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/exam-registrations")
 @RequiredArgsConstructor
-public class ExamRegistrationController {
+public class ExamRegistrationController extends BaseController {
 
     private final ExamRegistrationService service;
     private final AccessControlService accessControlService;
 
     // Lấy theo ID
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<ExamRegistrationResponse>> getById(
             @PathVariable Long id,
             Authentication auth
@@ -33,12 +33,12 @@ public class ExamRegistrationController {
 
         accessControlService.checkPermission(auth, Resource.EXAM_REGISTRATION, Action.READ);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Exam registration fetched", service.getById(id)));
+        return success(service.getById(id));
     }
 
     // Lấy danh sách theo exam
     @GetMapping
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Page<ExamRegistrationResponse>>> getAll(
             @RequestParam Long examId,
             @RequestParam(defaultValue = "1") int page,
@@ -50,17 +50,16 @@ public class ExamRegistrationController {
 
         Pageable pageable = PageRequest.of(page - 1, size);
 
-        Page<ExamRegistrationResponse> result = service
+        var result = service
                 .getByExam(examId, pageable)
                 .map(ExamRegistrationMapper::toResponse);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Exam registrations fetched", result)
-        );
+        return success(result);
     }
 
     // Add 1 user vào exam
     @PostMapping("/single")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> addUser(
             @RequestParam Long userId,
             @RequestParam Long examId,
@@ -71,12 +70,12 @@ public class ExamRegistrationController {
 
         service.addUserToExam(userId, examId);
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse<>(true, "User added to exam", null));
+        return created(null);
     }
 
     // Add nhiều user
     @PostMapping("/batch")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> addUsers(
             @RequestBody ExamRegistrationRequest request,
             Authentication auth
@@ -86,12 +85,12 @@ public class ExamRegistrationController {
 
         service.addUsersToExam(request.getUserIds(), request.getExamId());
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse<>(true, "Users added to exam", null));
+        return created(null);
     }
 
     // Remove user khỏi exam
     @DeleteMapping
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> removeUser(
             @RequestParam Long userId,
             @RequestParam Long examId,
@@ -102,13 +101,12 @@ public class ExamRegistrationController {
 
         service.removeUserFromExam(userId, examId);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "User removed from exam", null)
-        );
+        return deleted();
     }
 
     // Check user có trong exam không
     @GetMapping("/check")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Boolean>> check(
             @RequestParam Long userId,
             @RequestParam Long examId,
@@ -119,12 +117,12 @@ public class ExamRegistrationController {
 
         boolean exists = service.isRegistered(userId, examId);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Check success", exists)
-        );
+        return success(exists);
     }
 
+    // My exams
     @GetMapping("/my-exams")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<Page<ExamRegistrationResponse>>> getMyExams(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -137,12 +135,10 @@ public class ExamRegistrationController {
 
         Pageable pageable = PageRequest.of(page - 1, size);
 
-        Page<ExamRegistrationResponse> result = service
+        var result = service
                 .getByUserId(userId, pageable)
                 .map(ExamRegistrationMapper::toResponse);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "My exams fetched", result)
-        );
+        return success(result);
     }
 }

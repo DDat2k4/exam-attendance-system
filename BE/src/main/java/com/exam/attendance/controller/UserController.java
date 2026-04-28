@@ -21,12 +21,11 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-public class UserController {
+public class UserController extends BaseController {
 
     private final UserService userService;
     private final AccessControlService accessControlService;
 
-    // Lấy chi tiết user
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT')")
     public ResponseEntity<ApiResponse<UserDetailResponse>> getUser(
@@ -41,17 +40,13 @@ public class UserController {
                 Resource.USER,
                 Action.READ,
                 id,
-                currentUserId
-        );
+                currentUserId);
 
         UserDTO dto = userService.getUserById(id);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "User fetched", UserMapper.toResponse(dto))
-        );
+        return success(UserMapper.toResponse(dto));
     }
 
-    // Lấy danh sách user
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Page<UserDetailResponse>>> getUsers(
@@ -69,14 +64,11 @@ public class UserController {
                 .getUsersByRole(role, pageable)
                 .map(UserMapper::toResponse);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Users fetched", result)
-        );
+        return success(result);
     }
 
-    // Tạo user mới
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Long>> createUser(
             @RequestBody UserCreateRequest request,
             Authentication auth
@@ -91,11 +83,9 @@ public class UserController {
                 request.getPassword()
         );
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse<>(true, "User created", id));
+        return created(id);
     }
 
-    // Cập nhật user
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> updateUser(
@@ -121,12 +111,9 @@ public class UserController {
                 request.getActive()
         );
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "User updated", null)
-        );
+        return updated(null);
     }
 
-    // Xoá user
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteUser(
@@ -146,8 +133,6 @@ public class UserController {
 
         userService.deleteUser(id);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "User deleted", null)
-        );
+        return deleted();
     }
 }

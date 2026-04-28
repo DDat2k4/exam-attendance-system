@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -23,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/roles")
 @RequiredArgsConstructor
-public class RoleController {
+public class RoleController extends BaseController {
 
     private final RoleService roleService;
     private final AccessControlService accessControlService;
@@ -40,12 +39,10 @@ public class RoleController {
 
         RoleDTO dto = roleService.getById(id);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Role fetched", RoleMapper.toResponse(dto))
-        );
+        return success(RoleMapper.toResponse(dto));
     }
 
-    // Lấy danh sách role (có phân trang + filter theo tên)
+    // Danh sách role
     @GetMapping
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Page<RoleResponse>>> getAll(
@@ -63,12 +60,10 @@ public class RoleController {
                 .getAll(name, pageable)
                 .map(RoleMapper::toResponse);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Roles fetched", result)
-        );
+        return success(result);
     }
 
-    // Tạo mới role
+    // Tạo role
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Long>> create(
@@ -80,11 +75,10 @@ public class RoleController {
 
         Long id = roleService.create(request);
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse<>(true, "Role created", id));
+        return created(id);
     }
 
-     // Cập nhật role
+    // Update role
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> update(
@@ -97,12 +91,10 @@ public class RoleController {
 
         roleService.update(id, request);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Role updated", null)
-        );
+        return updated(null);
     }
 
-    // Xoá role
+    // Delete role
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(
@@ -114,8 +106,6 @@ public class RoleController {
 
         roleService.delete(id);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Role deleted", null)
-        );
+        return deleted();
     }
 }

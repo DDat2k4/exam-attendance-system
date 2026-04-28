@@ -24,9 +24,15 @@ public class FileUploadController {
             @RequestParam("userId") Long userId) {
 
         return fileUploadService.uploadFileAsync(file, userId)
-                .thenApply(result -> ResponseEntity.ok(
-                        new ApiResponse<>(true, "Upload success", result)
-                ));
+                .thenApply(result ->
+                        ResponseEntity.ok(
+                                new ApiResponse<>(
+                                        200,
+                                        "Upload success",
+                                        result
+                                )
+                        )
+                );
     }
 
     @PostMapping("/base64")
@@ -35,8 +41,14 @@ public class FileUploadController {
             @RequestParam("userId") Long userId) {
 
         return fileUploadService.uploadBase64Async(request.getBase64(), userId)
-                .thenApply(result -> ResponseEntity.ok(
-                        new ApiResponse<>(true, "Upload success", result)
-                ));
+                .thenApply(result ->
+                        ResponseEntity.ok(
+                                new ApiResponse<>(
+                                        200,
+                                        "Upload success",
+                                        result
+                                )
+                        )
+                );
     }
 }

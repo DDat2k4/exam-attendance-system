@@ -11,19 +11,21 @@ import com.exam.attendance.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/exams")
 @RequiredArgsConstructor
-public class ExamController {
+public class ExamController extends BaseController {
 
     private final ExamService examService;
     private final AccessControlService accessControlService;
 
     // Tạo exam
     @PostMapping
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<ExamResponse>> createExam(
             @RequestBody ExamRequest request,
             Authentication auth
@@ -35,12 +37,12 @@ public class ExamController {
 
         var exam = examService.createExam(request, userId);
 
-        return ResponseEntity.status(201)
-                .body(new ApiResponse<>(true, "Created", exam));
+        return created(exam);
     }
 
     // Phân trang exam
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<Page<ExamResponse>>> getExams(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
@@ -50,14 +52,14 @@ public class ExamController {
 
         accessControlService.checkPermission(auth, Resource.EXAM, Action.READ);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Success",
-                        examService.getExams(keyword, page, size))
+        return success(
+                examService.getExams(keyword, page, size)
         );
     }
 
     // Tìm exam theo id
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<ExamResponse>> getById(
             @PathVariable Long id,
             Authentication auth
@@ -67,12 +69,12 @@ public class ExamController {
 
         var exam = examService.getExamById(id);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Success", exam));
+        return success(exam);
     }
 
     // Cập nhật exam theo id
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<ExamResponse>> update(
             @PathVariable Long id,
             @RequestBody ExamRequest request,
@@ -93,12 +95,12 @@ public class ExamController {
 
         var updated = examService.updateExam(id, request, currentUserId);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Updated", updated));
+        return updated(updated);
     }
 
     // Xóa exam theo id
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable Long id,
             Authentication auth
@@ -118,11 +120,12 @@ public class ExamController {
 
         examService.deleteExam(id);
 
-        return ResponseEntity.ok(new ApiResponse<>(true, "Deleted", null));
+        return deleted();
     }
 
     // Tạo room theo examId
     @PostMapping("/{examId}/rooms")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<ExamRoomResponse>> createRoom(
             @PathVariable Long examId,
             @RequestBody ExamRoomRequest request,
@@ -133,12 +136,12 @@ public class ExamController {
 
         var room = examService.createRoom(examId, request);
 
-        return ResponseEntity.status(201)
-                .body(new ApiResponse<>(true, "Room created", room));
+        return created(room);
     }
 
     // Xóa room
     @DeleteMapping("/rooms/{roomId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteRoom(
             @PathVariable Long roomId,
             Authentication auth
@@ -148,6 +151,6 @@ public class ExamController {
 
         examService.deleteRoom(roomId);
 
-        return ResponseEntity.ok(new ApiResponse<>(true, "Room deleted", null));
+        return deleted();
     }
 }

@@ -7,7 +7,6 @@ import com.exam.attendance.data.pojo.enums.Resource;
 import com.exam.attendance.data.response.ApiResponse;
 import com.exam.attendance.repository.UserRepository;
 import com.exam.attendance.service.CccdService;
-import com.exam.attendance.service.UserService;
 import com.exam.attendance.service.security.AccessControlService;
 import com.exam.attendance.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/cccd")
 @RequiredArgsConstructor
-public class CccdController {
+public class CccdController extends BaseController {
 
     private final CccdService cccdService;
     private final UserRepository userRepository;
@@ -27,6 +26,7 @@ public class CccdController {
 
     // Verify CCCD
     @PostMapping("/verify")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<CCCDInfo>> verify(
             @RequestBody CCCDInfo cccdInfo,
             Authentication auth
@@ -42,18 +42,18 @@ public class CccdController {
                 currentUserId
         );
 
-        User user = userRepository.findById(currentUserId).
-                orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
         cccdService.verifyCccd(cccdInfo, user);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "CCCD verified successfully", null)
-        );
+        return success(null);
     }
 
     // Checkin CCCD
     @PostMapping("/checkin")
-    public ResponseEntity<ApiResponse<?>> checkin(
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Object>> checkin(
             @RequestBody CCCDInfo request,
             Authentication auth
     ) {
@@ -68,9 +68,8 @@ public class CccdController {
                 currentUserId
         );
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Checkin thành công",
-                        cccdService.processCheckin(request))
+        return success(
+                cccdService.processCheckin(request)
         );
     }
 }

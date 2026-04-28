@@ -20,7 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/user-roles")
 @RequiredArgsConstructor
-public class UserRoleController {
+public class UserRoleController extends BaseController {
 
     private final UserRoleService service;
     private final AccessControlService accessControlService;
@@ -48,9 +48,7 @@ public class UserRoleController {
                 .map(RoleMapper::toResponse)
                 .toList();
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "User roles fetched", roles)
-        );
+        return success(roles);
     }
 
     // Thêm role cho user
@@ -74,9 +72,7 @@ public class UserRoleController {
 
         service.addRolesToUser(userId, request.getRoleIds());
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Roles added", null)
-        );
+        return success(null);
     }
 
     // Replace toàn bộ role
@@ -100,9 +96,7 @@ public class UserRoleController {
 
         service.replaceUserRoles(userId, request.getRoleIds());
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Roles replaced", null)
-        );
+        return updated(null);
     }
 
     // Xóa role khỏi user
@@ -126,8 +120,6 @@ public class UserRoleController {
 
         service.removeRoleFromUser(userId, roleId);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Role removed", null)
-        );
+        return deleted();
     }
 }

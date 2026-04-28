@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-public class AuthController {
+public class AuthController extends BaseController {
 
     private final AuthService authService;
 
@@ -24,9 +24,7 @@ public class AuthController {
 
         authService.register(request);
 
-        return ResponseEntity
-                .status(201)
-                .body(new ApiResponse<>(true, "User registered successfully!", null));
+        return created(null);
     }
 
     // Login
@@ -38,9 +36,7 @@ public class AuthController {
                 request.getPassword()
         );
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Login successful", authResponse)
-        );
+        return success(authResponse);
     }
 
     // Refresh token
@@ -49,34 +45,28 @@ public class AuthController {
 
         AuthResponse authResponse = authService.refreshToken(request.getRefreshToken());
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Token refreshed successfully", authResponse)
-        );
+        return success(authResponse);
     }
 
-    // Đăng xuất
+    // Logout
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(@RequestBody RefreshRequest request) {
 
         authService.logout(request.getRefreshToken());
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Logged out successfully!", null)
-        );
+        return success(null);
     }
 
-    // Đăng xuất tất cả thết bị
+    // Logout all devices
     @PostMapping("/logout-all/{userId}")
     public ResponseEntity<ApiResponse<Void>> logoutAll(@PathVariable Long userId) {
 
         authService.logoutAll(userId);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Logged out from all devices successfully!", null)
-        );
+        return success(null);
     }
 
-    // Đổi mật khẩu
+    // Change password
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             Authentication authentication,
@@ -88,8 +78,6 @@ public class AuthController {
 
         authService.changePassword(username, oldPassword, newPassword);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Password changed successfully. Please login again.", null)
-        );
+        return success(null);
     }
 }

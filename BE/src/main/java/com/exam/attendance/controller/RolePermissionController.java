@@ -19,12 +19,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/roles")
 @RequiredArgsConstructor
-public class RolePermissionController {
+public class RolePermissionController extends BaseController {
 
     private final RolePermissionService service;
     private final AccessControlService accessControl;
 
-    // Lấy danh sách permission của role
+    // Lấy permissions của role
     @GetMapping("/{roleId}/permissions")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<List<PermissionResponse>>> getPermissions(
@@ -39,12 +39,10 @@ public class RolePermissionController {
                 .map(PermissionMapper::toResponse)
                 .toList();
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Permissions fetched", result)
-        );
+        return success(result);
     }
 
-    // Thêm permission vào role
+    // Thêm permissions vào role
     @PostMapping("/{roleId}/permissions")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> addPermissions(
@@ -57,12 +55,10 @@ public class RolePermissionController {
 
         service.addPermissions(roleId, request.getPermissionIds());
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Permissions added", null)
-        );
+        return updated(null);
     }
 
-    // Ghi đè toàn bộ permission của role
+    // Replace toàn bộ permissions
     @PutMapping("/{roleId}/permissions")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> replacePermissions(
@@ -75,12 +71,10 @@ public class RolePermissionController {
 
         service.replacePermissions(roleId, request.getPermissionIds());
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Permissions replaced", null)
-        );
+        return updated(null);
     }
 
-    // Xoá 1 permission khỏi role
+    // Xoá permission khỏi role
     @DeleteMapping("/{roleId}/permissions/{permissionId}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> removePermission(
@@ -93,8 +87,6 @@ public class RolePermissionController {
 
         service.removePermission(roleId, permissionId);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Permission removed", null)
-        );
+        return deleted();
     }
 }
