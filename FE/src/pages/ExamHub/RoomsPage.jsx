@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   getAllExams,
 } from '../../api/examApi'
-import { createExamRoom, deleteExamRoom, updateExamRoom, getRoomsByExamPaginated } from '../../api/examRoomApi'
+import { createExamRoom, deleteExamRoom, updateExamRoom, getRoomsByExamPaginated, assignExamRoomBatch, getStudentsInRoom } from '../../api/examRoomApi'
+import { getExamRegistrationsByExam } from '../../api/examRegistrationApi'
+import { getUserProfiles } from '../../api/userProfileApi'
 import RoomsSection from '../../components/ExamHub/RoomsSection'
 import { useAuth } from '../../context/AuthContext'
 import { canAccess } from '../../utils/rbac'
@@ -16,6 +18,39 @@ const INITIAL_ROOM_FORM = {
 }
 
 const ROOM_PAGE_SIZE = 10
+const ASSIGNMENT_REGISTRATION_PAGE_SIZE = 100
+const ROOM_STUDENTS_PAGE_SIZE = 100
+const PROFILE_LOOKUP_PAGE_SIZE = 100
+
+const getProfileDisplayName = (profile, fallbackUserId) => profile?.name || profile?.fullName || `User #${fallbackUserId}`
+
+const loadProfilesByUserIds = async (userIds = []) => {
+  const uniqueUserIds = [...new Set(userIds.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))]
+  if (uniqueUserIds.length === 0) return new Map()
+
+  const remaining = new Set(uniqueUserIds)
+  const profileMap = new Map()
+  let page = 1
+  let totalPages = 1
+
+  while (remaining.size > 0 && page <= totalPages) {
+    const result = await getUserProfiles({ page, size: PROFILE_LOOKUP_PAGE_SIZE })
+    const items = Array.isArray(result?.items) ? result.items : []
+
+    for (const profile of items) {
+      const profileUserId = Number(profile?.userId)
+      if (!Number.isInteger(profileUserId) || !remaining.has(profileUserId)) continue
+
+      profileMap.set(profileUserId, profile)
+      remaining.delete(profileUserId)
+    }
+
+    totalPages = Math.max(1, Math.ceil(Number(result?.total || 0) / PROFILE_LOOKUP_PAGE_SIZE))
+    page += 1
+  }
+
+  return profileMap
+}
 
 export default function RoomsPage() {
   const { user } = useAuth()
@@ -26,12 +61,23 @@ export default function RoomsPage() {
   const [submittingRoom, setSubmittingRoom] = useState(false)
   const [processingExamId, setProcessingExamId] = useState(null)
   const [editingRoomId, setEditingRoomId] = useState(null)
-  const [examPaginationState, setExamPaginationState] = useState({}) // { [examId]: { currentPage, totalPages } }
-  const [loadingMoreRoomExamId, setLoadingMoreRoomExamId] = useState(null)
   const [roomFilterCode, setRoomFilterCode] = useState('') // lọc theo mã phòng
   const [roomFilterExamId, setRoomFilterExamId] = useState('') // lọc theo kỳ thi
   const [roomFilterMaxStudents, setRoomFilterMaxStudents] = useState('') // lọc theo số lượng tối đa
   const [roomPage, setRoomPage] = useState(1)
+  const [showAssignRoomModal, setShowAssignRoomModal] = useState(false)
+  const [assignRoomTarget, setAssignRoomTarget] = useState(null)
+  const [assignableRegistrations, setAssignableRegistrations] = useState([])
+  const [loadingAssignableRegistrations, setLoadingAssignableRegistrations] = useState(false)
+  const [assignRegistrationQuery, setAssignRegistrationQuery] = useState('')
+  const [pendingRoomAssignments, setPendingRoomAssignments] = useState([])
+  const [submittingRoomAssignment, setSubmittingRoomAssignment] = useState(false)
+  const [assignRoomError, setAssignRoomError] = useState('')
+  const [showRoomStudentsModal, setShowRoomStudentsModal] = useState(false)
+  const [roomStudentsTarget, setRoomStudentsTarget] = useState(null)
+  const [roomStudents, setRoomStudents] = useState([])
+  const [loadingRoomStudents, setLoadingRoomStudents] = useState(false)
+  const [roomStudentsError, setRoomStudentsError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -104,14 +150,6 @@ export default function RoomsPage() {
           try {
             const paginatedData = await getRoomsByExamPaginated(exam.id, 0, 10)
             const rooms = paginatedData?.content || []
-            const totalPages = paginatedData?.totalPages || 0
-            const totalElements = paginatedData?.totalElements || rooms.length
-
-            // Lưu pagination state cho exam này
-            setExamPaginationState((prev) => ({
-              ...prev,
-              [exam.id]: { currentPage: 0, totalPages, totalElements },
-            }))
 
             return (Array.isArray(rooms) ? rooms : []).map((room) => ({
               examId: exam.id,
@@ -209,46 +247,180 @@ export default function RoomsPage() {
     setRoomPage((prev) => Math.min(roomTotalPages, prev + 1))
   }
 
-  const loadMoreRoomsForExam = async (examId) => {
-    const examTitle = exams.find((e) => e.id === examId)?.title || `#${examId}`
-    const paginationInfo = examPaginationState[examId] || { currentPage: 0, totalPages: 0, totalElements: 0 }
+  const handleOpenAssignRoom = async ({ roomId, examId, roomCode, examTitle }) => {
+    const parsedRoomId = Number(roomId)
+    const parsedExamId = Number(examId)
 
-    if (paginationInfo.currentPage + 1 >= paginationInfo.totalPages) {
-      setSuccess(`Đã hiển thị tất cả phòng thi của kỳ ${examTitle}.`)
+    if (!Number.isInteger(parsedRoomId) || parsedRoomId <= 0 || !Number.isInteger(parsedExamId) || parsedExamId <= 0) {
+      setError('Không xác định được phòng hoặc kỳ thi để gán phòng.')
       return
     }
 
     setError('')
+    setSuccess('')
+    setAssignRoomTarget({ roomId: parsedRoomId, examId: parsedExamId, roomCode: roomCode || '', examTitle: examTitle || `#${parsedExamId}` })
+    setAssignRegistrationQuery('')
+    setPendingRoomAssignments([])
+    setAssignRoomError('')
+    setAssignableRegistrations([])
+    setShowAssignRoomModal(true)
 
     try {
-      setLoadingMoreRoomExamId(examId)
-      const nextPage = paginationInfo.currentPage + 1
-      const paginatedData = await getRoomsByExamPaginated(examId, nextPage, 10)
-      const newRooms = paginatedData?.content || []
-      const totalElements = paginatedData?.totalElements || paginationInfo.totalElements || 0
+      setLoadingAssignableRegistrations(true)
+      const result = await getExamRegistrationsByExam({
+        examId: parsedExamId,
+        page: 1,
+        size: ASSIGNMENT_REGISTRATION_PAGE_SIZE,
+      })
 
-      const newRows = (Array.isArray(newRooms) ? newRooms : []).map((room) => ({
-        examId,
-        examTitle,
-        room,
-        roomId: room.id ?? room.roomId,
-      }))
+      const baseRows = Array.isArray(result?.content) ? result.content : []
+      const profileMap = await loadProfilesByUserIds(baseRows.map((row) => row?.userId))
+      const enrichedRows = baseRows.map((row) => {
+        const userId = Number(row?.userId)
+        const profile = profileMap.get(userId) || null
 
-      setRoomRows((prev) => [...prev, ...newRows])
-      setExamPaginationState((prev) => ({
-        ...prev,
-        [examId]: {
-          currentPage: nextPage,
-          totalPages: paginatedData?.totalPages || 0,
-          totalElements,
-        },
-      }))
+        return {
+          ...row,
+          userFullName: profile?.name || profile?.fullName || '',
+          userCitizenId: profile?.citizenId || '',
+          userDisplayName: getProfileDisplayName(profile, userId),
+        }
+      })
 
-      setSuccess(`Tải thêm phòng thi từ ${examTitle}.`)
+      setAssignableRegistrations(enrichedRows)
     } catch (err) {
-      setError(err.message || 'Không thể tải thêm phòng thi.')
+      setError(err.message || 'Không thể tải danh sách đăng ký để gán phòng.')
+      setAssignableRegistrations([])
     } finally {
-      setLoadingMoreRoomExamId(null)
+      setLoadingAssignableRegistrations(false)
+    }
+  }
+
+  const handleCloseAssignRoom = () => {
+    setShowAssignRoomModal(false)
+    setAssignRoomTarget(null)
+    setAssignableRegistrations([])
+    setAssignRegistrationQuery('')
+    setPendingRoomAssignments([])
+    setAssignRoomError('')
+  }
+
+  const handleAddRoomAssignment = (row) => {
+    const registrationId = Number(row?.id)
+    if (!Number.isInteger(registrationId) || registrationId <= 0) {
+      setAssignRoomError('Không thể thêm registration không hợp lệ.')
+      return
+    }
+
+    setAssignRoomError('')
+    setPendingRoomAssignments((prev) => {
+      if (prev.some((item) => Number(item.registrationId) === registrationId)) {
+        return prev
+      }
+
+      return [
+        ...prev,
+        {
+          registrationId,
+          seatNumber: '',
+          label: row?.userDisplayName || row?.userFullName || row?.userUsername || `User #${row?.userId}`,
+          meta: [
+            row?.userUsername ? `@${row.userUsername}` : '',
+            row?.userEmail || '',
+            row?.userCitizenId ? `CCCD: ${row.userCitizenId}` : '',
+            row?.status || 'PENDING',
+          ].filter(Boolean).join(' · '),
+        },
+      ]
+    })
+    setAssignRegistrationQuery('')
+  }
+
+  const handleUpdateRoomAssignmentSeat = (registrationId, seatNumber) => {
+    setPendingRoomAssignments((prev) => prev.map((item) => (
+      Number(item.registrationId) === Number(registrationId)
+        ? { ...item, seatNumber }
+        : item
+    )))
+  }
+
+  const handleRemoveRoomAssignment = (registrationId) => {
+    setPendingRoomAssignments((prev) => prev.filter((item) => Number(item.registrationId) !== Number(registrationId)))
+  }
+
+  const handleOpenRoomStudents = async ({ roomId, roomCode, examTitle }) => {
+    const parsedRoomId = Number(roomId)
+
+    if (!Number.isInteger(parsedRoomId) || parsedRoomId <= 0) {
+      setError('Không xác định được roomId hợp lệ để xem sinh viên.')
+      return
+    }
+
+    setError('')
+    setSuccess('')
+    setRoomStudentsTarget({ roomId: parsedRoomId, roomCode: roomCode || '', examTitle: examTitle || '' })
+    setRoomStudents([])
+    setRoomStudentsError('')
+    setShowRoomStudentsModal(true)
+
+    try {
+      setLoadingRoomStudents(true)
+      const result = await getStudentsInRoom({ roomId: parsedRoomId, page: 0, size: ROOM_STUDENTS_PAGE_SIZE })
+      setRoomStudents(Array.isArray(result?.content) ? result.content : [])
+    } catch (err) {
+      setRoomStudentsError(err.message || 'Không thể tải danh sách sinh viên trong phòng.')
+      setRoomStudents([])
+    } finally {
+      setLoadingRoomStudents(false)
+    }
+  }
+
+  const handleCloseRoomStudents = () => {
+    setShowRoomStudentsModal(false)
+    setRoomStudentsTarget(null)
+    setRoomStudents([])
+    setLoadingRoomStudents(false)
+    setRoomStudentsError('')
+  }
+
+  const handleAssignRoom = async (e) => {
+    e.preventDefault()
+
+    const roomId = Number(assignRoomTarget?.roomId)
+
+    const students = pendingRoomAssignments.map((item) => ({
+      registrationId: item.registrationId,
+      seatNumber: Number(item.seatNumber),
+    }))
+
+    if (!Number.isInteger(roomId) || roomId <= 0) {
+      setAssignRoomError('Không tìm thấy roomId hợp lệ.')
+      return
+    }
+
+    if (students.length === 0) {
+      setAssignRoomError('Vui lòng thêm ít nhất 1 sinh viên vào danh sách gán.')
+      return
+    }
+
+    const invalidItem = students.find((item) => !Number.isInteger(item.seatNumber) || item.seatNumber <= 0)
+    if (invalidItem) {
+      setAssignRoomError('Vui lòng nhập số ghế hợp lệ cho tất cả sinh viên.')
+      return
+    }
+
+    try {
+      setSubmittingRoomAssignment(true)
+      setAssignRoomError('')
+      setSuccess('')
+      await assignExamRoomBatch({ roomId, students })
+      await fetchExams()
+      setSuccess(`Đã gán ${students.length} sinh viên vào phòng #${roomId}.`)
+      handleCloseAssignRoom()
+    } catch (err) {
+      setAssignRoomError(err.message || 'Không thể gán phòng thi.')
+    } finally {
+      setSubmittingRoomAssignment(false)
     }
   }
 
@@ -331,6 +503,28 @@ export default function RoomsPage() {
         roomTotalCount={roomTotalCount}
         handlePrevRoomPage={handlePrevRoomPage}
         handleNextRoomPage={handleNextRoomPage}
+        showAssignRoomModal={showAssignRoomModal}
+        assignRoomTarget={assignRoomTarget}
+        assignableRegistrations={assignableRegistrations}
+        loadingAssignableRegistrations={loadingAssignableRegistrations}
+        assignRegistrationQuery={assignRegistrationQuery}
+        setAssignRegistrationQuery={setAssignRegistrationQuery}
+        pendingRoomAssignments={pendingRoomAssignments}
+        handleAddRoomAssignment={handleAddRoomAssignment}
+        handleUpdateRoomAssignmentSeat={handleUpdateRoomAssignmentSeat}
+        handleRemoveRoomAssignment={handleRemoveRoomAssignment}
+        submittingRoomAssignment={submittingRoomAssignment}
+        assignRoomError={assignRoomError}
+        showRoomStudentsModal={showRoomStudentsModal}
+        roomStudentsTarget={roomStudentsTarget}
+        roomStudents={roomStudents}
+        loadingRoomStudents={loadingRoomStudents}
+        roomStudentsError={roomStudentsError}
+        handleOpenAssignRoom={handleOpenAssignRoom}
+        handleCloseAssignRoom={handleCloseAssignRoom}
+        handleAssignRoom={handleAssignRoom}
+        handleOpenRoomStudents={handleOpenRoomStudents}
+        handleCloseRoomStudents={handleCloseRoomStudents}
       />
     </div>
   )

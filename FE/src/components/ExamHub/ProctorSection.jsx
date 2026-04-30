@@ -28,6 +28,9 @@ export default function ProctorSection({
   proctorHistory,
   runProctorAction,
   proctorReason,
+  proctorAlerts,
+  clearProctorAlerts,
+  proctorSocketStatus,
 }) {
   const { loading: exporting, error: exportError, exportReport } = useExcelExport()
   const [showExportError, setShowExportError] = useState(false)
@@ -50,6 +53,14 @@ export default function ProctorSection({
       setShowExportError(true)
     }
   }
+
+  const socketStatusLabel = {
+    CONNECTED: 'Realtime: Đã kết nối',
+    CONNECTING: 'Realtime: Đang kết nối...',
+    ERROR: 'Realtime: Lỗi kết nối',
+    IDLE: 'Realtime: Chưa bật',
+  }[proctorSocketStatus] || 'Realtime: Chưa bật'
+
   return (
     <section className="panel proctor-panel">
       <div className="session-head">
@@ -168,6 +179,46 @@ export default function ProctorSection({
           Xóa lọc
         </button>
       </form>
+
+      <div className="proctor-alert-feed">
+        <div className="session-head">
+          <div>
+            <h3>Cảnh báo realtime</h3>
+            <p className="student-exam-note">{socketStatusLabel} • Room hiện tại: {proctorFilter.roomId || '-'}</p>
+          </div>
+          <div className="inline-actions">
+            <button
+              type="button"
+              className="tiny-btn"
+              onClick={clearProctorAlerts}
+              disabled={proctorAlerts.length === 0}
+            >
+              Xóa feed
+            </button>
+          </div>
+        </div>
+
+        {proctorAlerts.length === 0 ? (
+          <p>Chưa có cảnh báo mới cho phòng đang giám sát.</p>
+        ) : (
+          <div className="proctor-alert-list">
+            {proctorAlerts.map((alert, index) => (
+              <article key={`${alert.sessionId || 'session'}-${alert.timestamp}-${index}`} className="proctor-alert-item">
+                <div className="proctor-alert-item-head">
+                  <span className={`risk-badge risk-${String(alert.severity || 'LOW').toLowerCase()}`}>
+                    {alert.severity || 'LOW'}
+                  </span>
+                  <small>{formatDateTime(alert.timestamp)}</small>
+                </div>
+                <strong>{alert.message}</strong>
+                <small>
+                  Session #{alert.sessionId || '-'} • User #{alert.userId || '-'} • Room #{alert.roomId || '-'}
+                </small>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="proctor-list">
         <div className="session-head">

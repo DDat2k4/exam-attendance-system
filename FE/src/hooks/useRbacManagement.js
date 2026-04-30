@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPermission, deletePermission, getPermissions, updatePermission } from '../api/permissionApi'
 import { createRole, deleteRole, getRoles, updateRole } from '../api/roleApi'
 import {
@@ -19,7 +19,14 @@ const emptyRoleForm = { name: '', description: '' }
 const emptyPermissionForm = { resource: '', action: '', description: '' }
 const ASSIGNMENT_PERMISSION_PAGE_SIZE = 100
 
-export default function useRbacManagement() {
+export default function useRbacManagement(options = {}) {
+  const mode = options?.mode || 'full'
+  const isPermissionsOnlyMode = mode === 'permissions'
+  const isRolesOnlyMode = mode === 'roles'
+  const isFullMode = !isPermissionsOnlyMode && !isRolesOnlyMode
+
+  const hasLoadedInitialDataRef = useRef(false)
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -177,6 +184,21 @@ export default function useRbacManagement() {
     return result
   }
 
+  const handleRolePageChange = async (nextPage) => {
+    const totalPages = Math.max(Number(roleTotalPages || 0), 1)
+    const normalizedPage = Math.min(Math.max(Number(nextPage) || 1, 1), totalPages)
+
+    setLoading(true)
+    clearNotice()
+    try {
+      await fetchRoles(normalizedPage, roleNameFilter, rolePageSize)
+    } catch (err) {
+      setError(err.message || 'Không tải được danh sách vai trò')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const fetchAllRoles = async (firstPage) => {
     const resolvedFirstPage =
       firstPage ??
@@ -186,12 +208,13 @@ export default function useRbacManagement() {
       }))
 
     const totalPages = Math.max(Number(resolvedFirstPage.totalPages || 0), 1)
+    const resolvedPageSize = Math.max(Number(resolvedFirstPage.size || ROLE_LOOKUP_PAGE_SIZE), 1)
     const nextItems = [...(resolvedFirstPage.items || [])]
 
     for (let page = 2; page <= totalPages; page += 1) {
       const pageResult = await getRoles({
         page,
-        limit: ROLE_LOOKUP_PAGE_SIZE,
+        limit: resolvedPageSize,
       })
       nextItems.push(...(pageResult.items || []))
     }
@@ -222,6 +245,21 @@ export default function useRbacManagement() {
     return result
   }
 
+  const handlePermissionPageChange = async (nextPage) => {
+    const totalPages = Math.max(Number(permissionTotalPages || 0), 1)
+    const normalizedPage = Math.min(Math.max(Number(nextPage) || 1, 1), totalPages)
+
+    setLoading(true)
+    clearNotice()
+    try {
+      await fetchPermissions(normalizedPage, permissionCodeFilter, permissionPageSize)
+    } catch (err) {
+      setError(err.message || 'Không tải được danh sách permission')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const fetchAllAssignmentPermissions = async (firstPage) => {
     const resolvedFirstPage =
       firstPage ??
@@ -231,12 +269,13 @@ export default function useRbacManagement() {
       }))
 
     const totalPages = Math.max(Number(resolvedFirstPage.totalPages || 0), 1)
+    const resolvedPageSize = Math.max(Number(resolvedFirstPage.size || ASSIGNMENT_PERMISSION_PAGE_SIZE), 1)
     const nextItems = [...(resolvedFirstPage.items || [])]
 
     for (let page = 2; page <= totalPages; page += 1) {
       const pageResult = await getPermissions({
         page,
-        limit: ASSIGNMENT_PERMISSION_PAGE_SIZE,
+        limit: resolvedPageSize,
       })
       nextItems.push(...(pageResult.items || []))
     }
@@ -269,10 +308,25 @@ export default function useRbacManagement() {
   }
 
   useEffect(() => {
+    if (hasLoadedInitialDataRef.current) {
+      return
+    }
+    hasLoadedInitialDataRef.current = true
+
     const loadAll = async () => {
       setLoading(true)
       clearNotice()
       try {
+        if (isPermissionsOnlyMode) {
+          await fetchPermissions(1, '', permissionPageSize)
+          return
+        }
+
+        if (isRolesOnlyMode) {
+          await fetchRoles(1, '', rolePageSize)
+          return
+        }
+
         const [rolesPage, permissionsPage] = await Promise.all([
           fetchRoles(1, ''),
           fetchPermissions(1, ''),
@@ -290,7 +344,7 @@ export default function useRbacManagement() {
       }
     }
     loadAll()
-  }, [])
+  }, [isPermissionsOnlyMode, isRolesOnlyMode, permissionPageSize, rolePageSize])
 
   useEffect(() => {
     setAssignmentPermissionPage(1)
@@ -336,8 +390,10 @@ export default function useRbacManagement() {
 
       setRoleForm(emptyRoleForm)
       setEditingRoleId(null)
-      const refreshedRoles = await fetchRoles(rolePage, roleNameFilter)
-      await fetchAllRoles(refreshedRoles)
+      const refreshedRoles = await fetchRoles(rolePage, roleNameFilter, rolePageSize)
+      if (isFullMode) {
+        await fetchAllRoles(refreshedRoles)
+      }
     } catch (err) {
       setError(err.message || 'Không thể lưu role')
     } finally {
@@ -371,8 +427,10 @@ export default function useRbacManagement() {
         setSelectedRoleId(null)
         setSelectedRolePermissionIds(new Set())
       }
-      const refreshedRoles = await fetchRoles(rolePage, roleNameFilter)
-      await fetchAllRoles(refreshedRoles)
+      const refreshedRoles = await fetchRoles(rolePage, roleNameFilter, rolePageSize)
+      if (isFullMode) {
+        await fetchAllRoles(refreshedRoles)
+      }
     } catch (err) {
       setError(err.message || 'Không thể xóa role')
     } finally {
@@ -419,8 +477,10 @@ export default function useRbacManagement() {
 
       setPermissionForm(emptyPermissionForm)
       setEditingPermissionId(null)
-      const refreshedPermissions = await fetchPermissions(permissionPage, permissionCodeFilter)
-      await fetchAllAssignmentPermissions(refreshedPermissions)
+      const refreshedPermissions = await fetchPermissions(permissionPage, permissionCodeFilter, permissionPageSize)
+      if (isFullMode) {
+        await fetchAllAssignmentPermissions(refreshedPermissions)
+      }
     } catch (err) {
       setError(err.message || 'Không thể lưu permission')
     } finally {
@@ -456,8 +516,10 @@ export default function useRbacManagement() {
         clone.delete(Number(permissionId))
         setSelectedRolePermissionIds(clone)
       }
-      const refreshedPermissions = await fetchPermissions(permissionPage, permissionCodeFilter)
-      await fetchAllAssignmentPermissions(refreshedPermissions)
+      const refreshedPermissions = await fetchPermissions(permissionPage, permissionCodeFilter, permissionPageSize)
+      if (isFullMode) {
+        await fetchAllAssignmentPermissions(refreshedPermissions)
+      }
     } catch (err) {
       setError(err.message || 'Không thể xóa permission')
     } finally {
@@ -702,6 +764,7 @@ export default function useRbacManagement() {
     permissionCodeFilter,
     setPermissionCodeFilter,
     permissionPage,
+    setPermissionPage,
     permissionPageSize,
     setPermissionPageSize,
     permissionTotalPages,
@@ -744,6 +807,8 @@ export default function useRbacManagement() {
     clearNotice,
     fetchRoles,
     fetchPermissions,
+    handleRolePageChange,
+    handlePermissionPageChange,
     handleCreateOrUpdateRole,
     handleEditRole,
     handleDeleteRole,

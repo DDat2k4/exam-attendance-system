@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { DEFAULT_PAGE_SIZE } from '../../hooks/useRbacManagement'
 import FormModal from './FormModal'
 
@@ -12,13 +12,18 @@ export default function PermissionsSection({
   handleCreateOrUpdatePermission,
   permissionCodeFilter,
   setPermissionCodeFilter,
+  permissionPage,
   permissionPageSize,
-  assignmentPermissions,
+  permissionTotalPages,
+  permissionIsFirst,
+  permissionIsLast,
+  permissions,
+  handlePermissionPageChange,
   handleEditPermission,
-  handleDeletePermission,
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [localPermissionPage, setLocalPermissionPage] = useState(1)
+
+  const normalizedPageSize = Number(permissionPageSize) > 0 ? Number(permissionPageSize) : DEFAULT_PAGE_SIZE
 
   const filteredPermissions = useMemo(() => {
     const keyword = String(permissionCodeFilter || '')
@@ -26,10 +31,10 @@ export default function PermissionsSection({
       .toLowerCase()
 
     if (!keyword) {
-      return assignmentPermissions
+      return permissions
     }
 
-    return assignmentPermissions.filter((item) => {
+    return permissions.filter((item) => {
       const code = String(item?.code || '').toLowerCase()
       const resource = String(item?.resource || '').toLowerCase()
       const action = String(item?.action || '').toLowerCase()
@@ -43,7 +48,7 @@ export default function PermissionsSection({
         id.includes(keyword)
       )
     })
-  }, [assignmentPermissions, permissionCodeFilter])
+  }, [permissions, permissionCodeFilter])
 
   const groupedPermissions = useMemo(() => {
     const groups = new Map()
@@ -69,38 +74,7 @@ export default function PermissionsSection({
     return Array.from(groups.values())
   }, [filteredPermissions])
 
-  const normalizedPageSize = Number(permissionPageSize) > 0 ? Number(permissionPageSize) : DEFAULT_PAGE_SIZE
-
-  const localTotalPages = useMemo(() => {
-    if (groupedPermissions.length === 0) return 0
-    return Math.ceil(groupedPermissions.length / normalizedPageSize)
-  }, [groupedPermissions.length, normalizedPageSize])
-
-  const paginatedPermissions = useMemo(() => {
-    if (groupedPermissions.length === 0) return []
-    const startIndex = (localPermissionPage - 1) * normalizedPageSize
-    return groupedPermissions.slice(startIndex, startIndex + normalizedPageSize)
-  }, [groupedPermissions, localPermissionPage, normalizedPageSize])
-
-  const localIsFirst = localPermissionPage <= 1
-  const localIsLast = localTotalPages === 0 || localPermissionPage >= localTotalPages
-
-  useEffect(() => {
-    setLocalPermissionPage(1)
-  }, [permissionCodeFilter])
-
-  useEffect(() => {
-    if (localTotalPages === 0) {
-      if (localPermissionPage !== 1) {
-        setLocalPermissionPage(1)
-      }
-      return
-    }
-
-    if (localPermissionPage > localTotalPages) {
-      setLocalPermissionPage(localTotalPages)
-    }
-  }, [localPermissionPage, localTotalPages])
+  const paginatedPermissions = groupedPermissions
 
   const handleOpenModal = () => {
     setPermissionForm(emptyPermissionForm)
@@ -148,11 +122,11 @@ export default function PermissionsSection({
             placeholder="Tìm kiếm theo mã permission..."
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                setLocalPermissionPage(1)
+                handlePermissionPageChange(1)
               }
             }}
           />
-          <button type="button" onClick={() => setLocalPermissionPage(1)} className="btn-search">
+          <button type="button" onClick={() => handlePermissionPageChange(1)} className="btn-search">
             🔍
           </button>
         </div>
@@ -210,7 +184,7 @@ export default function PermissionsSection({
             ) : (
               paginatedPermissions.map((group, idx) => (
                 <tr key={group.resource}>
-                  <td>{(localPermissionPage - 1) * normalizedPageSize + idx + 1}</td>
+                  <td>{(permissionPage - 1) * normalizedPageSize + idx + 1}</td>
                   <td>{group.resource}</td>
                   <td>
                     <div className="action-buttons" style={{ flexWrap: 'wrap', gap: '6px' }}>
@@ -271,30 +245,34 @@ export default function PermissionsSection({
       </div>
 
       <div className="pagination">
-        <button type="button" disabled={localIsFirst || localTotalPages === 0} onClick={() => setLocalPermissionPage(1)}>
+        <button
+          type="button"
+          disabled={permissionIsFirst || permissionTotalPages === 0}
+          onClick={() => handlePermissionPageChange(1)}
+        >
           Đầu
         </button>
         <button
           type="button"
-          disabled={localIsFirst || localTotalPages === 0}
-          onClick={() => setLocalPermissionPage((prev) => Math.max(prev - 1, 1))}
+          disabled={permissionIsFirst || permissionTotalPages === 0}
+          onClick={() => handlePermissionPageChange(Math.max(permissionPage - 1, 1))}
         >
           Trước
         </button>
         <span className="page-info">
-          {localPermissionPage}/{Math.max(localTotalPages, 1)}
+          {permissionPage}/{Math.max(permissionTotalPages, 1)}
         </span>
         <button
           type="button"
-          disabled={localIsLast || localTotalPages === 0}
-          onClick={() => setLocalPermissionPage((prev) => Math.min(prev + 1, Math.max(localTotalPages, 1)))}
+          disabled={permissionIsLast || permissionTotalPages === 0}
+          onClick={() => handlePermissionPageChange(Math.min(permissionPage + 1, Math.max(permissionTotalPages, 1)))}
         >
           Sau
         </button>
         <button
           type="button"
-          disabled={localIsLast || localTotalPages === 0}
-          onClick={() => setLocalPermissionPage(Math.max(localTotalPages, 1))}
+          disabled={permissionIsLast || permissionTotalPages === 0}
+          onClick={() => handlePermissionPageChange(Math.max(permissionTotalPages, 1))}
         >
           Cuối
         </button>

@@ -216,3 +216,30 @@ export const deleteExamRoom = async (roomId) => {
 	}
 };
 
+// Import exam from Excel
+export const importExamFromExcel = async (file, examId) => {
+	if (!file || !(file instanceof File)) {
+		throw new Error("Invalid file.");
+	}
+
+	const parsedExamId = Number(examId);
+	if (!Number.isInteger(parsedExamId) || parsedExamId <= 0) {
+		throw new Error("Invalid exam ID.");
+	}
+
+	const formData = new FormData();
+	formData.append("file", file);
+
+	try {
+		const res = await axios.post(`${API_URL}/exams/${parsedExamId}/import`, formData, {
+			headers: {
+				"Content-Type": "multipart/form-data",
+				Authorization: `Bearer ${getToken()}`,
+			},
+		});
+		return unwrap(res);
+	} catch (err) {
+		rethrow(err);
+	}
+};
+

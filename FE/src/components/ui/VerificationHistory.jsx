@@ -11,7 +11,7 @@ export default function VerificationHistory({ history = [], loading = false }) {
     }
   }
 
-  const getVerificationStatusBadge = (verified, failReason) => {
+  const getVerificationStatusBadge = (verified) => {
     if (verified) {
       return <span className="verify-badge verify-success">✓ Thành công</span>
     }

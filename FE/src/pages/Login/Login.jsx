@@ -5,7 +5,7 @@ import './Login.css'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ username: '', password: '' })
+  const [form, setForm] = useState({ usernameOrEmail: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -17,14 +17,14 @@ export default function Login() {
     e.preventDefault()
     setError('')
 
-    if (!form.username || !form.password) {
+    if (!form.usernameOrEmail || !form.password) {
       setError('Please fill all fields.')
       return
     }
 
     try {
       setLoading(true)
-      await login(form.username, form.password)
+      await login(form.usernameOrEmail, form.password)
       window.dispatchEvent(new Event('auth-changed'))
       navigate('/home', { replace: true })
     } catch (err) {
@@ -39,14 +39,14 @@ export default function Login() {
       <div className="login-card">
         <h1>Login</h1>
         <form className="login-form" onSubmit={handleSubmit}>
-          <label htmlFor="username">Username</label>
+          <label htmlFor="usernameOrEmail">Username or email</label>
           <input
-            id="username"
+            id="usernameOrEmail"
             type="text"
-            name="username"
-            value={form.username}
+            name="usernameOrEmail"
+            value={form.usernameOrEmail}
             onChange={handleChange}
-            placeholder="Enter your username"
+            placeholder="Enter your username or email"
           />
 
           <label htmlFor="password">Password</label>

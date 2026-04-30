@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Client } from '@stomp/stompjs'
+import SockJS from 'sockjs-client'
 import {
   approveExamSession,
   flagExamSession,
@@ -9,6 +11,58 @@ import {
 import { getRoomsByExamPaginated } from '../api/examRoomApi'
 
 export const PROCTOR_STATUS_OPTIONS = ['STARTED', 'CHECKED_IN', 'DONE', 'BLOCKED']
+
+const SOCKET_STATUS = {
+  IDLE: 'IDLE',
+  CONNECTING: 'CONNECTING',
+  CONNECTED: 'CONNECTED',
+  ERROR: 'ERROR',
+}
+
+const MAX_PROCTOR_ALERTS = 30
+
+const normalizePath = (value = '') => {
+  const withLeadingSlash = value.startsWith('/') ? value : `/${value}`
+  return withLeadingSlash.replace(/\/+$/, '') || '/'
+}
+
+const buildWsEndpoint = (apiBaseUrl) => {
+  if (!apiBaseUrl) {
+    return '/ws'
+  }
+
+  try {
+    const apiUrl = new URL(apiBaseUrl, window.location.origin)
+    const basePath = apiUrl.pathname.replace(/\/api(?:\/.*)?$/i, '')
+    const wsPath = normalizePath(`${basePath}/ws`).replace(/\/{2,}/g, '/')
+    return `${apiUrl.origin}${wsPath}`
+  } catch {
+    return '/ws'
+  }
+}
+
+const parseAlertPayload = (payload, fallbackRoomId) => {
+  try {
+    const parsed = JSON.parse(payload)
+    return {
+      sessionId: parsed?.sessionId ?? null,
+      userId: parsed?.userId ?? null,
+      roomId: parsed?.roomId ?? fallbackRoomId,
+      severity: String(parsed?.severity || 'LOW').toUpperCase(),
+      message: parsed?.message || 'Cảnh báo mới từ hệ thống giám sát.',
+      timestamp: parsed?.timestamp ?? Date.now(),
+    }
+  } catch {
+    return {
+      sessionId: null,
+      userId: null,
+      roomId: fallbackRoomId,
+      severity: 'LOW',
+      message: 'Không thể đọc nội dung cảnh báo từ server.',
+      timestamp: Date.now(),
+    }
+  }
+}
 
 export default function useProctorSection({
   activeSection,
@@ -35,6 +89,62 @@ export default function useProctorSection({
   const [proctorRoomDraft, setProctorRoomDraft] = useState('')
   const [proctorRoomOptions, setProctorRoomOptions] = useState([])
   const [loadingProctorRooms, setLoadingProctorRooms] = useState(false)
+  const [proctorAlerts, setProctorAlerts] = useState([])
+  const [proctorToasts, setProctorToasts] = useState([])
+  const [proctorSocketStatus, setProctorSocketStatus] = useState(SOCKET_STATUS.IDLE)
+
+  const socketClientRef = useRef(null)
+  const dashboardRefreshTimerRef = useRef(null)
+  const toastTimeoutsRef = useRef(new Map())
+  const toastSequenceRef = useRef(0)
+  const selectedSessionIdRef = useRef(null)
+  const selectedSessionRef = useRef(null)
+  const proctorPageRef = useRef(0)
+  const showProctorDetailModalRef = useRef(false)
+  const fetchProctorDashboardRef = useRef(null)
+  const fetchProctorHistoryRef = useRef(null)
+  const setErrorRef = useRef(null)
+
+  const clearProctorAlerts = () => {
+    setProctorAlerts([])
+  }
+
+  const dismissProctorToast = useMemo(
+    () => (toastId) => {
+      const timeoutId = toastTimeoutsRef.current.get(toastId)
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+        toastTimeoutsRef.current.delete(toastId)
+      }
+
+      setProctorToasts((prev) => prev.filter((toast) => toast.id !== toastId))
+    },
+    [],
+  )
+
+  const pushProctorToast = useMemo(
+    () => (alert) => {
+      const toastId = `${Date.now()}-${toastSequenceRef.current += 1}`
+      const toast = {
+        id: toastId,
+        sessionId: alert?.sessionId ?? null,
+        userId: alert?.userId ?? null,
+        roomId: alert?.roomId ?? null,
+        severity: String(alert?.severity || 'LOW').toUpperCase(),
+        message: alert?.message || 'Cảnh báo mới từ hệ thống giám sát.',
+        timestamp: alert?.timestamp ?? Date.now(),
+      }
+
+      setProctorToasts((prev) => [toast, ...prev].slice(0, 4))
+
+      const timeoutId = window.setTimeout(() => {
+        dismissProctorToast(toastId)
+      }, 5000)
+
+      toastTimeoutsRef.current.set(toastId, timeoutId)
+    },
+    [dismissProctorToast],
+  )
 
   const proctorRoomFilterOptions = useMemo(() => {
     const usedRoomIds = new Set()
@@ -68,6 +178,19 @@ export default function useProctorSection({
     () => getSessionRecordId(selectedProctorSession),
     [selectedProctorSession],
   )
+
+  useEffect(() => {
+    selectedSessionIdRef.current = selectedProctorSessionId
+    selectedSessionRef.current = selectedProctorSession
+  }, [selectedProctorSessionId, selectedProctorSession])
+
+  useEffect(() => {
+    proctorPageRef.current = proctorPagination.currentPage
+  }, [proctorPagination.currentPage])
+
+  useEffect(() => {
+    showProctorDetailModalRef.current = showProctorDetailModal
+  }, [showProctorDetailModal])
 
   const fetchProctorDashboard = async (overrideRoomId, pageNum = 0) => {
     const roomId = Number(overrideRoomId ?? proctorFilter.roomId)
@@ -255,6 +378,18 @@ export default function useProctorSection({
   }
 
   useEffect(() => {
+    fetchProctorDashboardRef.current = fetchProctorDashboard
+  }, [fetchProctorDashboard])
+
+  useEffect(() => {
+    fetchProctorHistoryRef.current = fetchProctorHistory
+  }, [fetchProctorHistory])
+
+  useEffect(() => {
+    setErrorRef.current = setError
+  }, [setError])
+
+  useEffect(() => {
     if (activeSection === hubSections.PROCTOR && !proctorFilter.roomId && !showProctorRoomModal) {
       openProctorRoomModal()
     }
@@ -265,6 +400,118 @@ export default function useProctorSection({
       fetchExams()
     }
   }, [activeSection, exams.length, loading, hubSections.PROCTOR])
+
+  useEffect(() => {
+    const roomId = Number(proctorFilter.roomId)
+
+    if (dashboardRefreshTimerRef.current) {
+      clearTimeout(dashboardRefreshTimerRef.current)
+      dashboardRefreshTimerRef.current = null
+    }
+
+    toastTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId))
+    toastTimeoutsRef.current.clear()
+
+    if (socketClientRef.current) {
+      socketClientRef.current.deactivate()
+      socketClientRef.current = null
+    }
+
+    if (activeSection !== hubSections.PROCTOR || !Number.isInteger(roomId) || roomId <= 0) {
+      setProctorSocketStatus(SOCKET_STATUS.IDLE)
+      setProctorAlerts([])
+      setProctorToasts([])
+      return undefined
+    }
+
+    const wsEndpoint = buildWsEndpoint(import.meta.env.VITE_API_BASE_URL)
+    const roomTopic = `/topic/room/${roomId}`
+    const token = localStorage.getItem('access_token')
+
+    setProctorSocketStatus(SOCKET_STATUS.CONNECTING)
+    setProctorAlerts([])
+    setProctorToasts([])
+
+    const client = new Client({
+      reconnectDelay: 5000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
+      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      webSocketFactory: () => new SockJS(wsEndpoint),
+      debug: () => {},
+    })
+
+    client.onConnect = () => {
+      setProctorSocketStatus(SOCKET_STATUS.CONNECTED)
+
+      client.subscribe(roomTopic, async (message) => {
+        const incomingAlert = parseAlertPayload(message.body, roomId)
+
+        setProctorAlerts((prev) => [incomingAlert, ...prev].slice(0, MAX_PROCTOR_ALERTS))
+        pushProctorToast(incomingAlert)
+
+        if (dashboardRefreshTimerRef.current) {
+          return
+        }
+
+        dashboardRefreshTimerRef.current = setTimeout(async () => {
+          dashboardRefreshTimerRef.current = null
+
+          try {
+            if (fetchProctorDashboardRef.current) {
+              await fetchProctorDashboardRef.current(roomId, proctorPageRef.current)
+            }
+
+            if (
+              showProctorDetailModalRef.current
+              && selectedSessionIdRef.current
+              && Number(selectedSessionIdRef.current) === Number(incomingAlert.sessionId)
+              && selectedSessionRef.current
+              && fetchProctorHistoryRef.current
+            ) {
+              await fetchProctorHistoryRef.current(selectedSessionRef.current)
+            }
+          } catch {
+            // Refresh error is handled in existing fetch functions.
+          }
+        }, 700)
+      })
+    }
+
+    client.onStompError = (frame) => {
+      setProctorSocketStatus(SOCKET_STATUS.ERROR)
+      const errorMessage = frame?.headers?.message || 'Không thể subscribe kênh cảnh báo realtime.'
+      if (setErrorRef.current) {
+        setErrorRef.current(errorMessage)
+      }
+    }
+
+    client.onWebSocketError = () => {
+      setProctorSocketStatus(SOCKET_STATUS.ERROR)
+    }
+
+    socketClientRef.current = client
+    client.activate()
+
+    return () => {
+      if (dashboardRefreshTimerRef.current) {
+        clearTimeout(dashboardRefreshTimerRef.current)
+        dashboardRefreshTimerRef.current = null
+      }
+
+      toastTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId))
+      toastTimeoutsRef.current.clear()
+
+      setProctorSocketStatus(SOCKET_STATUS.IDLE)
+      client.deactivate()
+      socketClientRef.current = null
+    }
+  }, [
+    activeSection,
+    hubSections.PROCTOR,
+    proctorFilter.roomId,
+    pushProctorToast,
+  ])
 
   return {
     proctorDashboard,
@@ -289,6 +536,11 @@ export default function useProctorSection({
     proctorRoomOptions,
     loadingProctorRooms,
     proctorRoomFilterOptions,
+    proctorAlerts,
+    clearProctorAlerts,
+    proctorToasts,
+    dismissProctorToast,
+    proctorSocketStatus,
     getSessionRecordId,
     selectedProctorSessionId,
     fetchProctorDashboard,

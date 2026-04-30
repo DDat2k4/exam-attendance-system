@@ -23,6 +23,15 @@ export default function ExamsSection({
   examTotalElements,
   handlePrevPage,
   handleNextPage,
+  showImportModal,
+  importTarget,
+  importFile,
+  submittingImport,
+  importError,
+  handleOpenImport,
+  handleCloseImport,
+  handleImportFileChange,
+  handleImportSubmit,
 }) {
   return (
     <>
@@ -110,6 +119,15 @@ export default function ExamsSection({
                         <div className="table-actions">
                           {canCreateExams && (
                             <>
+                              <button
+                                type="button"
+                                className="tiny-btn"
+                                onClick={() => handleOpenImport(exam.id, exam.title)}
+                                disabled={processingExamId === exam.id}
+                              >
+                                Import
+                              </button>
+
                               <button type="button" className="tiny-btn" onClick={() => startEditExam(exam)}>
                                 Sửa
                               </button>
@@ -153,6 +171,80 @@ export default function ExamsSection({
               </button>
             </div>
           </div>
+
+          {showImportModal && importTarget && (
+            <div
+              className="proctor-room-modal-overlay"
+              onClick={handleCloseImport}
+              role="presentation"
+            >
+              <div className="assign-room-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+                <div className="assign-room-modal__header">
+                  <h3>Import dữ liệu từ Excel</h3>
+                  <button type="button" className="modal-close-btn" onClick={handleCloseImport}>
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleImportSubmit} className="assign-room-modal__body">
+                  {importError && <div className="feedback error" style={{ marginBottom: '12px' }}>{importError}</div>}
+
+                  <div style={{ marginBottom: '12px' }}>
+                    <label htmlFor="import-file-input" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                      Chọn file Excel
+                    </label>
+                    <input
+                      id="import-file-input"
+                      type="file"
+                      accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                      onChange={handleImportFileChange}
+                      disabled={submittingImport}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid #c8d2fa',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                      }}
+                    />
+                    {importFile && (
+                      <small style={{ display: 'block', marginTop: '4px', color: '#0f9d7a' }}>
+                        ✓ {importFile.name}
+                      </small>
+                    )}
+                  </div>
+
+                  <div style={{ fontSize: '13px', color: '#5d6ea1', marginBottom: '12px' }}>
+                    <p style={{ margin: '0 0 8px' }}>
+                      Kỳ thi: <strong>{importTarget.examTitle}</strong>
+                    </p>
+                    <p style={{ margin: '0', fontSize: '12px', color: '#999' }}>
+                      File Excel sẽ được import vào kỳ thi {importTarget.examTitle}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={handleCloseImport}
+                      disabled={submittingImport}
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="submit"
+                      className="primary"
+                      disabled={!importFile || submittingImport}
+                    >
+                      {submittingImport ? 'Đang import...' : 'Import'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </section>
       )}
     </>

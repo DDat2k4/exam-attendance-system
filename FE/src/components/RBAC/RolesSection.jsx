@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
-import { DEFAULT_PAGE_SIZE } from '../../hooks/useRbacManagement'
+import { useState } from 'react'
 import FormModal from './FormModal'
 
 const emptyRoleForm = { name: '', description: '' }
@@ -12,63 +11,18 @@ export default function RolesSection({
   handleCreateOrUpdateRole,
   roleNameFilter,
   setRoleNameFilter,
+  rolePage,
   rolePageSize,
-  allRoles,
+  roleTotalPages,
+  roleIsFirst,
+  roleIsLast,
+  roles,
+  handleRolePageChange,
   handleEditRole,
   handleDeleteRole,
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [localRolePage, setLocalRolePage] = useState(1)
-
-  const filteredRoles = useMemo(() => {
-    const keyword = String(roleNameFilter || '')
-      .trim()
-      .toLowerCase()
-
-    if (!keyword) {
-      return allRoles
-    }
-
-    return allRoles.filter((item) => {
-      const name = String(item?.name || item?.code || '').toLowerCase()
-      const description = String(item?.description || '').toLowerCase()
-      const id = String(item?.id || '')
-      return name.includes(keyword) || description.includes(keyword) || id.includes(keyword)
-    })
-  }, [allRoles, roleNameFilter])
-
-  const normalizedPageSize = Number(rolePageSize) > 0 ? Number(rolePageSize) : DEFAULT_PAGE_SIZE
-
-  const localTotalPages = useMemo(() => {
-    if (filteredRoles.length === 0) return 0
-    return Math.ceil(filteredRoles.length / normalizedPageSize)
-  }, [filteredRoles.length, normalizedPageSize])
-
-  const paginatedRoles = useMemo(() => {
-    if (filteredRoles.length === 0) return []
-    const startIndex = (localRolePage - 1) * normalizedPageSize
-    return filteredRoles.slice(startIndex, startIndex + normalizedPageSize)
-  }, [filteredRoles, localRolePage, normalizedPageSize])
-
-  const localIsFirst = localRolePage <= 1
-  const localIsLast = localTotalPages === 0 || localRolePage >= localTotalPages
-
-  useEffect(() => {
-    setLocalRolePage(1)
-  }, [roleNameFilter])
-
-  useEffect(() => {
-    if (localTotalPages === 0) {
-      if (localRolePage !== 1) {
-        setLocalRolePage(1)
-      }
-      return
-    }
-
-    if (localRolePage > localTotalPages) {
-      setLocalRolePage(localTotalPages)
-    }
-  }, [localRolePage, localTotalPages])
+  const normalizedPageSize = Number(rolePageSize) > 0 ? Number(rolePageSize) : 10
 
   const handleOpenModal = () => {
     setRoleForm(emptyRoleForm)
@@ -103,11 +57,11 @@ export default function RolesSection({
             placeholder="Tìm kiếm theo tên role..."
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                setLocalRolePage(1)
+                handleRolePageChange(1)
               }
             }}
           />
-          <button type="button" onClick={() => setLocalRolePage(1)} className="btn-search">
+          <button type="button" onClick={() => handleRolePageChange(1)} className="btn-search">
             🔍
           </button>
         </div>
@@ -148,16 +102,16 @@ export default function RolesSection({
             </tr>
           </thead>
           <tbody>
-            {paginatedRoles.length === 0 ? (
+            {roles.length === 0 ? (
               <tr>
                 <td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>
                   Không có vai trò
                 </td>
               </tr>
             ) : (
-              paginatedRoles.map((role, idx) => (
+              roles.map((role, idx) => (
                 <tr key={role.id}>
-                  <td>{(localRolePage - 1) * normalizedPageSize + idx + 1}</td>
+                  <td>{(rolePage - 1) * normalizedPageSize + idx + 1}</td>
                   <td>{role.name || '-'}</td>
                   <td>{role.description || '-'}</td>
                   <td>
@@ -178,30 +132,30 @@ export default function RolesSection({
       </div>
 
       <div className="pagination">
-        <button type="button" disabled={localIsFirst || localTotalPages === 0} onClick={() => setLocalRolePage(1)}>
+        <button type="button" disabled={roleIsFirst || roleTotalPages === 0} onClick={() => handleRolePageChange(1)}>
           Đầu
         </button>
         <button
           type="button"
-          disabled={localIsFirst || localTotalPages === 0}
-          onClick={() => setLocalRolePage((prev) => Math.max(prev - 1, 1))}
+          disabled={roleIsFirst || roleTotalPages === 0}
+          onClick={() => handleRolePageChange(Math.max(rolePage - 1, 1))}
         >
           Trước
         </button>
         <span className="page-info">
-          {localRolePage}/{Math.max(localTotalPages, 1)}
+          {rolePage}/{Math.max(roleTotalPages, 1)}
         </span>
         <button
           type="button"
-          disabled={localIsLast || localTotalPages === 0}
-          onClick={() => setLocalRolePage((prev) => Math.min(prev + 1, Math.max(localTotalPages, 1)))}
+          disabled={roleIsLast || roleTotalPages === 0}
+          onClick={() => handleRolePageChange(Math.min(rolePage + 1, Math.max(roleTotalPages, 1)))}
         >
           Sau
         </button>
         <button
           type="button"
-          disabled={localIsLast || localTotalPages === 0}
-          onClick={() => setLocalRolePage(Math.max(localTotalPages, 1))}
+          disabled={roleIsLast || roleTotalPages === 0}
+          onClick={() => handleRolePageChange(Math.max(roleTotalPages, 1))}
         >
           Cuối
         </button>

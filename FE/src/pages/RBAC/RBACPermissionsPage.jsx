@@ -3,7 +3,7 @@ import useRbacManagement from '../../hooks/useRbacManagement'
 import '../../components/RBAC/RBAC.css'
 
 export default function RBACPermissionsPage() {
-  const rbac = useRbacManagement()
+  const rbac = useRbacManagement({ mode: 'permissions' })
 
   return (
     <div className="rbac-page">
@@ -24,8 +24,13 @@ export default function RBACPermissionsPage() {
         handleCreateOrUpdatePermission={rbac.handleCreateOrUpdatePermission}
         permissionCodeFilter={rbac.permissionCodeFilter}
         setPermissionCodeFilter={rbac.setPermissionCodeFilter}
+        permissionPage={rbac.permissionPage}
         permissionPageSize={rbac.permissionPageSize}
-        assignmentPermissions={rbac.assignmentPermissions}
+        permissionTotalPages={rbac.permissionTotalPages}
+        permissionIsFirst={rbac.permissionIsFirst}
+        permissionIsLast={rbac.permissionIsLast}
+        permissions={rbac.permissions}
+        handlePermissionPageChange={rbac.handlePermissionPageChange}
         handleEditPermission={rbac.handleEditPermission}
         handleDeletePermission={rbac.handleDeletePermission}
       />

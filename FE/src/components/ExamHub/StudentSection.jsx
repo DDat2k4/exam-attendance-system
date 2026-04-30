@@ -7,13 +7,23 @@ export default function StudentSection({
   handleTakeExam,
   takingExamId,
   studentExamTotalPages,
+  myRoomInfo,
 }) {
+  const roomExamId = Number(myRoomInfo?.examId)
+
   return (
     <section className="panel">
       <h2>Kỳ thi đã đăng ký</h2>
 
       <div className="session-head">
-        <p className="student-exam-note">Chỉ hiển thị các kỳ thi bạn đã đăng ký.</p>
+        <div>
+          <p className="student-exam-note">Chỉ hiển thị các kỳ thi bạn đã đăng ký.</p>
+          <p className="student-exam-note">
+            {myRoomInfo?.roomId
+              ? `Phòng thi hiện tại: ${myRoomInfo.roomCode || myRoomInfo.roomId} · Ghế ${myRoomInfo.seatNumber ?? '-'}`
+              : 'Bạn chưa có phòng thi được gán.'}
+          </p>
+        </div>
         <button
           type="button"
           className="tiny-btn"
@@ -37,6 +47,7 @@ export default function StudentSection({
                   <th>Registration ID</th>
                   <th>Exam ID</th>
                   <th>Tiêu đề</th>
+                  <th>Phòng thi</th>
                   <th>Đăng ký lúc</th>
                   <th>Bắt đầu</th>
                   <th>Kết thúc</th>
@@ -48,6 +59,8 @@ export default function StudentSection({
                 {studentRegisteredExams.map((item) => {
                   const isDisabled = item.sessionStatus === 'DONE' || item.sessionStatus === 'BLOCKED'
                   const isLoading = takingExamId === Number(item.examId ?? item.exam?.id)
+                  const currentExamId = Number(item.examId ?? item.exam?.id)
+                  const hasAssignedRoom = roomExamId > 0 && currentExamId === roomExamId
                   
                   let buttonText = 'Vào thi'
                   let buttonTitle = ''
@@ -66,6 +79,11 @@ export default function StudentSection({
                       <td>{item.id ?? '-'}</td>
                       <td>{item.examId ?? item.exam?.id ?? '-'}</td>
                       <td>{item.exam?.title || '-'}</td>
+                      <td>
+                        {hasAssignedRoom
+                          ? `${myRoomInfo?.roomCode || myRoomInfo?.roomId || '-'}${myRoomInfo?.seatNumber != null ? ` · Ghế ${myRoomInfo.seatNumber}` : ''}`
+                          : '-'}
+                      </td>
                       <td>{formatDateTime(item.registeredAt)}</td>
                       <td>{formatDateTime(item.exam?.startTime)}</td>
                       <td>{formatDateTime(item.exam?.endTime)}</td>

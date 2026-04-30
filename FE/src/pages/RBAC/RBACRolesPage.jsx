@@ -3,7 +3,7 @@ import useRbacManagement from '../../hooks/useRbacManagement'
 import '../../components/RBAC/RBAC.css'
 
 export default function RBACRolesPage() {
-  const rbac = useRbacManagement()
+  const rbac = useRbacManagement({ mode: 'roles' })
 
   return (
     <div className="rbac-page">
@@ -24,8 +24,13 @@ export default function RBACRolesPage() {
         handleCreateOrUpdateRole={rbac.handleCreateOrUpdateRole}
         roleNameFilter={rbac.roleNameFilter}
         setRoleNameFilter={rbac.setRoleNameFilter}
+        rolePage={rbac.rolePage}
         rolePageSize={rbac.rolePageSize}
-        allRoles={rbac.allRoles}
+        roleTotalPages={rbac.roleTotalPages}
+        roleIsFirst={rbac.roleIsFirst}
+        roleIsLast={rbac.roleIsLast}
+        roles={rbac.roles}
+        handleRolePageChange={rbac.handleRolePageChange}
         handleEditRole={rbac.handleEditRole}
         handleDeleteRole={rbac.handleDeleteRole}
       />

@@ -104,6 +104,105 @@ export const deleteExamRoom = async (roomId) => {
   }
 }
 
+export const assignExamRoom = async ({ registrationId, roomId, seat }) => {
+  const parsedRegistrationId = Number(registrationId)
+  const parsedRoomId = Number(roomId)
+  const parsedSeat = Number(seat)
+
+  if (!Number.isInteger(parsedRegistrationId) || parsedRegistrationId <= 0) {
+    throw new Error('Invalid registration id')
+  }
+
+  if (!Number.isInteger(parsedRoomId) || parsedRoomId <= 0) {
+    throw new Error('Invalid room id')
+  }
+
+  if (!Number.isInteger(parsedSeat) || parsedSeat <= 0) {
+    throw new Error('Invalid seat number')
+  }
+
+  try {
+    const res = await axios.post(
+      `${API_URL}/exam-rooms/assign`,
+      null,
+      {
+        params: {
+          registrationId: parsedRegistrationId,
+          roomId: parsedRoomId,
+          seat: parsedSeat,
+        },
+        headers: { Authorization: `Bearer ${getToken()}` },
+      },
+    )
+    return unwrap(res)
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+export const assignExamRoomBatch = async ({ roomId, students }) => {
+  const parsedRoomId = Number(roomId)
+  const normalizedStudents = Array.isArray(students)
+    ? students
+        .map((student) => ({
+          registrationId: Number(student?.registrationId),
+          seatNumber: Number(student?.seatNumber),
+        }))
+        .filter((student) => Number.isInteger(student.registrationId) && student.registrationId > 0 && Number.isInteger(student.seatNumber) && student.seatNumber > 0)
+    : []
+
+  if (!Number.isInteger(parsedRoomId) || parsedRoomId <= 0) {
+    throw new Error('Invalid room id')
+  }
+
+  if (normalizedStudents.length === 0) {
+    throw new Error('Please add at least one student to assign')
+  }
+
+  try {
+    const res = await axios.post(
+      `${API_URL}/exam-rooms/assign-batch`,
+      {
+        roomId: parsedRoomId,
+        students: normalizedStudents,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+      },
+    )
+    return unwrap(res)
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+export const getStudentsInRoom = async ({ roomId, page = 0, size = 20 }) => {
+  const parsedRoomId = Number(roomId)
+  const parsedPage = Math.max(0, Number(page) || 0)
+  const parsedSize = Math.max(1, Number(size) || 20)
+
+  if (!Number.isInteger(parsedRoomId) || parsedRoomId <= 0) {
+    throw new Error('Invalid room id')
+  }
+
+  try {
+    const res = await dedupeGet(axios, `${API_URL}/exam-rooms/${parsedRoomId}/students`, {
+      params: {
+        page: parsedPage,
+        size: parsedSize,
+      },
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+    const data = unwrap(res)
+    return data || { content: [], totalElements: 0, totalPages: 0, empty: true }
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
 export const getRoomsByExamPaginated = async (examId, page = 0, size = 10) => {
   const parsedExamId = Number(examId)
   const parsedPage = Math.max(0, Number(page) || 0)

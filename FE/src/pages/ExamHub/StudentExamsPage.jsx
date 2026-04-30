@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { getExamById } from '../../api/examApi'
 import { getMyExamRegistrations } from '../../api/examRegistrationApi'
-import { startExamSession, getMyExamSessions } from '../../api/examSessionApi'
+import { startExamSession, getMyExamSessions, getMyRoomInfo } from '../../api/examSessionApi'
 import StudentSection from '../../components/ExamHub/StudentSection'
 import TakeExamModal from '../../components/TakeExamModal'
 import { useAuth } from '../../context/AuthContext'
@@ -19,6 +19,7 @@ export default function StudentExamsPage() {
   const [studentExamTotalPages, setStudentExamTotalPages] = useState(0)
   const [takingExamId, setTakingExamId] = useState(null)
   const [activeTakeExam, setActiveTakeExam] = useState(null)
+  const [myRoomInfo, setMyRoomInfo] = useState(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -38,6 +39,19 @@ export default function StudentExamsPage() {
       minute: '2-digit',
     }).format(date)
   }
+
+  const loadMyRoomInfo = useCallback(async () => {
+    if (!canStudentTakeExam) return
+
+    try {
+      const room = await getMyRoomInfo()
+      setMyRoomInfo(room || null)
+      return room || null
+    } catch {
+      setMyRoomInfo(null)
+      return null
+    }
+  }, [canStudentTakeExam])
 
   const fetchStudentRegisteredExams = useCallback(async (page = 1) => {
     if (!canStudentTakeExam) return
@@ -95,12 +109,13 @@ export default function StudentExamsPage() {
       setStudentRegisteredExams(enriched)
       setStudentExamPage(Number(result?.number ?? page - 1) + 1)
       setStudentExamTotalPages(Number(result?.totalPages ?? 0))
+      await loadMyRoomInfo()
     } catch (err) {
       setError(err.message || 'Không thể tải danh sách kỳ thi đã đăng ký.')
     } finally {
       setLoadingStudentExams(false)
     }
-  }, [canStudentTakeExam])
+  }, [canStudentTakeExam, loadMyRoomInfo])
 
   const handleTakeExam = async (registrationRow) => {
     setError('')
@@ -113,6 +128,15 @@ export default function StudentExamsPage() {
       }
 
       setTakingExamId(examId)
+
+      const roomInfo = await loadMyRoomInfo()
+      const assignedExamId = Number(roomInfo?.examId)
+      if (!roomInfo?.roomId) {
+        throw new Error('Bạn chưa được gán phòng thi. Vui lòng liên hệ ADMIN.')
+      }
+      if (assignedExamId && assignedExamId !== examId) {
+        throw new Error(`Phòng thi được gán không khớp với kỳ thi #${examId}. Vui lòng kiểm tra lại.`)
+      }
       
       // If session already exists and is still ongoing (STARTED/CHECKED_IN), use existing session
       const existingSessionId = registrationRow?.existingSessionId
@@ -135,12 +159,17 @@ export default function StudentExamsPage() {
         if (!sessionId) {
           throw new Error('Không lấy được sessionId để vào thi.')
         }
-        setSuccess(`Đã bắt đầu phiên thi #${sessionId}.`)
+        setSuccess(
+          roomInfo?.roomCode
+            ? `Đã bắt đầu phiên thi #${sessionId} tại phòng ${roomInfo.roomCode}.`
+            : `Đã bắt đầu phiên thi #${sessionId}.`,
+        )
       }
 
       setActiveTakeExam({
         sessionId: Number(sessionId),
         exam: registrationRow?.exam ?? { id: examId, title: `Kỳ thi #${examId}` },
+        roomInfo,
       })
     } catch (err) {
       setError(err.message || 'Không thể bắt đầu vào thi.')
@@ -183,12 +212,14 @@ export default function StudentExamsPage() {
         handleTakeExam={handleTakeExam}
         takingExamId={takingExamId}
         studentExamTotalPages={studentExamTotalPages}
+        myRoomInfo={myRoomInfo}
       />
 
       {activeTakeExam && (
         <TakeExamModal
           examId={activeTakeExam.sessionId}
           exam={activeTakeExam.exam}
+          roomInfo={activeTakeExam.roomInfo}
           onClose={closeTakeExamModal}
           onExamEnded={() => {
             fetchStudentRegisteredExams(studentExamPage)

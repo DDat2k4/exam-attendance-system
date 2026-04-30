@@ -4,6 +4,7 @@ import {
   deleteExam,
   getExamsPaginated,
   updateExam,
+  importExamFromExcel,
 } from '../../api/examApi'
 import ExamsSection from '../../components/ExamHub/ExamsSection'
 import { useAuth } from '../../context/AuthContext'
@@ -35,6 +36,11 @@ export default function ExamsPage() {
   const [examTotalElements, setExamTotalElements] = useState(0)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importTarget, setImportTarget] = useState(null)
+  const [importFile, setImportFile] = useState(null)
+  const [submittingImport, setSubmittingImport] = useState(false)
+  const [importError, setImportError] = useState('')
   const keywordInitializedRef = useRef(false)
 
   const canCreateExams = canAccess(user, {
@@ -192,6 +198,76 @@ export default function ExamsPage() {
     }
   }
 
+  const handleOpenImport = (examId, examTitle) => {
+    const parsedExamId = Number(examId)
+
+    if (!Number.isInteger(parsedExamId) || parsedExamId <= 0) {
+      setError('Không xác định được kỳ thi để import.')
+      return
+    }
+
+    setError('')
+    setSuccess('')
+    setImportTarget({ examId: parsedExamId, examTitle: examTitle || `#${parsedExamId}` })
+    setImportFile(null)
+    setImportError('')
+    setShowImportModal(true)
+  }
+
+  const handleCloseImport = () => {
+    setShowImportModal(false)
+    setImportTarget(null)
+    setImportFile(null)
+    setImportError('')
+  }
+
+  const handleImportFileChange = (e) => {
+    const file = e.target.files?.[0]
+    setImportError('')
+    if (!file) {
+      setImportFile(null)
+      return
+    }
+
+    const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel']
+    if (!validTypes.includes(file.type)) {
+      setImportError('Vui lòng chọn file Excel (.xlsx hoặc .xls).')
+      setImportFile(null)
+      return
+    }
+
+    setImportFile(file)
+  }
+
+  const handleImportSubmit = async (e) => {
+    e.preventDefault()
+    setImportError('')
+    setError('')
+    setSuccess('')
+
+    if (!importTarget || !Number.isInteger(importTarget.examId) || importTarget.examId <= 0) {
+      setImportError('Không xác định được kỳ thi để import.')
+      return
+    }
+
+    if (!importFile) {
+      setImportError('Vui lòng chọn file Excel để import.')
+      return
+    }
+
+    try {
+      setSubmittingImport(true)
+      await importExamFromExcel(importFile, importTarget.examId)
+      setSuccess(`Đã import dữ liệu vào kỳ thi ${importTarget.examTitle}.`)
+      handleCloseImport()
+      await fetchExams(examPage)
+    } catch (err) {
+      setImportError(err.message || 'Không thể import file Excel.')
+    } finally {
+      setSubmittingImport(false)
+    }
+  }
+
   useEffect(() => {
     if (canViewExams) {
       fetchExams(1)
@@ -271,6 +347,15 @@ export default function ExamsPage() {
         examTotalElements={examTotalElements}
         handlePrevPage={handlePrevPage}
         handleNextPage={handleNextPage}
+        showImportModal={showImportModal}
+        importTarget={importTarget}
+        importFile={importFile}
+        submittingImport={submittingImport}
+        importError={importError}
+        handleOpenImport={handleOpenImport}
+        handleCloseImport={handleCloseImport}
+        handleImportFileChange={handleImportFileChange}
+        handleImportSubmit={handleImportSubmit}
       />
     </div>
   )

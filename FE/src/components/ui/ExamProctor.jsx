@@ -151,7 +151,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
     }
   }, [cameraActive, examSessionId, registerFailure])
 
-  const scheduleNextRandomVerification = useCallback(() => {
+  const scheduleNextRandomVerification = useCallback(function scheduleNextRandomVerificationImpl() {
     if (totalFailures >= MAX_FAILURES || !cameraActive) return
 
     const delay =
@@ -190,7 +190,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
           countdownIntervalRef.current = null
           setRandomCountdown(null)
           await performRandomVerification()
-          scheduleNextRandomVerification()
+          scheduleNextRandomVerificationImpl()
         }
       }, 1000)
     }, delay)

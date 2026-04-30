@@ -91,7 +91,9 @@ export default function Home() {
     const profileId = Number(profileIdRaw)
 
     if (!profileId) {
-      setVerificationKpi({ value: '-', label: 'Chưa có hồ sơ' })
+      Promise.resolve().then(() => {
+        setVerificationKpi({ value: '-', label: 'Chưa có hồ sơ' })
+      })
       return
     }
 

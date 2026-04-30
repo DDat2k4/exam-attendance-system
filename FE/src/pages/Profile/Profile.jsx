@@ -108,7 +108,7 @@ export default function Profile() {
       if (profile?.userId) {
         localStorage.setItem('userId', String(profile.userId))
       }
-    } catch (err) {
+    } catch {
       // For personal section, fallback to create mode instead of surfacing noisy errors.
       setPersonalProfile(null)
     } finally {

@@ -11,7 +11,7 @@ import './TakeExamModal.css'
  * 2. Face verification (INITIAL)
  * 3. Exam proctor (if verification passed)
  */
-export default function TakeExamModal({ examId, exam, onClose, onExamEnded }) {
+export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamEnded }) {
   const [step, setStep] = useState('instructions') // instructions, verification, exam, ended
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [examResult, setExamResult] = useState(null)
@@ -87,6 +87,12 @@ export default function TakeExamModal({ examId, exam, onClose, onExamEnded }) {
             <div className="exam-info">
               <h3>{exam?.title || 'Kỳ Thi'}</h3>
               {exam?.description && <p className="description">{exam.description}</p>}
+              {roomInfo?.roomId && (
+                <p className="description">
+                  Phòng thi: {roomInfo.roomCode || roomInfo.roomId}
+                  {roomInfo.seatNumber != null ? ` · Ghế ${roomInfo.seatNumber}` : ''}
+                </p>
+              )}
             </div>
 
             <div className="instructions">

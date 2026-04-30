@@ -17,8 +17,11 @@ const unwrapAuthPayload = (response) => {
 };
 
 // LOGIN
-export const login = async (username, password) => {
-  const response = await axios.post(`${API_URL}/auth/login`, { username, password });
+export const login = async (usernameOrEmail, password) => {
+  const response = await axios.post(`${API_URL}/auth/login`, {
+    usernameOrEmail,
+    password,
+  });
   const data = unwrapAuthPayload(response);
   const accessToken = data.accessToken ?? data.access_token ?? data.token;
   const refreshToken = data.refreshToken ?? data.refresh_token ?? data.refresh;

@@ -105,6 +105,17 @@ export const getMyExamSessions = async () => {
   }
 }
 
+export const getMyRoomInfo = async () => {
+  try {
+    const res = await dedupeGet(axios, `${API_URL}/exam-sessions/me/room`, {
+      headers: authHeaders(),
+    })
+    return unwrap(res)
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
 export const getExamSessionDashboard = async (params = {}) => {
   const { roomId, status, riskLevel, flagged, keyword, page = 0, size = 20 } = params
   const parsedRoomId = Number(roomId)

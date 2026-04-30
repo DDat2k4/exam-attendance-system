@@ -60,6 +60,11 @@ export default function ProctorPage() {
     proctorRoomOptions,
     loadingProctorRooms,
     proctorRoomFilterOptions,
+    proctorAlerts,
+    clearProctorAlerts,
+    proctorToasts,
+    dismissProctorToast,
+    proctorSocketStatus,
     getSessionRecordId,
     selectedProctorSessionId,
     fetchProctorDashboard,
@@ -141,7 +146,33 @@ export default function ProctorPage() {
         proctorHistory={proctorHistory}
         runProctorAction={runProctorAction}
         proctorReason={proctorReason}
+        proctorAlerts={proctorAlerts}
+        clearProctorAlerts={clearProctorAlerts}
+        proctorToasts={proctorToasts}
+        dismissProctorToast={dismissProctorToast}
+        proctorSocketStatus={proctorSocketStatus}
       />
+
+      <div className="proctor-toast-stack" aria-live="polite" aria-relevant="additions text">
+        {proctorToasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`proctor-toast proctor-toast--${String(toast.severity || 'LOW').toLowerCase()}`}
+            role="status"
+          >
+            <div className="proctor-toast__header">
+              <strong>{toast.severity || 'LOW'}</strong>
+              <button type="button" className="proctor-toast__close" onClick={() => dismissProctorToast(toast.id)} aria-label="Đóng thông báo">
+                ×
+              </button>
+            </div>
+            <p>{toast.message}</p>
+            <small>
+              Room #{toast.roomId || '-'} • User #{toast.userId || '-'} • {formatDateTime(toast.timestamp)}
+            </small>
+          </div>
+        ))}
+      </div>
 
       {showProctorRoomModal && (
         <div className="proctor-room-modal-overlay" onClick={closeProctorRoomModal}>
