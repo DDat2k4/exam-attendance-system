@@ -1,11 +1,14 @@
 package com.exam.attendance.service;
 
 import com.exam.attendance.data.entity.*;
+import com.exam.attendance.data.pojo.AlertMessage;
 import com.exam.attendance.data.pojo.enums.AttendanceStatus;
 import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
+import com.exam.attendance.data.pojo.enums.RiskLevel;
 import com.exam.attendance.data.request.VerifyRequest;
 import com.exam.attendance.data.response.UploadResponse;
 import com.exam.attendance.repository.*;
+import com.exam.attendance.service.socket.AlertService;
 import com.exam.attendance.service.uploads.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +31,7 @@ public class VerificationService {
     private final AttendanceSessionRepository attendanceSessionRepo;
     private final FileUploadService fileUploadService;
     private final AttendanceLogService logService;
+    private final AlertService alertService;
 
     private static final float MIN_CONFIDENCE = 0.7f;
     private static final int MAX_FAIL_ATTEMPT = 2;
@@ -128,6 +132,20 @@ public class VerificationService {
                     examSession
             );
 
+            // ALERT khi verify fail (MEDIUM)
+            if (!passed && examSession.getRoom() != null) {
+                alertService.sendAlert(
+                        AlertMessage.builder()
+                                .sessionId(examSession.getId())
+                                .userId(examSession.getUser().getId())
+                                .roomId(examSession.getRoom().getId())
+                                .message("Xác thực thất bại")
+                                .severity(RiskLevel.MEDIUM)
+                                .timestamp(System.currentTimeMillis())
+                                .build()
+                );
+            }
+
             // ===== BUSINESS =====
             if ("INITIAL".equalsIgnoreCase(req.getType())) {
                 handleInitialVerify(passed, examSession, captureImageUrl);
@@ -141,7 +159,7 @@ public class VerificationService {
             );
 
         } catch (Exception e) {
-            e.printStackTrace(); // 👈 DEBUG
+            e.printStackTrace();
             throw new RuntimeException("Verification failed: " + e.getMessage());
         }
     }
@@ -227,6 +245,20 @@ public class VerificationService {
             examSession.setIsFlagged(true);
             examSessionRepo.save(examSession);
 
+            // ALERT HIGH
+            if (examSession.getRoom() != null) {
+                alertService.sendAlert(
+                        AlertMessage.builder()
+                                .sessionId(examSession.getId())
+                                .userId(examSession.getUser().getId())
+                                .roomId(examSession.getRoom().getId())
+                                .message("Thiết bị thay đổi - nghi gian lận")
+                                .severity(RiskLevel.HIGH)
+                                .timestamp(System.currentTimeMillis())
+                                .build()
+                );
+            }
+
             logService.log(
                     "DEVICE_MISMATCH",
                     "Device changed",
@@ -277,7 +309,6 @@ public class VerificationService {
         attendanceSessionRepo.save(as);
     }
 
-
     private void handleRandomVerify(boolean passed, ExamSession examSession) {
 
         AttendanceSession as = attendanceSessionRepo
@@ -301,6 +332,20 @@ public class VerificationService {
         if (failCount >= MAX_FAIL_ATTEMPT) {
             examSession.setIsFlagged(true);
             examSessionRepo.save(examSession);
+
+            // ALERT HIGH
+            if (examSession.getRoom() != null) {
+                alertService.sendAlert(
+                        AlertMessage.builder()
+                                .sessionId(examSession.getId())
+                                .userId(examSession.getUser().getId())
+                                .roomId(examSession.getRoom().getId())
+                                .message("Fail verify nhiều lần")
+                                .severity(RiskLevel.HIGH)
+                                .timestamp(System.currentTimeMillis())
+                                .build()
+                );
+            }
 
             logService.log(
                     "RANDOM_FAIL_BLOCK",

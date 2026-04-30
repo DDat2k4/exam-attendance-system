@@ -90,7 +90,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
             @Param("lockTime") LocalDateTime lockTime
     );
 
-    Optional<User> findByCitizenCardCitizenId(String citizenId);
+    Optional<User> findByCitizenCard_CitizenId(String citizenId);
 
     Optional<User> findByProviderAndProviderId(String provider, String providerId);
+
+    Optional<User> findByUsernameOrEmail(String username, String email);
 }

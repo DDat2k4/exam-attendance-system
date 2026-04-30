@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ExamRoomRepository extends JpaRepository<ExamRoom, Long> {
     List<ExamRoom> findByExamId(Long examId);
@@ -13,4 +14,6 @@ public interface ExamRoomRepository extends JpaRepository<ExamRoom, Long> {
     Page<ExamRoom> findByExamId(Long examId, Pageable pageable);
 
     Boolean existsByExamId(Long examId);
+
+    Optional<ExamRoom> findByRoomCodeAndExamId(String roomCode, Long examId);
 }

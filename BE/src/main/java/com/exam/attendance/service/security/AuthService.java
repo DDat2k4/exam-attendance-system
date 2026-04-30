@@ -32,9 +32,11 @@ public class AuthService {
     private final AuthProperties authProperties;
     private final UserService userService;
 
-    // LOGIN
-    public AuthResponse login(String username, String rawPassword) {
-        User user = userRepository.findByUsername(username)
+    // Login
+    public AuthResponse login(String usernameOrEmail, String rawPassword) {
+
+        User user = userRepository
+                .findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
                 .orElseThrow(() -> new AuthException("User not found"));
 
         // Check locked
@@ -44,17 +46,18 @@ public class AuthService {
 
         // Check password
         if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
-            handleFailedAttempt(user, username);
+            handleFailedAttempt(user, usernameOrEmail);
             throw new AuthException("Invalid credentials");
         }
 
         // Success
         resetLoginAttempts(user);
-        log.info("User {} logged in successfully at {}", username, user.getLastLogin());
+        log.info("User {} logged in successfully at {}", usernameOrEmail, user.getLastLogin());
+
         return generateTokens(user);
     }
 
-    // REFRESH TOKEN
+    // Refresh token
     public AuthResponse refreshToken(String refreshToken) {
         UserToken token = userTokenRepository.findByRefreshTokenAndRevokedFalse(refreshToken)
                 .orElseThrow(() -> new AuthException("Refresh token not found or revoked"));
@@ -90,7 +93,7 @@ public class AuthService {
                 .build();
     }
 
-    // LOGOUT (1 device)
+    // Logout (1 device)
     public void logout(String refreshToken) {
         UserToken token = userTokenRepository.findByRefreshTokenAndRevokedFalse(refreshToken)
                 .orElseThrow(() -> new AuthException("Refresh token not found or already revoked"));
@@ -99,7 +102,7 @@ public class AuthService {
         userTokenRepository.save(token);
     }
 
-    // LOGOUT ALL DEVICES
+    // Logout (All device)
     public void logoutAll(Long userId) {
         userTokenRepository.findActiveTokensByUserId(userId)
                 .forEach(token -> {
@@ -109,7 +112,7 @@ public class AuthService {
         log.info("All refresh tokens revoked for userId={}", userId);
     }
 
-    // CHANGE PASSWORD
+    // Đổi mật khẩu
     public void changePassword(String username, String oldPassword, String newPassword) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new AuthException("User not found"));

@@ -26,7 +26,7 @@ public class CccdController extends BaseController {
 
     // Verify CCCD
     @PostMapping("/verify")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<CCCDInfo>> verify(
             @RequestBody CCCDInfo cccdInfo,
             Authentication auth
@@ -52,7 +52,7 @@ public class CccdController extends BaseController {
 
     // Checkin CCCD
     @PostMapping("/checkin")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<Object>> checkin(
             @RequestBody CCCDInfo request,
             Authentication auth

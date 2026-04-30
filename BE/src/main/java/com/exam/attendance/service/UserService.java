@@ -185,7 +185,7 @@ public class UserService {
     }
 
     public User findByCitizenId(String citizenId) {
-        return userRepository.findByCitizenCardCitizenId(citizenId)
+        return userRepository.findByCitizenCard_CitizenId(citizenId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên"));
     }
 }

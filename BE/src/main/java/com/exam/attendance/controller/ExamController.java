@@ -6,6 +6,7 @@ import com.exam.attendance.data.request.ExamRequest;
 import com.exam.attendance.data.request.ExamRoomRequest;
 import com.exam.attendance.data.response.*;
 import com.exam.attendance.service.ExamService;
+import com.exam.attendance.service.excel.ImportExamService;
 import com.exam.attendance.service.security.AccessControlService;
 import com.exam.attendance.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/exams")
@@ -22,6 +24,7 @@ public class ExamController extends BaseController {
 
     private final ExamService examService;
     private final AccessControlService accessControlService;
+    private final ImportExamService importExamService;
 
     // Tạo exam
     @PostMapping
@@ -42,7 +45,7 @@ public class ExamController extends BaseController {
 
     // Phân trang exam
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<Page<ExamResponse>>> getExams(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
@@ -59,7 +62,7 @@ public class ExamController extends BaseController {
 
     // Tìm exam theo id
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<ExamResponse>> getById(
             @PathVariable Long id,
             Authentication auth
@@ -152,5 +155,20 @@ public class ExamController extends BaseController {
         examService.deleteRoom(roomId);
 
         return deleted();
+    }
+
+    // Import exam
+    @PostMapping("/{examId}/import")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> importExcel(
+            @PathVariable Long examId,
+            @RequestParam("file") MultipartFile file,
+            Authentication auth
+    ) {
+        accessControlService.checkPermission(auth, Resource.EXAM, Action.IMPORT);
+
+        importExamService.importFromExcel(file, examId);
+
+        return success(null);
     }
 }

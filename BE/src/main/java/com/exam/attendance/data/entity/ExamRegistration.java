@@ -28,4 +28,11 @@ public class ExamRegistration {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "room_id")
+    private ExamRoom room;
+
+    @Column(name = "seat_number")
+    private Integer seatNumber;
 }

@@ -32,7 +32,7 @@ public class AuthController extends BaseController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody AuthRequest request) {
 
         AuthResponse authResponse = authService.login(
-                request.getUsername(),
+                request.getUsernameOrEmail(),
                 request.getPassword()
         );
 

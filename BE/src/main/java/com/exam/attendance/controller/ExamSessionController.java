@@ -2,6 +2,7 @@ package com.exam.attendance.controller;
 
 import com.exam.attendance.data.entity.IdentityVerification;
 import com.exam.attendance.data.mapper.ExamSessionMapper;
+import com.exam.attendance.data.pojo.MyRoomInfoDTO;
 import com.exam.attendance.data.pojo.ProctorDashboardDTO;
 import com.exam.attendance.data.pojo.enums.Action;
 import com.exam.attendance.data.pojo.enums.Resource;
@@ -101,7 +102,7 @@ public class ExamSessionController extends BaseController {
 
     // Lấy tất cả
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('STUDENT', 'PROCTOR', 'ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<List<ExamSessionResponse>>> getAll(
             Authentication auth
     ) {
@@ -205,5 +206,17 @@ public class ExamSessionController extends BaseController {
                         a.getAuthority().equals("ADMIN")
                                 || a.getAuthority().equals("PROCTOR")
                 );
+    }
+
+    // Student xem phòng
+    @GetMapping("/me/room")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    public ResponseEntity<ApiResponse<MyRoomInfoDTO>> getMyRoom(Authentication auth) {
+
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        MyRoomInfoDTO data = sessionService.getMyRoomInfo(userId);
+
+        return success(data);
     }
 }

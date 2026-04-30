@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ExamRegistrationService {
 
-    private final ExamRegistrationRepository registrationRepository;
+    private final ExamRegistrationRepository examregistrationRepository;
     private final UserRepository userRepository;
     private final ExamRepository examRepository;
 
@@ -37,7 +37,7 @@ public class ExamRegistrationService {
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
 
         // check duplicate
-        registrationRepository.findByExamIdAndUserId(examId, userId)
+        examregistrationRepository.findByExamIdAndUserId(examId, userId)
                 .ifPresent(r -> {
                     throw new RuntimeException("User already in exam");
                 });
@@ -48,7 +48,7 @@ public class ExamRegistrationService {
         registration.setStatus((short) 1);  //ACTIVE
         registration.setRegisteredAt(LocalDateTime.now());
 
-        return registrationRepository.save(registration);
+        return examregistrationRepository.save(registration);
     }
 
     // Admin add nhiều user
@@ -60,7 +60,7 @@ public class ExamRegistrationService {
         List<User> users = userRepository.findAllById(userIds);
 
         // lấy danh sách đã tồn tại 1 lần
-        List<ExamRegistration> existing = registrationRepository
+        List<ExamRegistration> existing = examregistrationRepository
                 .findByExamIdAndUserIdIn(examId, userIds);
 
         Set<Long> existingUserIds = existing.stream()
@@ -79,34 +79,34 @@ public class ExamRegistrationService {
                 })
                 .toList();
 
-        registrationRepository.saveAll(registrations);
+        examregistrationRepository.saveAll(registrations);
     }
 
     // Xóa user khỏi exam
     public void removeUserFromExam(Long userId, Long examId) {
-        ExamRegistration registration = registrationRepository
+        ExamRegistration registration = examregistrationRepository
                 .findByExamIdAndUserId(examId, userId)
                 .orElseThrow(() -> new RuntimeException("Registration not found"));
 
-        registrationRepository.delete(registration);
+        examregistrationRepository.delete(registration);
     }
 
     public ExamRegistrationResponse getById(Long id){
-        ExamRegistration examRegistration = registrationRepository.findById(id)
+        ExamRegistration examRegistration = examregistrationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Registration not found"));
         return ExamRegistrationMapper.toResponse(examRegistration);
     };
 
     // Danh sách thí sinh
     public Page<ExamRegistration> getByExam(Long examId, Pageable pageable){
-        return registrationRepository.findByExamId(examId, pageable);
+        return examregistrationRepository.findByExamId(examId, pageable);
     }
 
     public boolean isRegistered(Long userId, Long examId){
-        return registrationRepository.existsByUserIdAndExamId(userId, examId);
+        return examregistrationRepository.existsByUserIdAndExamId(userId, examId);
     };
 
     public Page<ExamRegistration> getByUserId(Long userId, Pageable pageable) {
-        return registrationRepository.findByUserId(userId, pageable);
+        return examregistrationRepository.findByUserId(userId, pageable);
     }
 }

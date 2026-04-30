@@ -6,4 +6,5 @@ import lombok.Data;
 public class ExamRoomRequest {
     private String roomCode;
     private Integer maxStudents;
+    private Long examId;
 }

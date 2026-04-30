@@ -2,6 +2,9 @@ package com.exam.attendance.controller;
 
 import com.exam.attendance.data.entity.ExamRoom;
 import com.exam.attendance.data.pojo.ExamRoomDTO;
+import com.exam.attendance.data.pojo.RoomStudentDTO;
+import com.exam.attendance.data.request.AssignRoomBatchRequest;
+import com.exam.attendance.data.request.ExamRoomRequest;
 import com.exam.attendance.data.response.ApiResponse;
 import com.exam.attendance.data.pojo.enums.Action;
 import com.exam.attendance.data.pojo.enums.Resource;
@@ -24,7 +27,7 @@ public class ExamRoomController extends BaseController {
 
     // Lấy room theo id
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<ExamRoomDTO>> getById(
             @PathVariable Long id,
             Authentication auth
@@ -38,7 +41,7 @@ public class ExamRoomController extends BaseController {
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<ExamRoomDTO>> create(
-            @RequestBody ExamRoom request,
+            @RequestBody ExamRoomRequest request,
             Authentication auth
     ) {
         accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.CREATE);
@@ -51,7 +54,7 @@ public class ExamRoomController extends BaseController {
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<ExamRoomDTO>> update(
             @PathVariable Long id,
-            @RequestBody ExamRoom request,
+            @RequestBody ExamRoomRequest request,
             Authentication auth
     ) {
         accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.UPDATE);
@@ -75,7 +78,7 @@ public class ExamRoomController extends BaseController {
 
     // Phân trang, lọc
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<Page<ExamRoomDTO>>> getRooms(
             @RequestParam Long examId,
             @RequestParam(defaultValue = "0") int page,
@@ -85,5 +88,51 @@ public class ExamRoomController extends BaseController {
         accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.READ);
 
         return success(examRoomService.getRoomsByExam(examId, page, size));
+    }
+
+    // Gán student vào room
+    @PostMapping("/assign")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> assignRoom(
+            @RequestParam Long registrationId,
+            @RequestParam Long roomId,
+            @RequestParam Integer seat,
+            Authentication auth
+    ) {
+        accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.UPDATE);
+
+        examRoomService.assignRoom(registrationId, roomId, seat);
+
+        return updated(null);
+    }
+
+    // Gán nhiều student vào room
+    @PostMapping("/assign-batch")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> assignRoomBatch(
+            @RequestBody AssignRoomBatchRequest request,
+            Authentication auth
+    ) {
+        accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.UPDATE);
+
+        examRoomService.assignMultipleStudents(request);
+
+        return updated(null);
+    }
+
+    // Xem danh sách sinh viên trong room
+    @GetMapping("/{roomId}/students")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR')")
+    public ResponseEntity<ApiResponse<Page<RoomStudentDTO>>> getStudentsInRoom(
+            @PathVariable Long roomId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication auth
+    ) {
+        accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.READ);
+
+        return success(
+                examRoomService.getStudentsInRoom(roomId, page, size)
+        );
     }
 }

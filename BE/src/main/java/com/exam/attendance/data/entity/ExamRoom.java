@@ -28,4 +28,7 @@ public class ExamRoom {
 
     @OneToMany(mappedBy = "room")
     private List<ExamSession> sessions;
+
+    @OneToMany(mappedBy = "room")
+    private List<ExamRegistration> registrations;
 }

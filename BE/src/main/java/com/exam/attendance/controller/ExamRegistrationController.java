@@ -25,7 +25,7 @@ public class ExamRegistrationController extends BaseController {
 
     // Lấy theo ID
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<ExamRegistrationResponse>> getById(
             @PathVariable Long id,
             Authentication auth
@@ -122,7 +122,7 @@ public class ExamRegistrationController extends BaseController {
 
     // My exams
     @GetMapping("/my-exams")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<Page<ExamRegistrationResponse>>> getMyExams(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

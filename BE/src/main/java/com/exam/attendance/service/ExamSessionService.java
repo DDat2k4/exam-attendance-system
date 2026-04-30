@@ -2,6 +2,7 @@ package com.exam.attendance.service;
 
 import com.exam.attendance.data.entity.*;
 import com.exam.attendance.data.mapper.ExamSessionMapper;
+import com.exam.attendance.data.pojo.MyRoomInfoDTO;
 import com.exam.attendance.data.pojo.enums.AttendanceStatus;
 import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
 import com.exam.attendance.data.pojo.ProctorDashboardDTO;
@@ -55,15 +56,29 @@ public class ExamSessionService {
             throw new RuntimeException("Exam not active");
         }
 
-        // Kiểm tra session
+        // Kiểm tra session trùng
         if (examSessionRepo.existsByUserIdAndExamIdAndSessionEndIsNull(userId, examId)) {
             throw new RuntimeException("Already started exam");
         }
 
-        // ===== ASSIGN ROOM =====
-        ExamRoom room = assignRoom(examId);
+        ExamRoom room = reg.getRoom();
 
-        // Tạo ExamSession
+        if (room == null) {
+            throw new RuntimeException("Bạn chưa được phân phòng");
+        }
+
+        // Check room full
+        long count = examSessionRepo.countByRoomId(room.getId());
+        if (count >= room.getMaxStudents()) {
+            throw new RuntimeException("Phòng đã đầy");
+        }
+
+        // validate device
+        if (deviceId == null || deviceId.isBlank()) {
+            throw new RuntimeException("Thiết bị không hợp lệ");
+        }
+
+        // Tạo session
         ExamSession s = new ExamSession();
         s.setUser(user);
         s.setExam(exam);
@@ -94,28 +109,28 @@ public class ExamSessionService {
         }
     }
 
-    private ExamRoom assignRoom(Long examId) {
-
-        List<ExamRoom> rooms = roomRepo.findByExamId(examId);
-
-        // TH1: chưa tạo phòng
-        if (rooms.isEmpty()) {
-            throw new RuntimeException("Chưa tạo phòng thi cho kỳ thi này");
-        }
-
-        // TH2: có phòng nhưng full
-        return rooms.stream()
-                .filter(room -> {
-                    long count = examSessionRepo.countByRoomId(room.getId());
-                    return count < room.getMaxStudents();
-                })
-                .min((r1, r2) -> {
-                    long c1 = examSessionRepo.countByRoomId(r1.getId());
-                    long c2 = examSessionRepo.countByRoomId(r2.getId());
-                    return Long.compare(c1, c2);
-                })
-                .orElseThrow(() -> new RuntimeException("Tất cả phòng thi đã đầy"));
-    }
+//    private ExamRoom assignRoom(Long examId) {
+//
+//        List<ExamRoom> rooms = roomRepo.findByExamId(examId);
+//
+//        // TH1: chưa tạo phòng
+//        if (rooms.isEmpty()) {
+//            throw new RuntimeException("Chưa tạo phòng thi cho kỳ thi này");
+//        }
+//
+//        // TH2: có phòng nhưng full
+//        return rooms.stream()
+//                .filter(room -> {
+//                    long count = examSessionRepo.countByRoomId(room.getId());
+//                    return count < room.getMaxStudents();
+//                })
+//                .min((r1, r2) -> {
+//                    long c1 = examSessionRepo.countByRoomId(r1.getId());
+//                    long c2 = examSessionRepo.countByRoomId(r2.getId());
+//                    return Long.compare(c1, c2);
+//                })
+//                .orElseThrow(() -> new RuntimeException("Tất cả phòng thi đã đầy"));
+//    }
 
     @Transactional
     public void endExam(Long sessionId) {
@@ -236,6 +251,32 @@ public class ExamSessionService {
         if (score >= 2) return RiskLevel.MEDIUM;
 
         return RiskLevel.LOW;
+    }
+
+    public MyRoomInfoDTO getMyRoomInfo(Long userId) {
+
+        LocalDateTime now = LocalDateTime.now();
+
+        ExamRegistration reg = registrationRepo
+                .findByUserIdAndExam_StartTimeBeforeAndExam_EndTimeAfter(userId, now, now)
+                .orElseThrow(() -> new RuntimeException("Không có kỳ thi đang diễn ra"));
+
+        ExamRoom room = reg.getRoom();
+
+        if (room == null) {
+            throw new RuntimeException("Bạn chưa được phân phòng");
+        }
+
+        MyRoomInfoDTO dto = new MyRoomInfoDTO();
+        dto.setExamId(reg.getExam().getId());
+        dto.setExamTitle(reg.getExam().getTitle());
+
+        dto.setRoomId(room.getId());
+        dto.setRoomCode(room.getRoomCode());
+
+        dto.setSeatNumber(reg.getSeatNumber());
+
+        return dto;
     }
 
     public ExamSessionResponse getEntity(Long id) {
