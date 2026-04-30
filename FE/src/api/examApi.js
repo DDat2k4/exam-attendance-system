@@ -1,12 +1,7 @@
-import axios from "axios";
+import axiosClient from "../services/axiosClient";
 import { dedupeGet } from "./requestCache";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
-const getToken = () => localStorage.getItem("access_token");
-const authHeaders = (includeJson = false) => ({
-	...(includeJson ? { "Content-Type": "application/json" } : {}),
-	Authorization: `Bearer ${getToken()}`,
-});
 
 const unwrap = (res) => {
 	const body = res?.data;
@@ -78,9 +73,7 @@ const hydrateExamDetails = async (list) => {
 			if (Array.isArray(item?.rooms)) return item;
 
 			try {
-				const detailRes = await dedupeGet(axios, `${API_URL}/exams/${item.id}`, {
-					headers: authHeaders(),
-				});
+				const detailRes = await dedupeGet(axiosClient, `${API_URL}/exams/${item.id}`);
 				const detail = unwrap(detailRes);
 				return detail ?? item;
 			} catch {
@@ -95,10 +88,7 @@ const hydrateExamDetails = async (list) => {
 // Create exam
 export const createExam = async (exam) => {
 	try {
-		const res = await axios.post(`${API_URL}/exams`, exam, {
-			headers: authHeaders(true),
-		});
-		return unwrap(res);
+		return await axiosClient.post(`${API_URL}/exams`, exam);
 	} catch (err) {
 		rethrow(err);
 	}
@@ -107,10 +97,7 @@ export const createExam = async (exam) => {
 // Update exam
 export const updateExam = async (examId, exam) => {
 	try {
-		const res = await axios.put(`${API_URL}/exams/${examId}`, exam, {
-			headers: authHeaders(true),
-		});
-		return unwrap(res);
+		return await axiosClient.put(`${API_URL}/exams/${examId}`, exam);
 	} catch (err) {
 		rethrow(err);
 	}
@@ -119,10 +106,7 @@ export const updateExam = async (examId, exam) => {
 // Delete exam
 export const deleteExam = async (examId) => {
 	try {
-		const res = await axios.delete(`${API_URL}/exams/${examId}`, {
-			headers: authHeaders(),
-		});
-		return unwrap(res);
+		return await axiosClient.delete(`${API_URL}/exams/${examId}`);
 	} catch (err) {
 		rethrow(err);
 	}
@@ -134,15 +118,14 @@ export const getExamsPaginated = async ({ page = 0, size = 10, keyword = "", hyd
 	const safeSize = Math.max(1, Number(size) || 10);
 
 	try {
-		const res = await dedupeGet(axios, `${API_URL}/exams`, {
+		const res = await dedupeGet(axiosClient, `${API_URL}/exams`, {
 			params: {
 				page: safePage,
 				size: safeSize,
 				...(String(keyword || "").trim() ? { keyword: String(keyword).trim() } : {}),
 			},
-			headers: authHeaders(),
 		});
-		const pageData = normalizeExamPage(unwrap(res), safePage, safeSize);
+		const pageData = normalizeExamPage(res, safePage, safeSize);
 
 		if (!hydrateRooms || pageData.content.length === 0) {
 			return pageData;
@@ -183,10 +166,7 @@ export const getAllExams = async ({ size = 100, keyword = "", hydrateRooms = tru
 // Get exam by id
 export const getExamById = async (examId) => {
 	try {
-		const res = await dedupeGet(axios, `${API_URL}/exams/${examId}`, {
-			headers: authHeaders(),
-		});
-		return unwrap(res);
+		return await dedupeGet(axiosClient, `${API_URL}/exams/${examId}`);
 	} catch (err) {
 		rethrow(err);
 	}
@@ -195,10 +175,7 @@ export const getExamById = async (examId) => {
 // Create exam room
 export const createExamRoom = async (examId, room) => {
 	try {
-		const res = await axios.post(`${API_URL}/exams/${examId}/rooms`, room, {
-			headers: authHeaders(true),
-		});
-		return unwrap(res);
+		return await axiosClient.post(`${API_URL}/exams/${examId}/rooms`, room);
 	} catch (err) {
 		rethrow(err);
 	}
@@ -207,10 +184,7 @@ export const createExamRoom = async (examId, room) => {
 // Delete exam room
 export const deleteExamRoom = async (roomId) => {
 	try {
-		const res = await axios.delete(`${API_URL}/exams/rooms/${roomId}`, {
-			headers: authHeaders(),
-		});
-		return unwrap(res);
+		return await axiosClient.delete(`${API_URL}/exams/rooms/${roomId}`);
 	} catch (err) {
 		rethrow(err);
 	}
@@ -231,13 +205,7 @@ export const importExamFromExcel = async (file, examId) => {
 	formData.append("file", file);
 
 	try {
-		const res = await axios.post(`${API_URL}/exams/${parsedExamId}/import`, formData, {
-			headers: {
-				"Content-Type": "multipart/form-data",
-				Authorization: `Bearer ${getToken()}`,
-			},
-		});
-		return unwrap(res);
+		return await axiosClient.post(`${API_URL}/exams/${parsedExamId}/import`, formData);
 	} catch (err) {
 		rethrow(err);
 	}

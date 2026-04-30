@@ -10,6 +10,7 @@ import com.exam.attendance.data.response.UserProfileResponse;
 import com.exam.attendance.service.UserProfileService;
 import com.exam.attendance.service.security.AccessControlService;
 import com.exam.attendance.util.SecurityUtils;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -75,7 +77,7 @@ public class UserProfileController extends BaseController {
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Long>> create(
-            @RequestBody UserProfileRequest request,
+            @Valid @RequestBody UserProfileRequest request,
             Authentication auth
     ) {
 

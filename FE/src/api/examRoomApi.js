@@ -1,8 +1,7 @@
-import axios from 'axios'
+import axiosClient from '../services/axiosClient'
 import { dedupeGet } from './requestCache'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL
-const getToken = () => localStorage.getItem('access_token')
 
 const unwrap = (res) => {
   const body = res?.data
@@ -46,10 +45,7 @@ export const getExamRoomById = async (roomId) => {
   }
 
   try {
-    const res = await dedupeGet(axios, `${API_URL}/exam-rooms/${parsedRoomId}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
-    return unwrap(res)
+    return await dedupeGet(axiosClient, `${API_URL}/exam-rooms/${parsedRoomId}`)
   } catch (err) {
     rethrow(err)
   }
@@ -57,13 +53,7 @@ export const getExamRoomById = async (roomId) => {
 
 export const createExamRoom = async (room) => {
   try {
-    const res = await axios.post(`${API_URL}/exam-rooms`, room, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${getToken()}`,
-      },
-    })
-    return unwrap(res)
+    return await axiosClient.post(`${API_URL}/exam-rooms`, room)
   } catch (err) {
     rethrow(err)
   }
@@ -76,13 +66,7 @@ export const updateExamRoom = async (roomId, room) => {
   }
 
   try {
-    const res = await axios.put(`${API_URL}/exam-rooms/${parsedRoomId}`, room, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${getToken()}`,
-      },
-    })
-    return unwrap(res)
+    return await axiosClient.put(`${API_URL}/exam-rooms/${parsedRoomId}`, room)
   } catch (err) {
     rethrow(err)
   }
@@ -95,10 +79,7 @@ export const deleteExamRoom = async (roomId) => {
   }
 
   try {
-    const res = await axios.delete(`${API_URL}/exam-rooms/${parsedRoomId}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
-    return unwrap(res)
+    return await axiosClient.delete(`${API_URL}/exam-rooms/${parsedRoomId}`)
   } catch (err) {
     rethrow(err)
   }
@@ -122,7 +103,7 @@ export const assignExamRoom = async ({ registrationId, roomId, seat }) => {
   }
 
   try {
-    const res = await axios.post(
+    return await axiosClient.post(
       `${API_URL}/exam-rooms/assign`,
       null,
       {
@@ -131,10 +112,8 @@ export const assignExamRoom = async ({ registrationId, roomId, seat }) => {
           roomId: parsedRoomId,
           seat: parsedSeat,
         },
-        headers: { Authorization: `Bearer ${getToken()}` },
       },
     )
-    return unwrap(res)
   } catch (err) {
     rethrow(err)
   }
@@ -160,20 +139,14 @@ export const assignExamRoomBatch = async ({ roomId, students }) => {
   }
 
   try {
-    const res = await axios.post(
+    const res = await axiosClient.post(
       `${API_URL}/exam-rooms/assign-batch`,
       {
         roomId: parsedRoomId,
         students: normalizedStudents,
       },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getToken()}`,
-        },
-      },
     )
-    return unwrap(res)
+    return res
   } catch (err) {
     rethrow(err)
   }
@@ -189,15 +162,13 @@ export const getStudentsInRoom = async ({ roomId, page = 0, size = 20 }) => {
   }
 
   try {
-    const res = await dedupeGet(axios, `${API_URL}/exam-rooms/${parsedRoomId}/students`, {
+    const res = await dedupeGet(axiosClient, `${API_URL}/exam-rooms/${parsedRoomId}/students`, {
       params: {
         page: parsedPage,
         size: parsedSize,
       },
-      headers: { Authorization: `Bearer ${getToken()}` },
     })
-    const data = unwrap(res)
-    return data || { content: [], totalElements: 0, totalPages: 0, empty: true }
+    return res || { content: [], totalElements: 0, totalPages: 0, empty: true }
   } catch (err) {
     rethrow(err)
   }
@@ -211,16 +182,14 @@ export const getRoomsByExamPaginated = async (examId, page = 0, size = 10) => {
   if (!Number.isInteger(parsedExamId) || parsedExamId <= 0) return { content: [], totalElements: 0, totalPages: 0, empty: true }
 
   try {
-    const res = await dedupeGet(axios, `${API_URL}/exam-rooms`, {
+    const res = await dedupeGet(axiosClient, `${API_URL}/exam-rooms`, {
       params: {
         examId: parsedExamId,
         page: parsedPage,
         size: parsedSize,
       },
-      headers: { Authorization: `Bearer ${getToken()}` },
     })
-    const data = unwrap(res)
-    return data || { content: [], totalElements: 0, totalPages: 0, empty: true }
+    return res || { content: [], totalElements: 0, totalPages: 0, empty: true }
   } catch (err) {
     rethrow(err)
   }

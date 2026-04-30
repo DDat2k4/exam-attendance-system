@@ -1,11 +1,6 @@
-import axios from 'axios'
+import axiosClient from '../services/axiosClient'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL
-const getToken = () => localStorage.getItem('access_token')
-
-const authHeaders = () => ({
-  Authorization: `Bearer ${getToken()}`,
-})
 
 /**
  * Export full exam room report as Excel
@@ -14,10 +9,9 @@ const authHeaders = () => ({
  */
 export const exportSessionReportExcel = async (roomId) => {
   try {
-    const response = await axios.get(
+    const response = await axiosClient.get(
       `${API_URL}/reports/export-excel?roomId=${roomId}`,
       {
-        headers: authHeaders(),
         responseType: 'blob',
       }
     )

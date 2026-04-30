@@ -1,8 +1,7 @@
-import axios from "axios";
+import axiosClient from "../services/axiosClient";
 import { dedupeGet } from "./requestCache";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
-const getToken = () => localStorage.getItem("access_token");
 
 const unwrap = (res) => {
   const body = res?.data;
@@ -39,10 +38,7 @@ const rethrow = (err) => {
 // GET /user-profiles/{id}
 export const getUserProfile = async (id) => {
   try {
-    const res = await dedupeGet(axios, `${API_URL}/user-profiles/${id}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    return unwrap(res);
+    return await dedupeGet(axiosClient, `${API_URL}/user-profiles/${id}`);
   } catch (err) {
     rethrow(err);
   }
@@ -63,12 +59,11 @@ export const getUserProfiles = async ({
       ...(name ? { name } : {}),
       ...(typeof gender === "number" ? { gender } : {}),
     };
-    const res = await dedupeGet(axios, `${API_URL}/user-profiles`, {
+    const res = await dedupeGet(axiosClient, `${API_URL}/user-profiles`, {
       params,
-      headers: { Authorization: `Bearer ${getToken()}` },
     });
-    const data = unwrap(res) ?? {};
-    const pageData = data?.content ? data : res.data?.data ?? {};
+    const data = res ?? {};
+    const pageData = data?.content ? data : data?.data ?? {};
 
     return {
       items: Array.isArray(pageData.content)
@@ -92,10 +87,7 @@ export const getUserProfiles = async ({
 // POST /user-profiles
 export const createUserProfile = async (profile) => {
   try {
-    const res = await axios.post(`${API_URL}/user-profiles`, profile, {
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-    });
-    return unwrap(res);
+    return await axiosClient.post(`${API_URL}/user-profiles`, profile);
   } catch (err) {
     rethrow(err);
   }
@@ -104,10 +96,7 @@ export const createUserProfile = async (profile) => {
 // PUT /user-profiles/{id}
 export const updateUserProfile = async (id, profile) => {
   try {
-    const res = await axios.put(`${API_URL}/user-profiles/${id}`, profile, {
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-    });
-    return unwrap(res);
+    return await axiosClient.put(`${API_URL}/user-profiles/${id}`, profile);
   } catch (err) {
     rethrow(err);
   }
@@ -116,10 +105,7 @@ export const updateUserProfile = async (id, profile) => {
 // DELETE /user-profiles/{id}
 export const deleteUserProfile = async (id) => {
   try {
-    const res = await axios.delete(`${API_URL}/user-profiles/${id}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    return unwrap(res);
+    return await axiosClient.delete(`${API_URL}/user-profiles/${id}`);
   } catch (err) {
     rethrow(err);
   }

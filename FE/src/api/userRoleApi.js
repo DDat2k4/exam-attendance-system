@@ -1,8 +1,7 @@
-import axios from "axios";
+import axiosClient from "../services/axiosClient";
 import { dedupeGet } from "./requestCache";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
-const getToken = () => localStorage.getItem("access_token");
 
 const unwrap = (res) => {
   const body = res?.data;
@@ -39,10 +38,7 @@ const rethrow = (err) => {
 // GET /user-roles/{userId}
 export const getUserRoles = async (userId) => {
   try {
-    const res = await dedupeGet(axios, `${API_URL}/user-roles/${userId}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    const data = unwrap(res);
+    const data = await dedupeGet(axiosClient, `${API_URL}/user-roles/${userId}`);
     return Array.isArray(data) ? data : (data?.items ?? []);
   } catch (err) {
     rethrow(err);
@@ -52,10 +48,7 @@ export const getUserRoles = async (userId) => {
 // POST /user-roles/{userId}
 export const addRolesToUser = async (userId, roleIds = []) => {
   try {
-    const res = await axios.post(`${API_URL}/user-roles/${userId}`, { roleIds }, {
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-    });
-    return unwrap(res);
+    return await axiosClient.post(`${API_URL}/user-roles/${userId}`, { roleIds });
   } catch (err) {
     rethrow(err);
   }
@@ -64,10 +57,7 @@ export const addRolesToUser = async (userId, roleIds = []) => {
 // PUT /user-roles/{userId}
 export const replaceUserRoles = async (userId, roleIds = []) => {
   try {
-    const res = await axios.put(`${API_URL}/user-roles/${userId}`, { roleIds }, {
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-    });
-    return unwrap(res);
+    return await axiosClient.put(`${API_URL}/user-roles/${userId}`, { roleIds });
   } catch (err) {
     rethrow(err);
   }
@@ -76,10 +66,7 @@ export const replaceUserRoles = async (userId, roleIds = []) => {
 // DELETE /user-roles/{userId}/{roleId}
 export const removeUserRole = async (userId, roleId) => {
   try {
-    const res = await axios.delete(`${API_URL}/user-roles/${userId}/${roleId}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    return unwrap(res);
+    return await axiosClient.delete(`${API_URL}/user-roles/${userId}/${roleId}`);
   } catch (err) {
     rethrow(err);
   }

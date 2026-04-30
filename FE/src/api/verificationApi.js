@@ -1,7 +1,6 @@
-import axios from 'axios'
+import axiosClient from '../services/axiosClient'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL
-const getToken = () => localStorage.getItem('access_token')
 
 const unwrap = (res) => {
   const body = res?.data
@@ -39,13 +38,7 @@ const rethrow = (err) => {
 
 export const verifyCccd = async () => {
   try {
-    const res = await axios.post(`${API_URL}/cccd/verify`, null, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${getToken()}`,
-      },
-    })
-    return unwrap(res)
+    return await axiosClient.post(`${API_URL}/cccd/verify`, null)
   } catch (err) {
     rethrow(err)
   }
@@ -53,13 +46,7 @@ export const verifyCccd = async () => {
 
 export const verifyIdentity = async (request) => {
   try {
-    const res = await axios.post(`${API_URL}/verify`, request, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${getToken()}`,
-      },
-    })
-    return unwrap(res)
+    return await axiosClient.post(`${API_URL}/verify`, request)
   } catch (err) {
     rethrow(err)
   }
@@ -67,13 +54,7 @@ export const verifyIdentity = async (request) => {
 
 export const readCccd = async () => {
   try {
-    const res = await axios.post(`${API_URL}/cccd/read`, null, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${getToken()}`,
-      },
-    })
-    return unwrap(res)
+    return await axiosClient.post(`${API_URL}/cccd/read`, null)
   } catch (err) {
     rethrow(err)
   }

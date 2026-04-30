@@ -76,7 +76,17 @@ export default function useProctorSection({
 }) {
   const [proctorDashboard, setProctorDashboard] = useState([])
   const [loadingProctorDashboard, setLoadingProctorDashboard] = useState(false)
-  const [proctorFilter, setProctorFilter] = useState({ roomId: '', status: '', flagged: '', keyword: '', page: 0, size: 20 })
+  const [proctorFilter, setProctorFilter] = useState(() => {
+    const savedRoomId = sessionStorage.getItem('proctor_roomId')
+    return { 
+      roomId: savedRoomId || '', 
+      status: '', 
+      flagged: '', 
+      keyword: '', 
+      page: 0, 
+      size: 20 
+    }
+  })
   const [proctorPagination, setProctorPagination] = useState({ totalElements: 0, totalPages: 0, currentPage: 0, size: 20 })
   const [selectedProctorSession, setSelectedProctorSession] = useState(null)
   const [showProctorDetailModal, setShowProctorDetailModal] = useState(false)
@@ -389,17 +399,24 @@ export default function useProctorSection({
     setErrorRef.current = setError
   }, [setError])
 
+  // Persist roomId to sessionStorage
+  useEffect(() => {
+    if (proctorFilter.roomId) {
+      sessionStorage.setItem('proctor_roomId', proctorFilter.roomId)
+    }
+  }, [proctorFilter.roomId])
+
   useEffect(() => {
     if (activeSection === hubSections.PROCTOR && !proctorFilter.roomId && !showProctorRoomModal) {
       openProctorRoomModal()
     }
-  }, [activeSection, proctorFilter.roomId, showProctorRoomModal, hubSections.PROCTOR])
+  }, [activeSection, proctorFilter.roomId, showProctorRoomModal])
 
   useEffect(() => {
     if (activeSection === hubSections.PROCTOR && exams.length === 0 && !loading) {
       fetchExams()
     }
-  }, [activeSection, exams.length, loading, hubSections.PROCTOR])
+  }, [activeSection, exams.length, loading])
 
   useEffect(() => {
     const roomId = Number(proctorFilter.roomId)

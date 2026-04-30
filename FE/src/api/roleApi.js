@@ -1,8 +1,7 @@
-import axios from "axios";
+import axiosClient from "../services/axiosClient";
 import { dedupeGet } from "./requestCache";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
-const getToken = () => localStorage.getItem("access_token");
 
 const unwrap = (res) => {
 	const body = res?.data;
@@ -46,11 +45,10 @@ export const getRoles = async ({ page = 1, limit = 10, sort, filters = {} } = {}
 			size,
 			...(sort ? { sort } : {}),
 		};
-		const res = await dedupeGet(axios, `${API_URL}/roles`, {
+		const res = await dedupeGet(axiosClient, `${API_URL}/roles`, {
 			params,
-			headers: { Authorization: `Bearer ${getToken()}` },
 		});
-		const data = unwrap(res) ?? {};
+		const data = res ?? {};
 		const items = Array.isArray(data.content) ? data.content : [];
 		const currentPage = Number(data.number ?? page - 1) + 1;
 		const totalPages = Number(data.totalPages ?? 0);
@@ -82,10 +80,8 @@ export const getRoles = async ({ page = 1, limit = 10, sort, filters = {} } = {}
 // Get role by id
 export const getRoleById = async (id) => {
 	try {
-		const res = await dedupeGet(axios, `${API_URL}/roles/${id}`, {
-			headers: { Authorization: `Bearer ${getToken()}` },
-		});
-		return unwrap(res);
+		const res = await dedupeGet(axiosClient, `${API_URL}/roles/${id}`);
+		return res;
 	} catch (err) {
 		rethrow(err);
 	}
@@ -94,10 +90,8 @@ export const getRoleById = async (id) => {
 // Create role
 export const createRole = async (role) => {
 	try {
-		const res = await axios.post(`${API_URL}/roles`, role, {
-			headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-		});
-		return unwrap(res);
+		const res = await axiosClient.post(`${API_URL}/roles`, role);
+		return res;
 	} catch (err) {
 		rethrow(err);
 	}
@@ -106,10 +100,8 @@ export const createRole = async (role) => {
 // Update role
 export const updateRole = async (id, role) => {
 	try {
-		const res = await axios.put(`${API_URL}/roles/${id}`, role, {
-			headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-		});
-		return unwrap(res);
+		const res = await axiosClient.put(`${API_URL}/roles/${id}`, role);
+		return res;
 	} catch (err) {
 		rethrow(err);
 	}
@@ -118,10 +110,8 @@ export const updateRole = async (id, role) => {
 // Delete role
 export const deleteRole = async (id) => {
 	try {
-		const res = await axios.delete(`${API_URL}/roles/${id}`, {
-			headers: { Authorization: `Bearer ${getToken()}` },
-		});
-		return unwrap(res);
+		const res = await axiosClient.delete(`${API_URL}/roles/${id}`);
+		return res;
 	} catch (err) {
 		rethrow(err);
 	}

@@ -92,6 +92,8 @@ export const AuthProvider = ({ children }) => {
     ;['access_token', 'refresh_token', 'username', 'avatar', 'userId'].forEach((key) => {
       localStorage.removeItem(key)
     })
+    // Clear proctor session state
+    sessionStorage.removeItem('proctor_roomId')
     setAuthLoading(false)
     setUser(null)
     window.dispatchEvent(new Event('auth-changed'))

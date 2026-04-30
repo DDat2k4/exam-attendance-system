@@ -1,8 +1,7 @@
-import axios from "axios";
+import axiosClient from "../services/axiosClient";
 import { dedupeGet } from "./requestCache";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
-const getToken = () => localStorage.getItem("access_token");
 
 const unwrap = (res) => {
 	const body = res?.data;
@@ -39,11 +38,7 @@ const rethrow = (err) => {
 // Get permissions of a role
 export const getRolePermissions = async (roleId) => {
 	try {
-		const res = await dedupeGet(axios, `${API_URL}/roles/${roleId}/permissions`, {
-			headers: { Authorization: `Bearer ${getToken()}` },
-		});
-		// backend returns List<Permission>
-		const data = unwrap(res);
+		const data = await dedupeGet(axiosClient, `${API_URL}/roles/${roleId}/permissions`);
 		return Array.isArray(data) ? data : (data?.items ?? []);
 	} catch (err) {
 		rethrow(err);
@@ -53,10 +48,7 @@ export const getRolePermissions = async (roleId) => {
 // Add permissions to a role
 export const addPermissionsToRole = async (roleId, permissionIds = []) => {
 	try {
-		const res = await axios.post(`${API_URL}/roles/${roleId}/permissions`, { permissionIds }, {
-			headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-		});
-		return unwrap(res);
+		return await axiosClient.post(`${API_URL}/roles/${roleId}/permissions`, { permissionIds });
 	} catch (err) {
 		rethrow(err);
 	}
@@ -65,10 +57,7 @@ export const addPermissionsToRole = async (roleId, permissionIds = []) => {
 // Replace role permissions
 export const replaceRolePermissions = async (roleId, permissionIds = []) => {
 	try {
-		const res = await axios.put(`${API_URL}/roles/${roleId}/permissions`, { permissionIds }, {
-			headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-		});
-		return unwrap(res);
+		return await axiosClient.put(`${API_URL}/roles/${roleId}/permissions`, { permissionIds });
 	} catch (err) {
 		rethrow(err);
 	}
@@ -77,10 +66,7 @@ export const replaceRolePermissions = async (roleId, permissionIds = []) => {
 // Remove a permission from a role
 export const removePermissionFromRole = async (roleId, permissionId) => {
 	try {
-		const res = await axios.delete(`${API_URL}/roles/${roleId}/permissions/${permissionId}`, {
-			headers: { Authorization: `Bearer ${getToken()}` },
-		});
-		return unwrap(res);
+		return await axiosClient.delete(`${API_URL}/roles/${roleId}/permissions/${permissionId}`);
 	} catch (err) {
 		rethrow(err);
 	}

@@ -1,13 +1,7 @@
-import axios from "axios";
+import axiosClient from "../services/axiosClient";
 import { dedupeGet } from "./requestCache";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
-const getToken = () => localStorage.getItem("access_token");
-
-const authHeaders = (includeJson = false) => ({
-  ...(includeJson ? { "Content-Type": "application/json" } : {}),
-  Authorization: `Bearer ${getToken()}`,
-});
 
 const unwrap = (res) => {
   const body = res?.data;
@@ -62,16 +56,15 @@ const normalizeActiveToShort = (active) => {
 export const getUsers = async ({ page = 1, limit = 10, role } = {}) => {
   try {
     const size = Number(limit) > 0 ? Number(limit) : 10;
-    const res = await dedupeGet(axios, `${API_URL}/users`, {
+    const res = await dedupeGet(axiosClient, `${API_URL}/users`, {
       params: {
         ...(role ? { role } : {}),
         page,
         size,
       },
-      headers: authHeaders(),
     });
 
-    const data = unwrap(res) ?? {};
+    const data = res ?? {};
     const items = Array.isArray(data.content) ? data.content : [];
 
     return {
@@ -89,10 +82,7 @@ export const getUsers = async ({ page = 1, limit = 10, role } = {}) => {
 // GET /users/{id}
 export const getUserById = async (id) => {
   try {
-    const res = await dedupeGet(axios, `${API_URL}/users/${id}`, {
-      headers: authHeaders(),
-    });
-    return unwrap(res);
+    return await dedupeGet(axiosClient, `${API_URL}/users/${id}`);
   } catch (err) {
     rethrow(err);
   }
@@ -108,11 +98,9 @@ export const createUser = async ({ username, email, phone, password, passwordHas
       password: password ?? passwordHash,
     };
 
-    const res = await axios.post(`${API_URL}/users`, payload, {
-      headers: authHeaders(true),
-    });
+    const res = await axiosClient.post(`${API_URL}/users`, payload);
 
-    return unwrap(res);
+    return res;
   } catch (err) {
     rethrow(err);
   }
@@ -130,11 +118,9 @@ export const updateUser = async (id, { email, password, passwordHash, active } =
       ...(activeShort !== undefined ? { active: activeShort } : {}),
     };
 
-    const res = await axios.put(`${API_URL}/users/${id}`, payload, {
-      headers: authHeaders(true),
-    });
+    const res = await axiosClient.put(`${API_URL}/users/${id}`, payload);
 
-    return unwrap(res);
+    return res;
   } catch (err) {
     rethrow(err);
   }
@@ -143,10 +129,7 @@ export const updateUser = async (id, { email, password, passwordHash, active } =
 // DELETE /users/{id}
 export const deleteUser = async (userId) => {
   try {
-    const res = await axios.delete(`${API_URL}/users/${userId}`, {
-      headers: authHeaders(),
-    });
-    return unwrap(res);
+    return await axiosClient.delete(`${API_URL}/users/${userId}`);
   } catch (err) {
     rethrow(err);
   }

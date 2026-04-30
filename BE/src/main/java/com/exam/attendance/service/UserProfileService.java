@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -28,8 +29,18 @@ public class UserProfileService {
                 .map(UserProfileMapper::toDTO);
     }
 
+    @Transactional
     public Long create(UserProfileRequest request) {
+
+        String citizenId = request.getCitizenId().trim();
+
+        // check trùng CCCD
+        if (repo.existsByCitizenId(citizenId)) {
+            throw new RuntimeException("CCCD đã tồn tại");
+        }
+
         UserProfile entity = UserProfileMapper.toEntity(request);
+
         return repo.save(entity).getId();
     }
 

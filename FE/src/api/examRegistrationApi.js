@@ -1,12 +1,6 @@
-import axios from 'axios'
+import axiosClient from '../services/axiosClient'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL
-const getToken = () => localStorage.getItem('access_token')
-
-const authHeaders = (includeJson = false) => ({
-  ...(includeJson ? { 'Content-Type': 'application/json' } : {}),
-  Authorization: `Bearer ${getToken()}`,
-})
 
 const unwrap = (res) => {
   const body = res?.data
@@ -46,10 +40,7 @@ const rethrow = (err) => {
 // GET /exam-registrations/{id}
 export const getExamRegistrationById = async (id) => {
   try {
-    const res = await axios.get(`${API_URL}/exam-registrations/${id}`, {
-      headers: authHeaders(),
-    })
-    return unwrap(res)
+    return await axiosClient.get(`${API_URL}/exam-registrations/${id}`)
   } catch (err) {
     rethrow(err)
   }
@@ -58,11 +49,9 @@ export const getExamRegistrationById = async (id) => {
 // GET /exam-registrations?examId=&page=&size=
 export const getExamRegistrationsByExam = async ({ examId, page = 1, size = 10 }) => {
   try {
-    const res = await axios.get(`${API_URL}/exam-registrations`, {
+    return await axiosClient.get(`${API_URL}/exam-registrations`, {
       params: { examId, page, size },
-      headers: authHeaders(),
     })
-    return unwrap(res)
   } catch (err) {
     rethrow(err)
   }
@@ -71,11 +60,9 @@ export const getExamRegistrationsByExam = async ({ examId, page = 1, size = 10 }
 // POST /exam-registrations/single?userId=&examId=
 export const addUserToExam = async ({ userId, examId }) => {
   try {
-    const res = await axios.post(`${API_URL}/exam-registrations/single`, null, {
+    return await axiosClient.post(`${API_URL}/exam-registrations/single`, null, {
       params: { userId, examId },
-      headers: authHeaders(),
     })
-    return unwrap(res)
   } catch (err) {
     rethrow(err)
   }
@@ -85,14 +72,10 @@ export const addUserToExam = async ({ userId, examId }) => {
 // ADMIN flow: add a list of users to one exam.
 export const addUsersToExam = async ({ examId, userIds }) => {
   try {
-    const res = await axios.post(
+    return await axiosClient.post(
       `${API_URL}/exam-registrations/batch`,
       { examId, userIds },
-      {
-        headers: authHeaders(true),
-      },
     )
-    return unwrap(res)
   } catch (err) {
     rethrow(err)
   }
@@ -101,11 +84,9 @@ export const addUsersToExam = async ({ examId, userIds }) => {
 // DELETE /exam-registrations?userId=&examId=
 export const removeUserFromExam = async ({ userId, examId }) => {
   try {
-    const res = await axios.delete(`${API_URL}/exam-registrations`, {
+    return await axiosClient.delete(`${API_URL}/exam-registrations`, {
       params: { userId, examId },
-      headers: authHeaders(),
     })
-    return unwrap(res)
   } catch (err) {
     rethrow(err)
   }
@@ -114,11 +95,9 @@ export const removeUserFromExam = async ({ userId, examId }) => {
 // GET /exam-registrations/check?userId=&examId=
 export const checkUserExamRegistration = async ({ userId, examId }) => {
   try {
-    const res = await axios.get(`${API_URL}/exam-registrations/check`, {
+    return Boolean(await axiosClient.get(`${API_URL}/exam-registrations/check`, {
       params: { userId, examId },
-      headers: authHeaders(),
-    })
-    return Boolean(unwrap(res))
+    }))
   } catch (err) {
     rethrow(err)
   }
@@ -127,11 +106,9 @@ export const checkUserExamRegistration = async ({ userId, examId }) => {
 // GET /exam-registrations/my-exams?page=&size=
 export const getMyExamRegistrations = async ({ page = 1, size = 10 } = {}) => {
   try {
-    const res = await axios.get(`${API_URL}/exam-registrations/my-exams`, {
+    return await axiosClient.get(`${API_URL}/exam-registrations/my-exams`, {
       params: { page, size },
-      headers: authHeaders(),
     })
-    return unwrap(res)
   } catch (err) {
     rethrow(err)
   }
