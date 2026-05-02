@@ -10,9 +10,11 @@ import com.exam.attendance.data.response.UploadResponse;
 import com.exam.attendance.repository.*;
 import com.exam.attendance.service.socket.AlertService;
 import com.exam.attendance.service.uploads.FileUploadService;
+import com.exam.attendance.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Base64;
@@ -36,6 +38,7 @@ public class VerificationService {
     private static final float MIN_CONFIDENCE = 0.7f;
     private static final int MAX_FAIL_ATTEMPT = 2;
 
+    @Transactional
     public Map<String, Object> handleVerify(VerifyRequest req) {
 
         try {
@@ -58,8 +61,18 @@ public class VerificationService {
             ExamSession examSession = examSessionRepo.findFullById(req.getExamSessionId())
                     .orElseThrow(() -> new RuntimeException("Exam session not found"));
 
-            if (examSession.getStatus() == null) {
-                throw new RuntimeException("Session không hợp lệ");
+            if (examSession.getStatus() == ExamSessionStatus.DONE) {
+                throw new RuntimeException("Session đã kết thúc");
+            }
+
+            if (examSession.getStatus() == ExamSessionStatus.BLOCKED) {
+                throw new RuntimeException("Session đã bị khóa");
+            }
+
+            Long currentUserId = SecurityUtils.getCurrentUserId();
+
+            if (!examSession.getUser().getId().equals(currentUserId)) {
+                throw new RuntimeException("Không có quyền với session này");
             }
 
             User user = examSession.getUser();
@@ -73,6 +86,18 @@ public class VerificationService {
 
             if (cccdImageUrl == null || embedding == null) {
                 throw new RuntimeException("CCCD thiếu dữ liệu");
+            }
+
+            // ===== SESSION STATUS CHECK =====
+            if ("INITIAL".equalsIgnoreCase(req.getType())) {
+                if (examSession.getStatus() != ExamSessionStatus.INIT) {
+                    throw new RuntimeException("Session không ở trạng thái INIT");
+                }
+            } else {
+                if (examSession.getStatus() != ExamSessionStatus.CHECKED_IN &&
+                        examSession.getStatus() != ExamSessionStatus.IN_PROGRESS) {
+                    throw new RuntimeException("Session chưa bắt đầu");
+                }
             }
 
             // ===== DEVICE CHECK =====
@@ -105,8 +130,9 @@ public class VerificationService {
             boolean passed = "VERIFIED".equalsIgnoreCase(aiStatus)
                     && confidence >= MIN_CONFIDENCE;
 
+            // ===== ATTEMPT =====
             int attempt = (int) verificationRepo
-                    .countByExamSessionId(examSession.getId()) + 1;
+                    .countByExamSessionIdAndType(examSession.getId(), req.getType()) + 1;
 
             String captureImageUrl = uploadIfNeeded(req, user, passed);
 
@@ -159,7 +185,7 @@ public class VerificationService {
             );
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Verification failed", e);
             throw new RuntimeException("Verification failed: " + e.getMessage());
         }
     }
@@ -178,9 +204,11 @@ public class VerificationService {
 
     private String uploadIfNeeded(VerifyRequest req, User user, boolean passed) {
 
-        if (!"INITIAL".equalsIgnoreCase(req.getType()) && passed) {
-            return null;
-        }
+        boolean shouldUpload =
+                "INITIAL".equalsIgnoreCase(req.getType()) ||
+                        !passed;
+
+        if (!shouldUpload) return null;
 
         try {
             UploadResponse upload = fileUploadService
@@ -213,7 +241,7 @@ public class VerificationService {
         iv.setCaptureImageUrl(captureImageUrl);
 
         iv.setVerified(passed);
-        iv.setConfidence(confidence.doubleValue());
+        iv.setConfidence(confidence);
         iv.setType(req.getType());
         iv.setAttemptNo(attempt);
 
@@ -243,9 +271,9 @@ public class VerificationService {
         } else if (!examSession.getDeviceId().equals(currentDevice)) {
 
             examSession.setIsFlagged(true);
+            examSession.setStatus(ExamSessionStatus.BLOCKED);
             examSessionRepo.save(examSession);
 
-            // ALERT HIGH
             if (examSession.getRoom() != null) {
                 alertService.sendAlert(
                         AlertMessage.builder()
@@ -259,13 +287,7 @@ public class VerificationService {
                 );
             }
 
-            logService.log(
-                    "DEVICE_MISMATCH",
-                    "Device changed",
-                    "CHEAT",
-                    "FAILED",
-                    examSession
-            );
+            throw new RuntimeException("Thiết bị không hợp lệ");
         }
     }
 
@@ -276,14 +298,6 @@ public class VerificationService {
                                      String captureImageUrl) {
 
         if (!passed) {
-            logService.log(
-                    "INITIAL_VERIFY",
-                    "Initial verify failed",
-                    "VERIFY",
-                    "FAILED",
-                    examSession
-            );
-
             throw new RuntimeException("Initial verification failed");
         }
 
@@ -304,12 +318,17 @@ public class VerificationService {
         as.setStatus(AttendanceStatus.VERIFIED);
         as.setVerifiedAt(LocalDateTime.now());
         as.setAttendancePhoto(captureImageUrl);
-        as.setVerifiedBy(examSession.getUser());
+        as.setVerifiedBy(null);
 
         attendanceSessionRepo.save(as);
     }
 
     private void handleRandomVerify(boolean passed, ExamSession examSession) {
+
+        if (examSession.getStatus() == ExamSessionStatus.CHECKED_IN) {
+            examSession.setStatus(ExamSessionStatus.IN_PROGRESS);
+            examSessionRepo.save(examSession);
+        }
 
         AttendanceSession as = attendanceSessionRepo
                 .findByExamSessionId(examSession.getId())
@@ -317,7 +336,6 @@ public class VerificationService {
 
         if (as != null && passed) {
             as.setVerifiedAt(LocalDateTime.now());
-            as.setVerifiedBy(examSession.getUser());
             attendanceSessionRepo.save(as);
         }
 
@@ -330,10 +348,11 @@ public class VerificationService {
                 );
 
         if (failCount >= MAX_FAIL_ATTEMPT) {
+
+            examSession.setStatus(ExamSessionStatus.BLOCKED);
             examSession.setIsFlagged(true);
             examSessionRepo.save(examSession);
 
-            // ALERT HIGH
             if (examSession.getRoom() != null) {
                 alertService.sendAlert(
                         AlertMessage.builder()
@@ -347,18 +366,9 @@ public class VerificationService {
                 );
             }
 
-            logService.log(
-                    "RANDOM_FAIL_BLOCK",
-                    "Too many failed attempts",
-                    "CHEAT",
-                    "FAILED",
-                    examSession
-            );
-
             if (as != null) {
                 as.setStatus(AttendanceStatus.BLOCKED);
                 as.setVerifiedAt(LocalDateTime.now());
-                as.setVerifiedBy(examSession.getUser());
                 attendanceSessionRepo.save(as);
             }
         }

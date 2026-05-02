@@ -15,4 +15,6 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     Optional<UserProfile> findByUserId(@Param("userId") Long userId);
 
     boolean existsByCitizenId(String id);
+
+    Optional<UserProfile> findByCitizenId(String id);
 }

@@ -127,4 +127,10 @@ LEFT JOIN AttendanceSession a
 WHERE es.room.id = :roomId
 """)
     SummaryDTO getSummary(Long roomId);
+
+    boolean existsByUserIdAndExamIdAndStatusIn(
+            Long userId,
+            Long examId,
+            List<ExamSessionStatus> statuses
+    );
 }

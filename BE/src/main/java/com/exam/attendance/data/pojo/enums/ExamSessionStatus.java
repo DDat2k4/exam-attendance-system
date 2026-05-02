@@ -1,8 +1,9 @@
 package com.exam.attendance.data.pojo.enums;
 
 public enum ExamSessionStatus {
-    STARTED,
+    INIT,
     CHECKED_IN,
+    IN_PROGRESS,
     DONE,
     BLOCKED
 }

@@ -10,6 +10,7 @@ import com.exam.attendance.data.pojo.enums.RiskLevel;
 import com.exam.attendance.data.request.ProctorDashboardFilterRequest;
 import com.exam.attendance.data.response.ExamSessionResponse;
 import com.exam.attendance.repository.*;
+import com.exam.attendance.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
@@ -27,11 +28,16 @@ public class ExamSessionService {
     private final ExamSessionRepository examSessionRepo;
     private final ExamRepository examRepo;
     private final UserRepository userRepo;
-    private final ExamRoomRepository roomRepo;
     private final ExamRegistrationRepository registrationRepo;
 
     @Transactional
     public ExamSessionResponse startExam(Long userId, Long examId, String deviceId) {
+
+        Long currentUser = SecurityUtils.getCurrentUserId();
+
+        if (!currentUser.equals(userId)) {
+            throw new RuntimeException("Không có quyền");
+        }
 
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -56,8 +62,18 @@ public class ExamSessionService {
             throw new RuntimeException("Exam not active");
         }
 
-        // Kiểm tra session trùng
-        if (examSessionRepo.existsByUserIdAndExamIdAndSessionEndIsNull(userId, examId)) {
+        // Tránh duplicate session theo trạng thái =====
+        boolean hasActiveSession = examSessionRepo.existsByUserIdAndExamIdAndStatusIn(
+                userId,
+                examId,
+                List.of(
+                        ExamSessionStatus.INIT,
+                        ExamSessionStatus.CHECKED_IN,
+                        ExamSessionStatus.IN_PROGRESS
+                )
+        );
+
+        if (hasActiveSession) {
             throw new RuntimeException("Already started exam");
         }
 
@@ -84,14 +100,14 @@ public class ExamSessionService {
         s.setExam(exam);
         s.setRoom(room);
         s.setSessionStart(now);
-        s.setStatus(ExamSessionStatus.STARTED);
+        s.setStatus(ExamSessionStatus.INIT);
         s.setIsFlagged(false);
         s.setDeviceId(deviceId);
 
         return ExamSessionMapper.toResponse(examSessionRepo.save(s));
     }
 
-    //Kiểm tra xác thực
+    // Kiểm tra xác thực
     private void validateUserVerified(User user) {
 
         UserProfile profile = user.getUserProfile();
@@ -109,34 +125,29 @@ public class ExamSessionService {
         }
     }
 
-//    private ExamRoom assignRoom(Long examId) {
-//
-//        List<ExamRoom> rooms = roomRepo.findByExamId(examId);
-//
-//        // TH1: chưa tạo phòng
-//        if (rooms.isEmpty()) {
-//            throw new RuntimeException("Chưa tạo phòng thi cho kỳ thi này");
-//        }
-//
-//        // TH2: có phòng nhưng full
-//        return rooms.stream()
-//                .filter(room -> {
-//                    long count = examSessionRepo.countByRoomId(room.getId());
-//                    return count < room.getMaxStudents();
-//                })
-//                .min((r1, r2) -> {
-//                    long c1 = examSessionRepo.countByRoomId(r1.getId());
-//                    long c2 = examSessionRepo.countByRoomId(r2.getId());
-//                    return Long.compare(c1, c2);
-//                })
-//                .orElseThrow(() -> new RuntimeException("Tất cả phòng thi đã đầy"));
-//    }
-
     @Transactional
     public void endExam(Long sessionId) {
 
         ExamSession session = examSessionRepo.findById(sessionId)
                 .orElseThrow(() -> new RuntimeException("Session not found"));
+
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        if (!session.getUser().getId().equals(currentUserId)) {
+            throw new RuntimeException("Không có quyền");
+        }
+
+        if (!session.getUser().getId().equals(currentUserId)) {
+            throw new RuntimeException("Không có quyền");
+        }
+
+        if (session.getStatus() == ExamSessionStatus.DONE) {
+            throw new RuntimeException("Session đã kết thúc");
+        }
+
+        if (session.getStatus() == ExamSessionStatus.BLOCKED) {
+            throw new RuntimeException("Session đã bị khóa");
+        }
 
         session.setSessionEnd(LocalDateTime.now());
         session.setStatus(ExamSessionStatus.DONE);
@@ -152,7 +163,7 @@ public class ExamSessionService {
     public ExamSessionResponse getExamSessionById(Long id) {
         ExamSession examSessionResponse = examSessionRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Session not found"));
-        return  ExamSessionMapper.toResponse(examSessionResponse);
+        return ExamSessionMapper.toResponse(examSessionResponse);
     }
 
     public List<ExamSession> getAll() {
@@ -160,9 +171,13 @@ public class ExamSessionService {
     }
 
     public List<ExamSessionResponse> getByUser(Long userId) {
-        List<ExamSessionResponse> examSessionList = examSessionRepo.findByUserId(userId).stream().map(ExamSessionMapper::toResponse).toList();
-        return examSessionList;
+        return examSessionRepo.findByUserId(userId)
+                .stream()
+                .map(ExamSessionMapper::toResponse)
+                .toList();
     }
+
+    // ================= DASHBOARD =================
 
     public Page<ProctorDashboardDTO> getDashboard(ProctorDashboardFilterRequest req) {
 
@@ -172,10 +187,10 @@ public class ExamSessionService {
                 Sort.by(Sort.Direction.DESC, "sessionId")
         );
 
-        String keyword = req.getKeyword();
-        if (keyword == null || keyword.isBlank()) {
-            keyword = "";
-        }
+        String keyword = (req.getKeyword() == null || req.getKeyword().isBlank())
+                ? ""
+                : req.getKeyword();
+
         List<ProctorDashboardDTO> data =
                 examSessionRepo.findDashboard(
                         req.getRoomId(),
@@ -189,15 +204,13 @@ public class ExamSessionService {
         }
 
         List<ProctorDashboardDTO> result = data.stream()
-                .peek(dto -> {
-                    dto.setRiskLevel(
-                            calculateRisk(
-                                    dto.getLastConfidence(),
-                                    dto.getFlagged(),
-                                    dto.getAttendanceStatus()
-                            )
-                    );
-                })
+                .peek(dto -> dto.setRiskLevel(
+                        calculateRisk(
+                                dto.getLastConfidence(),
+                                dto.getFlagged(),
+                                dto.getAttendanceStatus()
+                        )
+                ))
                 .toList();
 
         int start = (int) pageable.getOffset();
@@ -220,6 +233,8 @@ public class ExamSessionService {
     public List<ExamSession> getFlaggedSessions() {
         return examSessionRepo.findFlaggedSessions();
     }
+
+    // ================= RISK =================
 
     private RiskLevel calculateRisk(
             Double confidence,
@@ -273,7 +288,6 @@ public class ExamSessionService {
 
         dto.setRoomId(room.getId());
         dto.setRoomCode(room.getRoomCode());
-
         dto.setSeatNumber(reg.getSeatNumber());
 
         return dto;

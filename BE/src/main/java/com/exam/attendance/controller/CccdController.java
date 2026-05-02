@@ -49,27 +49,4 @@ public class CccdController extends BaseController {
 
         return success(null);
     }
-
-    // Checkin CCCD
-    @PostMapping("/checkin")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
-    public ResponseEntity<ApiResponse<Object>> checkin(
-            @RequestBody CCCDInfo request,
-            Authentication auth
-    ) {
-
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-
-        accessControlService.checkPermission(
-                auth,
-                Resource.CITIZENCARD,
-                Action.CHECKIN,
-                currentUserId,
-                currentUserId
-        );
-
-        return success(
-                cccdService.processCheckin(request)
-        );
-    }
 }

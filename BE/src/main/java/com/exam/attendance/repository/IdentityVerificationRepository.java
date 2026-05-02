@@ -42,4 +42,6 @@ LEFT JOIN u.citizenCard cc
 WHERE es.room.id = :roomId
 """)
     List<VerificationReportDTO> getVerificationReport(Long roomId);
+
+    long countByExamSessionIdAndType(Long examSessionId, String type);
 }
