@@ -4,10 +4,14 @@ import com.exam.attendance.data.entity.AttendanceSession;
 import com.exam.attendance.data.entity.ExamSession;
 import com.exam.attendance.data.entity.IdentityVerification;
 import com.exam.attendance.data.mapper.ProctorMapper;
+import com.exam.attendance.data.pojo.AlertMessage;
+import com.exam.attendance.data.pojo.enums.AlertType;
 import com.exam.attendance.data.pojo.enums.AttendanceStatus;
 import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
 import com.exam.attendance.data.pojo.ProctorDashboardDTO;
+import com.exam.attendance.data.pojo.enums.RiskLevel;
 import com.exam.attendance.data.request.ProctorDashboardFilterRequest;
+import com.exam.attendance.service.socket.AlertService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
@@ -27,6 +31,7 @@ public class ProctorService {
     private final AttendanceSessionService attendanceService;
     private final VerificationService verificationService;
     private final AttendanceLogService logService;
+    private final AlertService alertService;
 
     // 1. DASHBOARD
     public Page<ProctorDashboardDTO> getDashboard(ProctorDashboardFilterRequest req) {
@@ -78,6 +83,17 @@ public class ProctorService {
         session.setStatus(ExamSessionStatus.CHECKED_IN);
         examSessionService.save(session);
 
+        alertService.sendAlert(
+                AlertMessage.builder()
+                        .sessionId(session.getId())
+                        .userId(session.getUser().getId())
+                        .roomId(session.getRoom().getId())
+                        .type(AlertType.APPROVED)
+                        .message("Đã được duyệt bởi giám thị")
+                        .severity(RiskLevel.LOW)
+                        .timestamp(System.currentTimeMillis())
+                        .build()
+        );
         logService.log(
                 "MANUAL_APPROVE",
                 "Approved by proctorId=" + proctorId,
@@ -109,6 +125,18 @@ public class ProctorService {
 
         attendanceService.save(attendance);
 
+        alertService.sendAlert(
+                AlertMessage.builder()
+                        .sessionId(session.getId())
+                        .userId(session.getUser().getId())
+                        .roomId(session.getRoom().getId())
+                        .type(AlertType.REJECTED)
+                        .message("Bị từ chối: " + reason)
+                        .severity(RiskLevel.MEDIUM)
+                        .timestamp(System.currentTimeMillis())
+                        .build()
+        );
+
         logService.log(
                 "MANUAL_REJECT",
                 reason,
@@ -129,6 +157,18 @@ public class ProctorService {
         session.setIsFlagged(true);
         examSessionService.save(session);
 
+        alertService.sendAlert(
+                AlertMessage.builder()
+                        .sessionId(session.getId())
+                        .userId(session.getUser().getId())
+                        .roomId(session.getRoom().getId())
+                        .type(AlertType.FLAGGED)
+                        .message("Bị gắn cờ gian lận")
+                        .severity(RiskLevel.HIGH)
+                        .timestamp(System.currentTimeMillis())
+                        .build()
+        );
+
         logService.log(
                 "FLAGGED",
                 reason,
@@ -146,6 +186,18 @@ public class ProctorService {
 
         session.setIsFlagged(false);
         examSessionService.save(session);
+
+        alertService.sendAlert(
+                AlertMessage.builder()
+                        .sessionId(session.getId())
+                        .userId(session.getUser().getId())
+                        .roomId(session.getRoom().getId())
+                        .type(AlertType.UNFLAGGED)
+                        .message("Đã được bỏ cờ")
+                        .severity(RiskLevel.LOW)
+                        .timestamp(System.currentTimeMillis())
+                        .build()
+        );
 
         logService.log(
                 "UNFLAG",

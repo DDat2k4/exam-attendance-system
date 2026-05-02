@@ -63,6 +63,20 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRuntime(RuntimeException ex) {
+
+        log.warn("Runtime error: {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse<>(
+                        HttpStatus.BAD_REQUEST.value(),
+                        ex.getMessage(),
+                        null
+                ));
+    }
+
     // Fallback
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception ex) {

@@ -156,6 +156,20 @@ public class ExamSessionController extends BaseController {
         return updated(null);
     }
 
+    // Unflag
+    @PostMapping("/{sessionId}/unflag")
+    @PreAuthorize("hasAuthority('PROCTOR')")
+    public ResponseEntity<ApiResponse<Void>> unflag(
+            @PathVariable Long sessionId,
+            Authentication auth
+    ) {
+        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.UPDATE);
+
+        proctorService.unflag(sessionId);
+
+        return updated(null);
+    }
+
     // Approve
     @PostMapping("/{sessionId}/approve")
     @PreAuthorize("hasAuthority('PROCTOR')")

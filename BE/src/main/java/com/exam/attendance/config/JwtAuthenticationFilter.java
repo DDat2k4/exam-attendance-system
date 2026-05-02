@@ -1,7 +1,5 @@
 package com.exam.attendance.config;
 
-import com.exam.attendance.data.entity.User;
-import com.exam.attendance.repository.UserRepository;
 import com.exam.attendance.security.CustomUserPrincipal;
 import com.exam.attendance.service.security.JwtService;
 import io.jsonwebtoken.Claims;
@@ -72,7 +70,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 CustomUserPrincipal principal = new CustomUserPrincipal(
                         userId,
-                        null, // hoặc username nếu bạn muốn decode thêm
+                        userId.toString(),
                         authorities,
                         true
                 );

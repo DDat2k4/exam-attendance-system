@@ -2,6 +2,7 @@ package com.exam.attendance.service;
 
 import com.exam.attendance.data.entity.*;
 import com.exam.attendance.data.pojo.AlertMessage;
+import com.exam.attendance.data.pojo.enums.AlertType;
 import com.exam.attendance.data.pojo.enums.AttendanceStatus;
 import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
 import com.exam.attendance.data.pojo.enums.RiskLevel;
@@ -17,10 +18,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.commons.codec.binary.Base64.decodeBase64;
 
 @Service
 @RequiredArgsConstructor
@@ -42,142 +44,38 @@ public class VerificationService {
     public Map<String, Object> handleVerify(VerifyRequest req) {
 
         try {
-            if (req == null) {
-                throw new RuntimeException("Request is null");
-            }
+            validateRequest(req);
 
-            if (req.getExamSessionId() == null) {
-                throw new RuntimeException("ExamSessionId is required");
-            }
+            ExamSession examSession = getExamSession(req);
 
-            if (req.getCaptureImage() == null || req.getCaptureImage().isBlank()) {
-                throw new RuntimeException("Capture image is empty");
-            }
+            validateSessionState(req, examSession);
 
-            if (req.getDeviceId() == null) {
-                throw new RuntimeException("Device ID is required");
-            }
+            validateOwnership(examSession);
 
-            ExamSession examSession = examSessionRepo.findFullById(req.getExamSessionId())
-                    .orElseThrow(() -> new RuntimeException("Exam session not found"));
+            validateCccd(examSession);
 
-            if (examSession.getStatus() == ExamSessionStatus.DONE) {
-                throw new RuntimeException("Session đã kết thúc");
-            }
-
-            if (examSession.getStatus() == ExamSessionStatus.BLOCKED) {
-                throw new RuntimeException("Session đã bị khóa");
-            }
-
-            Long currentUserId = SecurityUtils.getCurrentUserId();
-
-            if (!examSession.getUser().getId().equals(currentUserId)) {
-                throw new RuntimeException("Không có quyền với session này");
-            }
-
-            User user = examSession.getUser();
-
-            if (user == null || user.getCitizenCard() == null) {
-                throw new RuntimeException("User chưa có CCCD");
-            }
-
-            String cccdImageUrl = user.getCitizenCard().getFaceImageUrl();
-            String embedding = user.getCitizenCard().getFaceEmbedding();
-
-            if (cccdImageUrl == null || embedding == null) {
-                throw new RuntimeException("CCCD thiếu dữ liệu");
-            }
-
-            // ===== SESSION STATUS CHECK =====
-            if ("INITIAL".equalsIgnoreCase(req.getType())) {
-                if (examSession.getStatus() != ExamSessionStatus.INIT) {
-                    throw new RuntimeException("Session không ở trạng thái INIT");
-                }
-            } else {
-                if (examSession.getStatus() != ExamSessionStatus.CHECKED_IN &&
-                        examSession.getStatus() != ExamSessionStatus.IN_PROGRESS) {
-                    throw new RuntimeException("Session chưa bắt đầu");
-                }
-            }
-
-            // ===== DEVICE CHECK =====
             validateDevice(req, examSession);
 
-            // ===== DECODE IMAGE =====
             byte[] captureBytes = decodeBase64(req.getCaptureImage());
 
-            // ===== AI CALL =====
-            Map<String, Object> aiResult = aiClientService.verifyFast(
-                    captureBytes,
-                    embedding
+            Map<String, Object> aiResult = callAI(captureBytes, examSession);
+
+            double confidence = extractConfidence(aiResult);
+            boolean passed = isPassed(aiResult, confidence);
+
+            int attempt = countAttempt(examSession, req);
+
+            String captureImageUrl = uploadIfNeeded(req, examSession.getUser(), passed);
+
+            IdentityVerification iv = saveVerification(
+                    req, examSession, captureImageUrl, confidence, passed, attempt
             );
 
-            if (aiResult == null) {
-                throw new RuntimeException("AI result is null");
-            }
+            logVerification(req, examSession, confidence, passed);
 
-            String aiStatus = String.valueOf(aiResult.get("status"));
+            handleAlert(req, examSession, passed, attempt);
 
-            if ("ERROR".equalsIgnoreCase(aiStatus)) {
-                throw new RuntimeException("AI service error");
-            }
-
-            Object confidenceObj = aiResult.getOrDefault("confidence", 0.0);
-            Double confidence = (confidenceObj instanceof Number)
-                    ? ((Number) confidenceObj).doubleValue()
-                    : 0.0;
-
-            boolean passed = "VERIFIED".equalsIgnoreCase(aiStatus)
-                    && confidence >= MIN_CONFIDENCE;
-
-            // ===== ATTEMPT =====
-            int attempt = (int) verificationRepo
-                    .countByExamSessionIdAndType(examSession.getId(), req.getType()) + 1;
-
-            String captureImageUrl = uploadIfNeeded(req, user, passed);
-
-            // ===== SAVE LOG =====
-            IdentityVerification iv = buildVerificationLog(
-                    req,
-                    examSession,
-                    cccdImageUrl,
-                    captureImageUrl,
-                    passed,
-                    confidence,
-                    attempt
-            );
-
-            verificationRepo.save(iv);
-
-            // ===== ATTENDANCE LOG =====
-            logService.log(
-                    "VERIFY_" + (req.getType() == null ? "UNKNOWN" : req.getType()),
-                    "confidence=" + confidence,
-                    req.getType(),
-                    passed ? "SUCCESS" : "FAILED",
-                    examSession
-            );
-
-            // ALERT khi verify fail (MEDIUM)
-            if (!passed && examSession.getRoom() != null) {
-                alertService.sendAlert(
-                        AlertMessage.builder()
-                                .sessionId(examSession.getId())
-                                .userId(examSession.getUser().getId())
-                                .roomId(examSession.getRoom().getId())
-                                .message("Xác thực thất bại")
-                                .severity(RiskLevel.MEDIUM)
-                                .timestamp(System.currentTimeMillis())
-                                .build()
-                );
-            }
-
-            // ===== BUSINESS =====
-            if ("INITIAL".equalsIgnoreCase(req.getType())) {
-                handleInitialVerify(passed, examSession, captureImageUrl);
-            } else {
-                handleRandomVerify(passed, examSession);
-            }
+            handleBusiness(req, examSession, passed, captureImageUrl);
 
             return Map.of(
                     "passed", passed,
@@ -190,54 +88,135 @@ public class VerificationService {
         }
     }
 
-    // ================= HELPER =================
+    // ================= VALIDATE =================
 
-    private byte[] decodeBase64(String base64) {
-        try {
-            String[] parts = base64.split(",");
-            String data = parts.length > 1 ? parts[1] : parts[0];
-            return Base64.getDecoder().decode(data);
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid base64 image");
+    private void validateRequest(VerifyRequest req) {
+        if (req == null) throw new RuntimeException("Request is null");
+        if (req.getExamSessionId() == null) throw new RuntimeException("ExamSessionId is required");
+        if (req.getCaptureImage() == null || req.getCaptureImage().isBlank())
+            throw new RuntimeException("Capture image is empty");
+        if (req.getDeviceId() == null)
+            throw new RuntimeException("Device ID is required");
+    }
+
+    private ExamSession getExamSession(VerifyRequest req) {
+        return examSessionRepo.findFullById(req.getExamSessionId())
+                .orElseThrow(() -> new RuntimeException("Exam session not found"));
+    }
+
+    private void validateSessionState(VerifyRequest req, ExamSession session) {
+
+        if (session.getStatus() == ExamSessionStatus.DONE)
+            throw new RuntimeException("Session đã kết thúc");
+
+        if (session.getStatus() == ExamSessionStatus.BLOCKED)
+            throw new RuntimeException("Session đã bị khóa");
+
+        if ("INITIAL".equalsIgnoreCase(req.getType())) {
+            if (session.getStatus() != ExamSessionStatus.INIT)
+                throw new RuntimeException("Session không ở trạng thái INIT");
+        } else {
+            if (session.getStatus() != ExamSessionStatus.CHECKED_IN &&
+                    session.getStatus() != ExamSessionStatus.IN_PROGRESS)
+                throw new RuntimeException("Session chưa bắt đầu");
         }
     }
 
-    private String uploadIfNeeded(VerifyRequest req, User user, boolean passed) {
+    private void validateOwnership(ExamSession session) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
 
-        boolean shouldUpload =
-                "INITIAL".equalsIgnoreCase(req.getType()) ||
-                        !passed;
-
-        if (!shouldUpload) return null;
-
-        try {
-            UploadResponse upload = fileUploadService
-                    .uploadBase64Async(req.getCaptureImage(), user.getId())
-                    .join();
-
-            return upload.getUrl();
-
-        } catch (Exception e) {
-            throw new RuntimeException("Upload failed");
+        if (!session.getUser().getId().equals(currentUserId)) {
+            throw new RuntimeException("Không có quyền với session này");
         }
     }
 
-    private IdentityVerification buildVerificationLog(
+    private void validateCccd(ExamSession session) {
+        User user = session.getUser();
+
+        if (user == null || user.getCitizenCard() == null)
+            throw new RuntimeException("User chưa có CCCD");
+
+        if (user.getCitizenCard().getFaceEmbedding() == null)
+            throw new RuntimeException("CCCD thiếu embedding");
+    }
+
+    // ================= DEVICE =================
+
+    private void validateDevice(VerifyRequest req, ExamSession session) {
+
+        String currentDevice = req.getDeviceId();
+
+        if (session.getDeviceId() == null) {
+            session.setDeviceId(currentDevice);
+            examSessionRepo.save(session);
+            return;
+        }
+
+        if (!session.getDeviceId().equals(currentDevice)) {
+
+            session.setIsFlagged(true);
+            session.setStatus(ExamSessionStatus.BLOCKED);
+            examSessionRepo.save(session);
+
+            sendAlert(session, AlertType.DEVICE_CHANGED, "Thiết bị thay đổi", RiskLevel.HIGH);
+
+            alertService.sendToUser(
+                    buildAlert(session, AlertType.SESSION_BLOCKED, "Phiên thi đã bị khóa", RiskLevel.HIGH)
+            );
+
+            throw new RuntimeException("Thiết bị không hợp lệ");
+        }
+    }
+
+    // ================= AI =================
+
+    private Map<String, Object> callAI(byte[] image, ExamSession session) {
+
+        Map<String, Object> result = aiClientService.verifyFast(
+                image,
+                session.getUser().getCitizenCard().getFaceEmbedding()
+        );
+
+        if (result == null) throw new RuntimeException("AI result is null");
+
+        if ("ERROR".equalsIgnoreCase(String.valueOf(result.get("status"))))
+            throw new RuntimeException("AI error");
+
+        return result;
+    }
+
+    private double extractConfidence(Map<String, Object> result) {
+        Object val = result.getOrDefault("confidence", 0.0);
+        return (val instanceof Number) ? ((Number) val).doubleValue() : 0.0;
+    }
+
+    private boolean isPassed(Map<String, Object> result, double confidence) {
+        return "VERIFIED".equalsIgnoreCase(String.valueOf(result.get("status")))
+                && confidence >= MIN_CONFIDENCE;
+    }
+
+    // ================= VERIFY =================
+
+    private int countAttempt(ExamSession session, VerifyRequest req) {
+        return (int) verificationRepo
+                .countByExamSessionIdAndType(session.getId(), req.getType()) + 1;
+    }
+
+    private IdentityVerification saveVerification(
             VerifyRequest req,
-            ExamSession examSession,
-            String cccdImageUrl,
+            ExamSession session,
             String captureImageUrl,
+            double confidence,
             boolean passed,
-            Double confidence,
             int attempt
     ) {
 
         IdentityVerification iv = new IdentityVerification();
 
-        iv.setUser(examSession.getUser());
-        iv.setExamSession(examSession);
+        iv.setUser(session.getUser());
+        iv.setExamSession(session);
 
-        iv.setCccdImageUrl(cccdImageUrl);
+        iv.setCccdImageUrl(session.getUser().getCitizenCard().getFaceImageUrl());
         iv.setCaptureImageUrl(captureImageUrl);
 
         iv.setVerified(passed);
@@ -253,118 +232,126 @@ public class VerificationService {
         iv.setVerifiedAt(LocalDateTime.now());
 
         if (!passed) {
-            iv.setFailReason(buildFailReason(confidence));
+            iv.setFailReason(confidence < MIN_CONFIDENCE
+                    ? "LOW_CONFIDENCE"
+                    : "FACE_NOT_MATCH");
         }
 
-        return iv;
+        return verificationRepo.save(iv);
     }
 
-    // ================= DEVICE =================
+    private String uploadIfNeeded(VerifyRequest req, User user, boolean passed) {
 
-    private void validateDevice(VerifyRequest req, ExamSession examSession) {
+        boolean shouldUpload = "INITIAL".equalsIgnoreCase(req.getType()) || !passed;
 
-        String currentDevice = req.getDeviceId();
+        if (!shouldUpload) return null;
 
-        if (examSession.getDeviceId() == null) {
-            examSession.setDeviceId(currentDevice);
-            examSessionRepo.save(examSession);
-        } else if (!examSession.getDeviceId().equals(currentDevice)) {
+        UploadResponse upload = fileUploadService
+                .uploadBase64Async(req.getCaptureImage(), user.getId())
+                .join();
 
-            examSession.setIsFlagged(true);
-            examSession.setStatus(ExamSessionStatus.BLOCKED);
-            examSessionRepo.save(examSession);
+        return upload.getUrl();
+    }
 
-            if (examSession.getRoom() != null) {
-                alertService.sendAlert(
-                        AlertMessage.builder()
-                                .sessionId(examSession.getId())
-                                .userId(examSession.getUser().getId())
-                                .roomId(examSession.getRoom().getId())
-                                .message("Thiết bị thay đổi - nghi gian lận")
-                                .severity(RiskLevel.HIGH)
-                                .timestamp(System.currentTimeMillis())
-                                .build()
-                );
-            }
+    // ================= ALERT =================
 
-            throw new RuntimeException("Thiết bị không hợp lệ");
+    private void handleAlert(VerifyRequest req, ExamSession session, boolean passed, int attempt) {
+
+        if (session.getRoom() == null) return;
+
+        if (passed) {
+            sendAlert(session, AlertType.VERIFY_SUCCESS, "Xác thực thành công", RiskLevel.LOW);
+            return;
+        }
+
+        // chỉ alert lần đầu fail
+        if (attempt == 1) {
+            sendAlert(session, AlertType.VERIFY_FAIL, "Xác thực thất bại", RiskLevel.MEDIUM);
         }
     }
 
-    // ================= INITIAL =================
+    private void sendAlert(ExamSession session, AlertType type, String msg, RiskLevel level) {
+        alertService.sendAlert(buildAlert(session, type, msg, level));
+    }
+
+    private AlertMessage buildAlert(ExamSession session, AlertType type, String msg, RiskLevel level) {
+        return AlertMessage.builder()
+                .sessionId(session.getId())
+                .userId(session.getUser().getId())
+                .roomId(session.getRoom().getId())
+                .type(type)
+                .message(msg)
+                .severity(level)
+                .timestamp(System.currentTimeMillis())
+                .build();
+    }
+
+    // ================= BUSINESS =================
+
+    private void handleBusiness(VerifyRequest req,
+                                ExamSession session,
+                                boolean passed,
+                                String captureImageUrl) {
+
+        if ("INITIAL".equalsIgnoreCase(req.getType())) {
+            handleInitialVerify(passed, session, captureImageUrl);
+        } else {
+            handleRandomVerify(passed, session);
+        }
+    }
 
     private void handleInitialVerify(boolean passed,
-                                     ExamSession examSession,
+                                     ExamSession session,
                                      String captureImageUrl) {
 
-        if (!passed) {
-            throw new RuntimeException("Initial verification failed");
-        }
+        if (!passed) throw new RuntimeException("Initial verify failed");
 
-        examSession.setStatus(ExamSessionStatus.CHECKED_IN);
-        examSession.setSessionStart(LocalDateTime.now());
-        examSessionRepo.save(examSession);
+        session.setStatus(ExamSessionStatus.CHECKED_IN);
+        session.setSessionStart(LocalDateTime.now());
+        examSessionRepo.save(session);
 
         AttendanceSession as = attendanceSessionRepo
-                .findByExamSessionId(examSession.getId())
-                .orElse(null);
+                .findByExamSessionId(session.getId())
+                .orElseGet(AttendanceSession::new);
 
-        if (as == null) {
-            as = new AttendanceSession();
-            as.setExamSession(examSession);
-            as.setCheckinTime(LocalDateTime.now());
-        }
-
+        as.setExamSession(session);
+        as.setCheckinTime(LocalDateTime.now());
         as.setStatus(AttendanceStatus.VERIFIED);
         as.setVerifiedAt(LocalDateTime.now());
         as.setAttendancePhoto(captureImageUrl);
-        as.setVerifiedBy(null);
 
         attendanceSessionRepo.save(as);
     }
 
-    private void handleRandomVerify(boolean passed, ExamSession examSession) {
+    private void handleRandomVerify(boolean passed, ExamSession session) {
 
-        if (examSession.getStatus() == ExamSessionStatus.CHECKED_IN) {
-            examSession.setStatus(ExamSessionStatus.IN_PROGRESS);
-            examSessionRepo.save(examSession);
-        }
-
-        AttendanceSession as = attendanceSessionRepo
-                .findByExamSessionId(examSession.getId())
-                .orElse(null);
-
-        if (as != null && passed) {
-            as.setVerifiedAt(LocalDateTime.now());
-            attendanceSessionRepo.save(as);
+        if (session.getStatus() == ExamSessionStatus.CHECKED_IN) {
+            session.setStatus(ExamSessionStatus.IN_PROGRESS);
+            examSessionRepo.save(session);
         }
 
         if (passed) return;
 
         long failCount = verificationRepo
                 .countByExamSessionIdAndTypeAndVerifiedFalse(
-                        examSession.getId(),
-                        "RANDOM"
+                        session.getId(), "RANDOM"
                 );
 
         if (failCount >= MAX_FAIL_ATTEMPT) {
 
-            examSession.setStatus(ExamSessionStatus.BLOCKED);
-            examSession.setIsFlagged(true);
-            examSessionRepo.save(examSession);
+            session.setStatus(ExamSessionStatus.BLOCKED);
+            session.setIsFlagged(true);
+            examSessionRepo.save(session);
 
-            if (examSession.getRoom() != null) {
-                alertService.sendAlert(
-                        AlertMessage.builder()
-                                .sessionId(examSession.getId())
-                                .userId(examSession.getUser().getId())
-                                .roomId(examSession.getRoom().getId())
-                                .message("Fail verify nhiều lần")
-                                .severity(RiskLevel.HIGH)
-                                .timestamp(System.currentTimeMillis())
-                                .build()
-                );
-            }
+            sendAlert(session, AlertType.MULTIPLE_VERIFY_FAILED, "Fail nhiều lần", RiskLevel.HIGH);
+
+            alertService.sendToUser(
+                    buildAlert(session, AlertType.SESSION_BLOCKED, "Phiên thi bị khóa", RiskLevel.HIGH)
+            );
+
+            AttendanceSession as = attendanceSessionRepo
+                    .findByExamSessionId(session.getId())
+                    .orElse(null);
 
             if (as != null) {
                 as.setStatus(AttendanceStatus.BLOCKED);
@@ -374,12 +361,23 @@ public class VerificationService {
         }
     }
 
-    private String buildFailReason(Double confidence) {
-        if (confidence < MIN_CONFIDENCE) {
-            return "LOW_CONFIDENCE";
-        }
-        return "FACE_NOT_MATCH";
+    // ================= LOG =================
+
+    private void logVerification(VerifyRequest req,
+                                 ExamSession session,
+                                 double confidence,
+                                 boolean passed) {
+
+        logService.log(
+                "VERIFY_" + (req.getType() == null ? "UNKNOWN" : req.getType()),
+                "confidence=" + confidence,
+                req.getType(),
+                passed ? "SUCCESS" : "FAILED",
+                session
+        );
     }
+
+    // ================= QUERY =================
 
     public IdentityVerification getLatest(Long sessionId) {
         return verificationRepo
@@ -391,7 +389,7 @@ public class VerificationService {
         try {
             return verificationRepo.findHistory(sessionId);
         } catch (Exception e) {
-            log.error("Lỗi getVerificationHistory sessionId={}", sessionId, e);
+            log.error("Error getHistory", e);
             return Collections.emptyList();
         }
     }
