@@ -4,13 +4,14 @@ import SockJS from 'sockjs-client'
 import {
   approveExamSession,
   flagExamSession,
+  unflagExamSession,
   getExamSessionDashboard,
   getExamSessionVerificationHistory,
   rejectExamSession,
 } from '../api/examSessionApi'
 import { getRoomsByExamPaginated } from '../api/examRoomApi'
 
-export const PROCTOR_STATUS_OPTIONS = ['STARTED', 'CHECKED_IN', 'DONE', 'BLOCKED']
+export const PROCTOR_STATUS_OPTIONS = ['INIT', 'CHECKED_IN', 'IN_PROGRESS', 'DONE', 'BLOCKED']
 
 const SOCKET_STATUS = {
   IDLE: 'IDLE',
@@ -368,6 +369,8 @@ export default function useProctorSection({
         await rejectExamSession(sessionId, reason)
       } else if (action === 'flag') {
         await flagExamSession(sessionId, reason)
+      } else if (action === 'unflag') {
+        await unflagExamSession(sessionId)
       }
 
       setSuccess(
@@ -375,7 +378,9 @@ export default function useProctorSection({
           ? `Đã duyệt phiên thi #${sessionId}.`
           : action === 'reject'
             ? `Đã từ chối phiên thi #${sessionId}.`
-            : `Đã gắn cờ phiên thi #${sessionId}.`,
+            : action === 'flag'
+              ? `Đã gắn cờ phiên thi #${sessionId}.`
+              : `Đã bỏ cờ phiên thi #${sessionId}.`,
       )
       setProctorReason('')
       await fetchProctorDashboard()

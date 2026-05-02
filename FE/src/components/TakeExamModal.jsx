@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { endExamSession } from '../api/examSessionApi'
 import FaceVerification from './ui/FaceVerification'
 import ExamProctor from './ui/ExamProctor'
+import { useAuth } from '../context/AuthContext'
+import { useExamSessionAlerts } from '../hooks/useExamSessionAlerts'
 import { showConfirmDialog } from '../utils/confirmDialog'
 import './TakeExamModal.css'
 
@@ -12,12 +14,118 @@ import './TakeExamModal.css'
  * 3. Exam proctor (if verification passed)
  */
 export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamEnded }) {
+  const { user } = useAuth()
   const [step, setStep] = useState('instructions') // instructions, verification, exam, ended
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [examResult, setExamResult] = useState(null)
+  const [realtimeNotice, setRealtimeNotice] = useState(null)
   const endSessionCalledRef = useRef(false)
+  const stepRef = useRef(step)
+
+  useEffect(() => {
+    stepRef.current = step
+  }, [step])
+
+  const currentUserId = useMemo(() => user?.id ?? user?.userId ?? user?.sub ?? null, [user])
+
+  const handleExamEnded = useCallback(
+    async (reason) => {
+      const status = typeof reason === 'string' ? reason : reason?.status || 'SUBMITTED'
+
+      try {
+        if (!endSessionCalledRef.current && examId) {
+          endSessionCalledRef.current = true
+          await endExamSession(examId)
+        }
+        setExamResult({
+          status,
+          endSessionStatus: 'success',
+          endSessionMessage: 'Đã chốt phiên thi thành công.',
+        })
+      } catch (err) {
+        setExamResult({
+          status,
+          message: err?.message || 'Không thể kết thúc phiên thi trên hệ thống.',
+          endSessionStatus: 'failed',
+          endSessionMessage: err?.message || 'Chốt phiên thi thất bại. Vui lòng liên hệ giám thị.',
+        })
+      } finally {
+        setStep('ended')
+      }
+    },
+    [examId],
+  )
+
+  const handleSocketAlert = useCallback(
+    (alert) => {
+      const alertType = String(alert?.type || '').toUpperCase()
+      const message = alert?.message || 'Có cập nhật mới từ giám thị.'
+
+      if (alertType === 'APPROVED') {
+        setRealtimeNotice({
+          variant: 'success',
+          title: 'Phiên thi đã được duyệt',
+          message,
+        })
+
+        if (stepRef.current === 'verification') {
+          setStep('exam')
+        }
+
+        return
+      }
+
+      if (alertType === 'REJECTED') {
+        setRealtimeNotice({
+          variant: 'danger',
+          title: 'Phiên thi bị từ chối',
+          message,
+        })
+
+        void handleExamEnded({
+          status: 'PROCTOR_REJECTED',
+          message,
+        })
+        return
+      }
+
+      if (alertType === 'FLAGGED') {
+        setRealtimeNotice({
+          variant: 'warning',
+          title: 'Phiên thi bị gắn cờ',
+          message,
+        })
+        return
+      }
+
+      if (alertType === 'UNFLAGGED') {
+        setRealtimeNotice({
+          variant: 'info',
+          title: 'Phiên thi đã được bỏ cờ',
+          message,
+        })
+        return
+      }
+
+      setRealtimeNotice({
+        variant: 'info',
+        title: 'Realtime update',
+        message,
+      })
+    },
+    [handleExamEnded],
+  )
+
+  const { socketStatus } = useExamSessionAlerts({
+    sessionId: examId,
+    roomId: roomInfo?.roomId,
+    userId: currentUserId,
+    enabled: step !== 'ended',
+    onAlert: handleSocketAlert,
+  })
 
   const handleStartVerification = () => {
+    setRealtimeNotice(null)
     setStep('verification')
   }
 
@@ -29,31 +137,6 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
   const handleVerificationFailed = (reason = 'Xác minh khuôn mặt thất bại') => {
     setStep('ended')
     setExamResult({ status: 'VERIFICATION_FAILED', message: reason })
-  }
-
-  const handleExamEnded = async (reason) => {
-    const status = typeof reason === 'string' ? reason : reason?.status || 'SUBMITTED'
-
-    try {
-      if (!endSessionCalledRef.current && examId) {
-        endSessionCalledRef.current = true
-        await endExamSession(examId)
-      }
-      setExamResult({
-        status,
-        endSessionStatus: 'success',
-        endSessionMessage: 'Đã chốt phiên thi thành công.',
-      })
-    } catch (err) {
-      setExamResult({
-        status,
-        message: err?.message || 'Không thể kết thúc phiên thi trên hệ thống.',
-        endSessionStatus: 'failed',
-        endSessionMessage: err?.message || 'Chốt phiên thi thất bại. Vui lòng liên hệ giám thị.',
-      })
-    } finally {
-      setStep('ended')
-    }
   }
 
   const handleClose = async () => {
@@ -78,12 +161,28 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
         <div className="take-exam-modal">
           <div className="modal-header">
             <h2>Chuẩn Bị Thi Trực Tuyến</h2>
+            <span className={`socket-status socket-status--${socketStatus.toLowerCase()}`}>
+              {socketStatus === 'CONNECTED'
+                ? 'Realtime: đã kết nối'
+                : socketStatus === 'CONNECTING'
+                  ? 'Realtime: đang kết nối'
+                  : socketStatus === 'ERROR'
+                    ? 'Realtime: lỗi kết nối'
+                    : 'Realtime: chờ kết nối'}
+            </span>
             <button className="modal-close" onClick={handleClose}>
               ×
             </button>
           </div>
 
           <div className="modal-content">
+            {realtimeNotice && (
+              <div className={`realtime-notice realtime-notice--${realtimeNotice.variant}`}>
+                <strong>{realtimeNotice.title}</strong>
+                <span>{realtimeNotice.message}</span>
+              </div>
+            )}
+
             <div className="exam-info">
               <h3>{exam?.title || 'Kỳ Thi'}</h3>
               {exam?.description && <p className="description">{exam.description}</p>}
@@ -155,6 +254,13 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
 
       {step === 'exam' && (
         <div className="exam-fullscreen">
+          {realtimeNotice && (
+            <div className={`realtime-notice realtime-notice--${realtimeNotice.variant}`}>
+              <strong>{realtimeNotice.title}</strong>
+              <span>{realtimeNotice.message}</span>
+            </div>
+          )}
+
           <ExamProctor
             examSessionId={examId}
             onSessionEnd={handleExamEnded}
@@ -170,6 +276,13 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
           </div>
 
           <div className="modal-content">
+            {realtimeNotice && (
+              <div className={`realtime-notice realtime-notice--${realtimeNotice.variant}`}>
+                <strong>{realtimeNotice.title}</strong>
+                <span>{realtimeNotice.message}</span>
+              </div>
+            )}
+
             {examResult?.endSessionMessage && (
               <div className={`session-end-notice ${examResult?.endSessionStatus === 'failed' ? 'failed' : 'success'}`}>
                 {examResult.endSessionMessage}

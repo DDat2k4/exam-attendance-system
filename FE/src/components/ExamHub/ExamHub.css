@@ -900,6 +900,11 @@
   color: #856404 !important;
 }
 
+.status-badge.badge-init {
+  background: #fff3cd !important;
+  color: #856404 !important;
+}
+
 .status-badge.badge-unknown {
   background: #e2e3e5 !important;
   color: #383d41 !important;

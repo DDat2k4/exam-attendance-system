@@ -143,7 +143,7 @@ export default function StudentExamsPage() {
       const sessionStatus = registrationRow?.sessionStatus
       
       let sessionId
-      if (existingSessionId && (sessionStatus === 'STARTED' || sessionStatus === 'CHECKED_IN')) {
+      if (existingSessionId && (sessionStatus === 'IN_PROGRESS' || sessionStatus === 'CHECKED_IN')) {
         // Use existing session, don't start a new one
         sessionId = existingSessionId
         setSuccess(`Tiếp tục phiên thi #${sessionId}.`)

@@ -428,14 +428,25 @@ export default function ProctorSection({
                   >
                     {proctorActionLoading ? 'Đang xử lý...' : '✓ Duyệt'}
                   </button>
-                  <button
-                    type="button"
-                    className="tiny-btn danger"
-                    onClick={() => runProctorAction('flag')}
-                    disabled={proctorActionLoading}
-                  >
-                    {proctorActionLoading ? 'Đang xử lý...' : '🚩 Gắn cờ'}
-                  </button>
+                  {!selectedProctorSession?.flagged ? (
+                    <button
+                      type="button"
+                      className="tiny-btn danger"
+                      onClick={() => runProctorAction('flag')}
+                      disabled={proctorActionLoading}
+                    >
+                      {proctorActionLoading ? 'Đang xử lý...' : '🚩 Gắn cờ'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="tiny-btn warning"
+                      onClick={() => runProctorAction('unflag')}
+                      disabled={proctorActionLoading}
+                    >
+                      {proctorActionLoading ? 'Đang xử lý...' : '✓ Bỏ cờ'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="tiny-btn danger"

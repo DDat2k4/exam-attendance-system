@@ -69,7 +69,7 @@ export default function StudentSection({
                   } else if (item.sessionStatus === 'DONE' || item.sessionStatus === 'BLOCKED') {
                     buttonText = 'Đã hoàn thành'
                     buttonTitle = 'Kỳ thi này đã hoàn thành'
-                  } else if (item.sessionStatus === 'CHECKED_IN' || item.sessionStatus === 'STARTED') {
+                  } else if (item.sessionStatus === 'CHECKED_IN' || item.sessionStatus === 'IN_PROGRESS') {
                     buttonText = 'Tiếp tục thi'
                     buttonTitle = 'Tiếp tục phiên thi đang diễn ra'
                   }

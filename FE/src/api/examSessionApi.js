@@ -110,7 +110,7 @@ export const getExamSessionDashboard = async (params = {}) => {
         ...(keyword ? { keyword } : {}),
       },
     })
-    return data || { content: [], totalElements: 0, totalPages: 0 }
+    return res || { content: [], totalElements: 0, totalPages: 0 }
   } catch (err) {
     rethrow(err)
   }
@@ -121,6 +121,14 @@ export const flagExamSession = async (sessionId, reason) => {
     return await axiosClient.post(`${API_URL}/exam-sessions/${sessionId}/flag`, null, {
       params: { reason },
     })
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+export const unflagExamSession = async (sessionId) => {
+  try {
+    return await axiosClient.post(`${API_URL}/exam-sessions/${sessionId}/unflag`, null)
   } catch (err) {
     rethrow(err)
   }
