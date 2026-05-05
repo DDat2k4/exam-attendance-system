@@ -83,9 +83,11 @@ export const getMyExamSessions = async () => {
   }
 }
 
-export const getMyRoomInfo = async () => {
+export const getMyRoomInfo = async (examId) => {
   try {
-    return await dedupeGet(axiosClient, `${API_URL}/exam-sessions/me/room`)
+    return await dedupeGet(axiosClient, `${API_URL}/exam-sessions/me/room`, {
+      params: { examId },
+    })
   } catch (err) {
     rethrow(err)
   }

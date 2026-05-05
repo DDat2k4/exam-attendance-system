@@ -40,11 +40,11 @@ export default function StudentExamsPage() {
     }).format(date)
   }
 
-  const loadMyRoomInfo = useCallback(async () => {
-    if (!canStudentTakeExam) return
+  const loadMyRoomInfo = useCallback(async (examId) => {
+    if (!canStudentTakeExam || !examId) return
 
     try {
-      const room = await getMyRoomInfo()
+      const room = await getMyRoomInfo(examId)
       setMyRoomInfo(room || null)
       return room || null
     } catch {
@@ -109,13 +109,12 @@ export default function StudentExamsPage() {
       setStudentRegisteredExams(enriched)
       setStudentExamPage(Number(result?.number ?? page - 1) + 1)
       setStudentExamTotalPages(Number(result?.totalPages ?? 0))
-      await loadMyRoomInfo()
     } catch (err) {
       setError(err.message || 'Không thể tải danh sách kỳ thi đã đăng ký.')
     } finally {
       setLoadingStudentExams(false)
     }
-  }, [canStudentTakeExam, loadMyRoomInfo])
+  }, [canStudentTakeExam])
 
   const handleTakeExam = async (registrationRow) => {
     setError('')
@@ -129,7 +128,7 @@ export default function StudentExamsPage() {
 
       setTakingExamId(examId)
 
-      const roomInfo = await loadMyRoomInfo()
+      const roomInfo = await loadMyRoomInfo(examId)
       const assignedExamId = Number(roomInfo?.examId)
       if (!roomInfo?.roomId) {
         throw new Error('Bạn chưa được gán phòng thi. Vui lòng liên hệ ADMIN.')
