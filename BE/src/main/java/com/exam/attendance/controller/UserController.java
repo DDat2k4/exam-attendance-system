@@ -68,7 +68,7 @@ public class UserController extends BaseController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Long>> createUser(
             @RequestBody UserCreateRequest request,
             Authentication auth
@@ -87,21 +87,17 @@ public class UserController extends BaseController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> updateUser(
             @PathVariable Long id,
             @RequestBody UserUpdateRequest request,
             Authentication auth
     ) {
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-
         accessControlService.checkPermission(
                 auth,
                 Resource.USER,
-                Action.UPDATE,
-                id,
-                currentUserId
+                Action.UPDATE
         );
 
         userService.updateUser(
