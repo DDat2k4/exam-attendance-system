@@ -62,19 +62,22 @@ public class ExamSessionService {
             throw new RuntimeException("Exam not active");
         }
 
-        // Tránh duplicate session theo trạng thái =====
-        boolean hasActiveSession = examSessionRepo.existsByUserIdAndExamIdAndStatusIn(
-                userId,
-                examId,
-                List.of(
-                        ExamSessionStatus.INIT,
-                        ExamSessionStatus.CHECKED_IN,
-                        ExamSessionStatus.IN_PROGRESS
+        // Tìm session đang active
+        ExamSession existingSession = examSessionRepo
+                .findFirstByUserIdAndExamIdAndStatusInOrderBySessionStartDesc(
+                        userId,
+                        examId,
+                        List.of(
+                                ExamSessionStatus.INIT,
+                                ExamSessionStatus.CHECKED_IN,
+                                ExamSessionStatus.IN_PROGRESS
+                        )
                 )
-        );
+                .orElse(null);
 
-        if (hasActiveSession) {
-            throw new RuntimeException("Already started exam");
+        // Nếu đã có session → RESUME
+        if (existingSession != null) {
+            return ExamSessionMapper.toResponse(existingSession);
         }
 
         ExamRoom room = reg.getRoom();
@@ -268,13 +271,20 @@ public class ExamSessionService {
         return RiskLevel.LOW;
     }
 
-    public MyRoomInfoDTO getMyRoomInfo(Long userId) {
+    @Transactional
+    public MyRoomInfoDTO getMyRoomInfo(Long userId, Long examId) {
 
         LocalDateTime now = LocalDateTime.now();
 
         ExamRegistration reg = registrationRepo
-                .findByUserIdAndExam_StartTimeBeforeAndExam_EndTimeAfter(userId, now, now)
-                .orElseThrow(() -> new RuntimeException("Không có kỳ thi đang diễn ra"));
+                .findByUserIdAndExam_Id(userId, examId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký kỳ thi"));
+
+        // Check thời gian để tránh hack API
+        if (reg.getExam().getStartTime().isAfter(now) ||
+                reg.getExam().getEndTime().isBefore(now)) {
+            throw new RuntimeException("Kỳ thi không nằm trong thời gian hợp lệ");
+        }
 
         ExamRoom room = reg.getRoom();
 

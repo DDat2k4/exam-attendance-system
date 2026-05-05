@@ -128,7 +128,7 @@ WHERE es.room.id = :roomId
 """)
     SummaryDTO getSummary(Long roomId);
 
-    boolean existsByUserIdAndExamIdAndStatusIn(
+    Optional<ExamSession> findFirstByUserIdAndExamIdAndStatusInOrderBySessionStartDesc(
             Long userId,
             Long examId,
             List<ExamSessionStatus> statuses

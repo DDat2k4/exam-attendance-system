@@ -56,7 +56,13 @@ public class VerificationService {
 
             validateDevice(req, examSession);
 
-            byte[] captureBytes = decodeBase64(req.getCaptureImage());
+            String base64 = req.getCaptureImage();
+
+            if (base64.contains(",")) {
+                base64 = base64.split(",")[1];
+            }
+
+            byte[] captureBytes = decodeBase64(base64);
 
             Map<String, Object> aiResult = callAI(captureBytes, examSession);
 
@@ -88,8 +94,7 @@ public class VerificationService {
         }
     }
 
-    // ================= VALIDATE =================
-
+    // Validate
     private void validateRequest(VerifyRequest req) {
         if (req == null) throw new RuntimeException("Request is null");
         if (req.getExamSessionId() == null) throw new RuntimeException("ExamSessionId is required");
@@ -140,8 +145,7 @@ public class VerificationService {
             throw new RuntimeException("CCCD thiếu embedding");
     }
 
-    // ================= DEVICE =================
-
+    // Device
     private void validateDevice(VerifyRequest req, ExamSession session) {
 
         String currentDevice = req.getDeviceId();
@@ -168,8 +172,7 @@ public class VerificationService {
         }
     }
 
-    // ================= AI =================
-
+    // AI
     private Map<String, Object> callAI(byte[] image, ExamSession session) {
 
         Map<String, Object> result = aiClientService.verifyFast(
@@ -195,8 +198,7 @@ public class VerificationService {
                 && confidence >= MIN_CONFIDENCE;
     }
 
-    // ================= VERIFY =================
-
+    // Verify
     private int countAttempt(ExamSession session, VerifyRequest req) {
         return (int) verificationRepo
                 .countByExamSessionIdAndType(session.getId(), req.getType()) + 1;
@@ -253,8 +255,7 @@ public class VerificationService {
         return upload.getUrl();
     }
 
-    // ================= ALERT =================
-
+    // Alert
     private void handleAlert(VerifyRequest req, ExamSession session, boolean passed, int attempt) {
 
         if (session.getRoom() == null) return;
@@ -286,8 +287,7 @@ public class VerificationService {
                 .build();
     }
 
-    // ================= BUSINESS =================
-
+    // Business
     private void handleBusiness(VerifyRequest req,
                                 ExamSession session,
                                 boolean passed,
@@ -361,8 +361,7 @@ public class VerificationService {
         }
     }
 
-    // ================= LOG =================
-
+    // Log
     private void logVerification(VerifyRequest req,
                                  ExamSession session,
                                  double confidence,
@@ -377,14 +376,7 @@ public class VerificationService {
         );
     }
 
-    // ================= QUERY =================
-
-    public IdentityVerification getLatest(Long sessionId) {
-        return verificationRepo
-                .findTopByExamSessionIdOrderByCreatedAtDesc(sessionId)
-                .orElse(null);
-    }
-
+    // Query lịch sử
     public List<IdentityVerification> getHistory(Long sessionId) {
         try {
             return verificationRepo.findHistory(sessionId);

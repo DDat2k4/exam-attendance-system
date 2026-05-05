@@ -4,21 +4,35 @@ services:
   db:
     image: postgres:15
     container_name: exam-db
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: exam-attendance-backend
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+        - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
-    build: ./backend
+    build: .
     container_name: exam-backend
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/exam-attendance-backend
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      SPRING_PROFILES_ACTIVE: docker
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT}:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

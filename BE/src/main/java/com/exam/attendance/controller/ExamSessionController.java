@@ -222,14 +222,14 @@ public class ExamSessionController extends BaseController {
                 );
     }
 
-    // Student xem phòng
     @GetMapping("/me/room")
     @PreAuthorize("hasAuthority('STUDENT')")
-    public ResponseEntity<ApiResponse<MyRoomInfoDTO>> getMyRoom(Authentication auth) {
+    public ResponseEntity<ApiResponse<MyRoomInfoDTO>> getMyRoom(
+            @RequestParam Long examId) {
 
         Long userId = SecurityUtils.getCurrentUserId();
 
-        MyRoomInfoDTO data = sessionService.getMyRoomInfo(userId);
+        MyRoomInfoDTO data = sessionService.getMyRoomInfo(userId, examId);
 
         return success(data);
     }

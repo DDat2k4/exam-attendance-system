@@ -31,11 +31,7 @@ public interface ExamRegistrationRepository extends JpaRepository<ExamRegistrati
 
     boolean existsByRoomId(Long roomId);
 
-    Optional<ExamRegistration> findByUserIdAndExam_StartTimeBeforeAndExam_EndTimeAfter(
-            Long userId,
-            LocalDateTime now1,
-            LocalDateTime now2
-    );
+    Optional<ExamRegistration> findByUserIdAndExam_Id(Long userId, Long examId);
 
     @Query("""
     SELECT new com.exam.attendance.data.pojo.RoomStudentDTO(
