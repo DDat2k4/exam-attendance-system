@@ -60,14 +60,10 @@ public class UserRoleController extends BaseController {
             Authentication auth
     ) {
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-
         accessControlService.checkPermission(
                 auth,
                 Resource.USER_ROLE,
-                Action.CREATE,
-                userId,
-                currentUserId
+                Action.CREATE
         );
 
         service.addRolesToUser(userId, request.getRoleIds());
@@ -84,14 +80,10 @@ public class UserRoleController extends BaseController {
             Authentication auth
     ) {
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-
         accessControlService.checkPermission(
                 auth,
                 Resource.USER_ROLE,
-                Action.UPDATE,
-                userId,
-                currentUserId
+                Action.UPDATE
         );
 
         service.replaceUserRoles(userId, request.getRoleIds());
@@ -108,14 +100,10 @@ public class UserRoleController extends BaseController {
             Authentication auth
     ) {
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-
         accessControlService.checkPermission(
                 auth,
                 Resource.USER_ROLE,
-                Action.DELETE,
-                userId,
-                currentUserId
+                Action.DELETE
         );
 
         service.removeRoleFromUser(userId, roleId);
