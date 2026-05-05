@@ -13,9 +13,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. Build Docker image (multi-stage tự build Maven luôn)
+      # 2. Build Docker image
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/exam-backend:latest .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/exam-backend:latest ./BE
 
       # 3. Login Docker Hub
       - name: Login Docker Hub
