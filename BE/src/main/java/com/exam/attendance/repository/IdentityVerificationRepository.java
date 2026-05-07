@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,4 +45,17 @@ WHERE es.room.id = :roomId
     List<VerificationReportDTO> getVerificationReport(Long roomId);
 
     long countByExamSessionIdAndType(Long examSessionId, String type);
+
+    @Query("""
+        select count(iv)
+        from IdentityVerification iv
+        where iv.examSession.id = :sessionId
+          and iv.type = 'RANDOM'
+          and iv.verified = false
+          and iv.createdAt >= :fromTime
+    """)
+    long countRecentRandomFail(
+            @Param("sessionId") Long sessionId,
+            @Param("fromTime") LocalDateTime fromTime
+    );
 }

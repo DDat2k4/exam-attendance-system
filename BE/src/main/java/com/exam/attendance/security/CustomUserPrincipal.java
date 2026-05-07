@@ -1,5 +1,6 @@
 package com.exam.attendance.security;
 
+import com.exam.attendance.data.entity.User;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,17 +11,33 @@ import java.util.Collection;
 public class CustomUserPrincipal implements UserDetails {
 
     private final Long id;
+
     private final String username;
-    private final Collection<? extends GrantedAuthority> authorities;
+
+    private final User user;
+
+    private final Collection<? extends GrantedAuthority>
+            authorities;
+
     private final boolean enabled;
 
-    public CustomUserPrincipal(Long id,
-                               String username,
-                               Collection<? extends GrantedAuthority> authorities,
-                               boolean enabled) {
+    public CustomUserPrincipal(
+            Long id,
+            String username,
+            User user,
+            Collection<? extends GrantedAuthority>
+                    authorities,
+            boolean enabled
+    ) {
+
         this.id = id;
+
         this.username = username;
+
+        this.user = user;
+
         this.authorities = authorities;
+
         this.enabled = enabled;
     }
 
@@ -30,7 +47,9 @@ public class CustomUserPrincipal implements UserDetails {
     }
 
     @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
+    public Collection<? extends GrantedAuthority>
+    getAuthorities() {
+
         return authorities;
     }
 
@@ -39,8 +58,23 @@ public class CustomUserPrincipal implements UserDetails {
         return username;
     }
 
-    @Override public boolean isAccountNonExpired() { return true; }
-    @Override public boolean isAccountNonLocked() { return true; }
-    @Override public boolean isCredentialsNonExpired() { return true; }
-    @Override public boolean isEnabled() { return enabled; }
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return enabled;
+    }
 }

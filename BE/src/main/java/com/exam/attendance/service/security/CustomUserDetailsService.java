@@ -45,6 +45,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         return new CustomUserPrincipal(
                 user.getId(),
                 user.getUsername(),
+                user,
                 authorities,
                 user.getActive() == 1
         );

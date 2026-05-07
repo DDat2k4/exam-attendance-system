@@ -5,5 +5,7 @@ public enum ExamSessionStatus {
     CHECKED_IN,
     IN_PROGRESS,
     DONE,
-    BLOCKED
+    BLOCKED,
+    PENDING_REVIEW,
+    PENDING_DEVICE_APPROVAL
 }

@@ -31,8 +31,20 @@ public class ExamSession {
     // đánh dấu gian lận
     @Column(name = "is_flagged")
     private Boolean isFlagged = false;
+
     @Column(name = "device_id")
     private String deviceId;
+
+    // reconnect tracking
+    @Column(name = "last_seen_at")
+    private LocalDateTime lastSeenAt;
+
+    @Column(name = "last_ip")
+    private String lastIp;
+
+    @Column(name = "reconnect_token")
+    private String reconnectToken;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exam_id")
     private Exam exam;

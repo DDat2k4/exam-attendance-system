@@ -9,10 +9,12 @@ public class DotenvConfig {
 
     @Bean
     public Dotenv dotenv() {
-        return Dotenv.configure()
+
+        Dotenv dotenv = Dotenv.configure()
                 .directory(".")
                 .ignoreIfMalformed()
                 .ignoreIfMissing()
                 .load();
+        return dotenv;
     }
 }

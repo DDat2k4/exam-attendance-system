@@ -30,19 +30,30 @@ import java.util.List;
 public class ExamSessionController extends BaseController {
 
     private final ExamSessionService sessionService;
+
     private final ProctorService proctorService;
+
     private final AccessControlService accessControlService;
 
-    // Bắt đầu bài thi
+    // =========================================================
+    // START EXAM
+    // =========================================================
+
     @PostMapping("/start")
     @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<ApiResponse<ExamSessionResponse>> startExam(
             @RequestBody ExamSessionStartRequest request,
             Authentication auth
     ) {
-        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.CREATE);
 
-        Long userId = SecurityUtils.getCurrentUserId();
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.CREATE
+        );
+
+        Long userId =
+                SecurityUtils.getCurrentUserId();
 
         return created(
                 sessionService.startExam(
@@ -53,16 +64,27 @@ public class ExamSessionController extends BaseController {
         );
     }
 
-    // Kết thúc bài thi
+    // =========================================================
+    // END EXAM
+    // =========================================================
+
     @PostMapping("/{sessionId}/end")
-    @PreAuthorize("hasAnyAuthority('STUDENT', 'PROCTOR', 'ADMIN')")
+    @PreAuthorize(
+            "hasAnyAuthority('STUDENT', 'PROCTOR', 'ADMIN')"
+    )
     public ResponseEntity<ApiResponse<Void>> endExam(
             @PathVariable Long sessionId,
             Authentication auth
     ) {
-        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.UPDATE);
 
-        var session = sessionService.getEntity(sessionId);
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.UPDATE
+        );
+
+        var session =
+                sessionService.getEntity(sessionId);
 
         accessControlService.checkPermission(
                 auth,
@@ -77,71 +99,150 @@ public class ExamSessionController extends BaseController {
         return updated(null);
     }
 
-    // Lấy theo id
+    // =========================================================
+    // GET BY ID
+    // =========================================================
+
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('STUDENT', 'PROCTOR', 'ADMIN')")
-    public ResponseEntity<ApiResponse<ExamSessionResponse>> getById(
+    @PreAuthorize(
+            "hasAnyAuthority('STUDENT', 'PROCTOR', 'ADMIN')"
+    )
+    public ResponseEntity<ApiResponse<ExamSessionResponse>>
+    getById(
             @PathVariable Long id,
             Authentication auth
     ) {
-        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.READ);
 
-        var session = sessionService.getEntity(id);
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.READ
+        );
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        var session =
+                sessionService.getEntity(id);
 
-        boolean isOwner = session.getUserId().equals(currentUserId);
-        boolean isPrivileged = isPrivileged(auth);
+        Long currentUserId =
+                SecurityUtils.getCurrentUserId();
+
+        boolean isOwner =
+                session.getUserId()
+                        .equals(currentUserId);
+
+        boolean isPrivileged =
+                isPrivileged(auth);
 
         if (!isOwner && !isPrivileged) {
-            throw new AccessDeniedException("Forbidden");
+            throw new AccessDeniedException(
+                    "Forbidden"
+            );
         }
 
         return success(session);
     }
 
-    // Lấy tất cả
+    // =========================================================
+    // GET ALL
+    // =========================================================
+
     @GetMapping
     @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<ApiResponse<List<ExamSessionResponse>>> getAll(
+    public ResponseEntity<ApiResponse<List<ExamSessionResponse>>>
+    getAll(
             Authentication auth
     ) {
-        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.READ);
 
-        var data = sessionService.getAll()
-                .stream()
-                .map(ExamSessionMapper::toResponse)
-                .toList();
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.READ
+        );
+
+        var data =
+                sessionService.getAll()
+                        .stream()
+                        .map(ExamSessionMapper::toResponse)
+                        .toList();
 
         return success(data);
     }
 
-    // My sessions
+    // =========================================================
+    // MY SESSIONS
+    // =========================================================
+
     @GetMapping("/me")
     @PreAuthorize("hasAuthority('STUDENT')")
-    public ResponseEntity<ApiResponse<List<ExamSessionResponse>>> getMySessions(
+    public ResponseEntity<ApiResponse<List<ExamSessionResponse>>>
+    getMySessions(
             Authentication auth
     ) {
-        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.READ);
 
-        Long userId = SecurityUtils.getCurrentUserId();
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.READ
+        );
 
-        return success(sessionService.getByUser(userId));
+        Long userId =
+                SecurityUtils.getCurrentUserId();
+
+        return success(
+                sessionService.getByUser(userId)
+        );
     }
 
-    // Dashboard
+    // =========================================================
+    // DASHBOARD
+    // =========================================================
+
     @GetMapping("/dashboard")
     @PreAuthorize("hasAuthority('PROCTOR')")
-    public ResponseEntity<ApiResponse<Page<ProctorDashboardDTO>>> dashboard(
-            @ModelAttribute ProctorDashboardFilterRequest req,
+    public ResponseEntity<ApiResponse<Page<ProctorDashboardDTO>>>
+    dashboard(
+            @ModelAttribute
+            ProctorDashboardFilterRequest req,
             Authentication auth
     ) {
-        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.READ);
 
-        return success(proctorService.getDashboard(req));
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.READ
+        );
+
+        return success(
+                proctorService.getDashboard(req)
+        );
     }
 
-    // Flag
+    // =========================================================
+    // FAST DASHBOARD
+    // =========================================================
+
+    @GetMapping("/dashboard-fast")
+    @PreAuthorize("hasAuthority('PROCTOR')")
+    public ResponseEntity<ApiResponse<List<ProctorDashboardDTO>>>
+    dashboardFast(
+            @RequestParam Long roomId,
+            Authentication auth
+    ) {
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.READ
+        );
+
+        return success(
+                proctorService.getDashboardFast(roomId)
+        );
+    }
+
+    // =========================================================
+    // FLAG
+    // =========================================================
+
     @PostMapping("/{sessionId}/flag")
     @PreAuthorize("hasAuthority('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> flag(
@@ -149,45 +250,72 @@ public class ExamSessionController extends BaseController {
             @RequestParam String reason,
             Authentication auth
     ) {
-        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.UPDATE);
 
-        proctorService.flag(sessionId, reason);
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.UPDATE
+        );
+
+        proctorService.flag(
+                sessionId,
+                reason
+        );
 
         return updated(null);
     }
 
-    // Unflag
+    // =========================================================
+    // UNFLAG
+    // =========================================================
+
     @PostMapping("/{sessionId}/unflag")
     @PreAuthorize("hasAuthority('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> unflag(
             @PathVariable Long sessionId,
             Authentication auth
     ) {
-        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.UPDATE);
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.UPDATE
+        );
 
         proctorService.unflag(sessionId);
 
         return updated(null);
     }
 
-    // Approve
+    // =========================================================
+    // APPROVE
+    // =========================================================
+
     @PostMapping("/{sessionId}/approve")
     @PreAuthorize("hasAuthority('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> approve(
             @PathVariable Long sessionId,
             Authentication auth
     ) {
-        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.UPDATE);
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.UPDATE
+        );
 
         proctorService.approve(
                 sessionId,
-                SecurityUtils.getCurrentUserId()
+                SecurityUtils.getCurrentUser()
         );
 
         return updated(null);
     }
 
-    // Reject
+    // =========================================================
+    // REJECT
+    // =========================================================
+
     @PostMapping("/{sessionId}/reject")
     @PreAuthorize("hasAuthority('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> reject(
@@ -195,42 +323,139 @@ public class ExamSessionController extends BaseController {
             @RequestParam String reason,
             Authentication auth
     ) {
-        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.UPDATE);
 
-        proctorService.reject(sessionId, reason);
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.UPDATE
+        );
+
+        proctorService.reject(
+                sessionId,
+                reason,
+                SecurityUtils.getCurrentUser()
+        );
 
         return updated(null);
     }
 
-    // History
+    // =========================================================
+    // APPROVE DEVICE CHANGE
+    // =========================================================
+
+    @PostMapping("/{sessionId}/approve-device")
+    @PreAuthorize("hasAuthority('PROCTOR')")
+    public ResponseEntity<ApiResponse<Void>>
+    approveDevice(
+            @PathVariable Long sessionId,
+            @RequestParam String newDeviceId,
+            Authentication auth
+    ) {
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.UPDATE
+        );
+
+        proctorService.approveDeviceChange(
+                sessionId,
+                newDeviceId,
+                SecurityUtils.getCurrentUser()
+        );
+
+        return updated(null);
+    }
+
+    // =========================================================
+    // VERIFY HISTORY
+    // =========================================================
+
     @GetMapping("/{sessionId}/verifications")
     @PreAuthorize("hasAuthority('PROCTOR')")
-    public ResponseEntity<ApiResponse<List<IdentityVerification>>> history(
+    public ResponseEntity<ApiResponse<List<IdentityVerification>>>
+    history(
             @PathVariable Long sessionId,
             Authentication auth
     ) {
-        accessControlService.checkPermission(auth, Resource.EXAM_SESSION, Action.READ);
 
-        return success(proctorService.getVerificationHistory(sessionId));
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.READ
+        );
+
+        return success(
+                proctorService
+                        .getVerificationHistory(sessionId)
+        );
     }
 
-    private boolean isPrivileged(Authentication auth) {
-        return auth.getAuthorities().stream()
-                .anyMatch(a ->
-                        a.getAuthority().equals("ADMIN")
-                                || a.getAuthority().equals("PROCTOR")
-                );
+    // =========================================================
+    // FLAGGED LIST
+    // =========================================================
+
+    @GetMapping("/flagged")
+    @PreAuthorize("hasAuthority('PROCTOR')")
+    public ResponseEntity<ApiResponse<List<ExamSessionResponse>>>
+    flagged(
+            Authentication auth
+    ) {
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_SESSION,
+                Action.READ
+        );
+
+        List<ExamSessionResponse> data =
+                proctorService
+                        .getFlaggedSessions()
+                        .stream()
+                        .map(ExamSessionMapper::toResponse)
+                        .toList();
+
+        return success(data);
     }
+
+    // =========================================================
+    // MY ROOM
+    // =========================================================
 
     @GetMapping("/me/room")
     @PreAuthorize("hasAuthority('STUDENT')")
-    public ResponseEntity<ApiResponse<MyRoomInfoDTO>> getMyRoom(
-            @RequestParam Long examId) {
+    public ResponseEntity<ApiResponse<MyRoomInfoDTO>>
+    getMyRoom(
+            @RequestParam Long examId
+    ) {
 
-        Long userId = SecurityUtils.getCurrentUserId();
+        Long userId =
+                SecurityUtils.getCurrentUserId();
 
-        MyRoomInfoDTO data = sessionService.getMyRoomInfo(userId, examId);
+        MyRoomInfoDTO data =
+                sessionService.getMyRoomInfo(
+                        userId,
+                        examId
+                );
 
         return success(data);
+    }
+
+    // =========================================================
+    // HELPER
+    // =========================================================
+
+    private boolean isPrivileged(
+            Authentication auth
+    ) {
+
+        return auth.getAuthorities()
+                .stream()
+                .anyMatch(a ->
+                        a.getAuthority()
+                                .equals("ADMIN")
+                                || a.getAuthority()
+                                .equals("PROCTOR")
+                );
     }
 }
