@@ -11,7 +11,15 @@ import {
 } from '../api/examSessionApi'
 import { getRoomsByExamPaginated } from '../api/examRoomApi'
 
-export const PROCTOR_STATUS_OPTIONS = ['INIT', 'CHECKED_IN', 'IN_PROGRESS', 'DONE', 'BLOCKED']
+export const PROCTOR_STATUS_OPTIONS = [
+  'INIT',
+  'CHECKED_IN',
+  'IN_PROGRESS',
+  'DONE',
+  'BLOCKED',
+  'PENDING_REVIEW',
+  'PENDING_DEVICE_APPROVAL',
+]
 
 const SOCKET_STATUS = {
   IDLE: 'IDLE',

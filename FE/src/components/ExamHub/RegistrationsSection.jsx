@@ -1,3 +1,5 @@
+import { ChevronLeftIcon, ChevronRightIcon, RefreshIcon, TrashIcon } from '../ui/AppIcons'
+
 export default function RegistrationsSection({
   handleBatchRegister,
   registrationForm,
@@ -75,6 +77,7 @@ export default function RegistrationsSection({
               onClick={() => fetchRegistrationUsers(registrationUserRole)}
               disabled={loadingRegistrationUsers}
             >
+              <RefreshIcon size={14} />
               {loadingRegistrationUsers ? 'Đang tải...' : 'Tải user'}
             </button>
           </div>
@@ -123,6 +126,7 @@ export default function RegistrationsSection({
             onClick={() => fetchRegistrations(registrationForm.examId, registrationPage)}
             disabled={!registrationForm.examId || loadingRegistrations}
           >
+            <RefreshIcon size={14} />
             {loadingRegistrations ? 'Đang tải...' : 'Tải lại'}
           </button>
         </div>
@@ -158,16 +162,16 @@ export default function RegistrationsSection({
                       <td>
                         <button
                           type="button"
-                          className="tiny-btn danger"
+                          className="tiny-btn danger icon-only-btn"
                           onClick={() => handleRemoveRegistration(row)}
                           disabled={
                             loadingRegistrations ||
                             processingRegistrationId === (row.id ?? `${row.examId}-${row.userId}`)
                           }
+                          aria-label={`Gỡ registration ${row.id ?? `${row.examId}-${row.userId}`}`}
+                          title={processingRegistrationId === (row.id ?? `${row.examId}-${row.userId}`) ? 'Đang gỡ...' : 'Gỡ'}
                         >
-                          {processingRegistrationId === (row.id ?? `${row.examId}-${row.userId}`)
-                            ? 'Đang gỡ...'
-                            : 'Gỡ'}
+                          <TrashIcon />
                         </button>
                       </td>
                     </tr>
@@ -181,19 +185,23 @@ export default function RegistrationsSection({
               <div className="inline-actions">
                 <button
                   type="button"
-                  className="tiny-btn"
+                  className="tiny-btn icon-only-btn"
                   onClick={() => fetchRegistrations(registrationForm.examId, registrationPage - 1)}
                   disabled={registrationPage <= 1 || loadingRegistrations}
+                  aria-label="Trang trước"
+                  title="Trang trước"
                 >
-                  Trước
+                  <ChevronLeftIcon />
                 </button>
                 <button
                   type="button"
-                  className="tiny-btn"
+                  className="tiny-btn icon-only-btn"
                   onClick={() => fetchRegistrations(registrationForm.examId, registrationPage + 1)}
                   disabled={registrationPage >= (registrationTotalPages || 1) || loadingRegistrations}
+                  aria-label="Trang sau"
+                  title="Trang sau"
                 >
-                  Sau
+                  <ChevronRightIcon />
                 </button>
               </div>
             </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import FormModal from './FormModal'
+import { ChevronsLeftIcon, ChevronsRightIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon } from '../ui/AppIcons'
 
 const emptyRoleForm = { name: '', description: '' }
 
@@ -61,12 +62,13 @@ export default function RolesSection({
               }
             }}
           />
-          <button type="button" onClick={() => handleRolePageChange(1)} className="btn-search">
-            🔍
+          <button type="button" onClick={() => handleRolePageChange(1)} className="btn-search icon-only-btn" aria-label="Tìm kiếm" title="Tìm kiếm">
+            <SearchIcon />
           </button>
         </div>
         <button type="button" className="btn-new" onClick={handleOpenModal}>
-          + TẠO VAI TRÒ
+          <PlusIcon size={16} />
+          TẠO VAI TRÒ
         </button>
       </div>
 
@@ -116,11 +118,11 @@ export default function RolesSection({
                   <td>{role.description || '-'}</td>
                   <td>
                     <div className="action-buttons">
-                      <button type="button" className="btn-edit" onClick={() => handleEditClick(role)}>
-                        Sửa
+                      <button type="button" className="btn-edit icon-only-btn" onClick={() => handleEditClick(role)} aria-label={`Sửa vai trò #${role.id}`} title="Sửa">
+                        <PencilIcon />
                       </button>
-                      <button type="button" className="btn-delete" onClick={() => handleDeleteRole(role.id)}>
-                        Xóa
+                      <button type="button" className="btn-delete icon-only-btn" onClick={() => handleDeleteRole(role.id)} aria-label={`Xóa vai trò #${role.id}`} title="Xóa">
+                        <TrashIcon />
                       </button>
                     </div>
                   </td>
@@ -132,15 +134,18 @@ export default function RolesSection({
       </div>
 
       <div className="pagination">
-        <button type="button" disabled={roleIsFirst || roleTotalPages === 0} onClick={() => handleRolePageChange(1)}>
-          Đầu
+        <button type="button" disabled={roleIsFirst || roleTotalPages === 0} onClick={() => handleRolePageChange(1)} className="icon-only-btn" aria-label="Trang đầu" title="Trang đầu">
+          <ChevronsLeftIcon />
         </button>
         <button
           type="button"
           disabled={roleIsFirst || roleTotalPages === 0}
           onClick={() => handleRolePageChange(Math.max(rolePage - 1, 1))}
+          className="icon-only-btn"
+          aria-label="Trang trước"
+          title="Trang trước"
         >
-          Trước
+          <ChevronLeftIcon />
         </button>
         <span className="page-info">
           {rolePage}/{Math.max(roleTotalPages, 1)}
@@ -149,15 +154,21 @@ export default function RolesSection({
           type="button"
           disabled={roleIsLast || roleTotalPages === 0}
           onClick={() => handleRolePageChange(Math.min(rolePage + 1, Math.max(roleTotalPages, 1)))}
+          className="icon-only-btn"
+          aria-label="Trang sau"
+          title="Trang sau"
         >
-          Sau
+          <ChevronRightIcon />
         </button>
         <button
           type="button"
           disabled={roleIsLast || roleTotalPages === 0}
           onClick={() => handleRolePageChange(Math.max(roleTotalPages, 1))}
+          className="icon-only-btn"
+          aria-label="Trang cuối"
+          title="Trang cuối"
         >
-          Cuối
+          <ChevronsRightIcon />
         </button>
       </div>
     </section>

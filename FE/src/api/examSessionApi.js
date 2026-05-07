@@ -38,6 +38,48 @@ const rethrow = (err) => {
   throw err
 }
 
+const normalizePageResponse = (data) => {
+  if (!data) {
+    return { content: [], totalElements: 0, totalPages: 0, number: 0, size: 20 }
+  }
+
+  if (Array.isArray(data)) {
+    return {
+      content: data,
+      totalElements: data.length,
+      totalPages: 1,
+      number: 0,
+      size: data.length || 20,
+    }
+  }
+
+  const content = Array.isArray(data.content)
+    ? data.content
+    : Array.isArray(data.rows)
+      ? data.rows
+      : Array.isArray(data.items)
+        ? data.items
+        : []
+
+  return {
+    ...data,
+    content,
+    totalElements: data.totalElements ?? data.total ?? content.length,
+    totalPages: data.totalPages ?? 1,
+    number: data.number ?? data.page ?? 0,
+    size: data.size ?? content.length ?? 20,
+  }
+}
+
+const normalizeHistoryResponse = (data) => {
+  if (!data) return []
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data.content)) return data.content
+  if (Array.isArray(data.rows)) return data.rows
+  if (Array.isArray(data.items)) return data.items
+  return [data]
+}
+
 export const startExamSession = async ({ examId, deviceId }) => {
   try {
     return await axiosClient.post(
@@ -112,7 +154,7 @@ export const getExamSessionDashboard = async (params = {}) => {
         ...(keyword ? { keyword } : {}),
       },
     })
-    return res || { content: [], totalElements: 0, totalPages: 0 }
+    return normalizePageResponse(res)
   } catch (err) {
     rethrow(err)
   }
@@ -156,7 +198,8 @@ export const rejectExamSession = async (sessionId, reason) => {
 
 export const getExamSessionVerificationHistory = async (sessionId) => {
   try {
-    return await dedupeGet(axiosClient, `${API_URL}/exam-sessions/${sessionId}/verifications`)
+    const res = await dedupeGet(axiosClient, `${API_URL}/exam-sessions/${sessionId}/verifications`)
+    return normalizeHistoryResponse(res)
   } catch (err) {
     rethrow(err)
   }

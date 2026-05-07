@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { DEFAULT_PAGE_SIZE } from '../../hooks/useRbacManagement'
 import FormModal from './FormModal'
+import { ChevronsLeftIcon, ChevronsRightIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, SearchIcon } from '../ui/AppIcons'
 
 const emptyPermissionForm = { resource: '', action: '', description: '' }
 
@@ -126,12 +127,13 @@ export default function PermissionsSection({
               }
             }}
           />
-          <button type="button" onClick={() => handlePermissionPageChange(1)} className="btn-search">
-            🔍
+          <button type="button" onClick={() => handlePermissionPageChange(1)} className="btn-search icon-only-btn" aria-label="Tìm kiếm" title="Tìm kiếm">
+            <SearchIcon />
           </button>
         </div>
         <button type="button" className="btn-new" onClick={handleOpenModal}>
-          + TẠO QUYỀN
+          <PlusIcon size={16} />
+          TẠO QUYỀN
         </button>
       </div>
 
@@ -232,8 +234,8 @@ export default function PermissionsSection({
                   <td>{group.actions.length}</td>
                   <td>
                     <div className="action-buttons">
-                      <button type="button" className="btn-edit" onClick={() => setIsModalOpen(true)}>
-                        + Thêm
+                      <button type="button" className="btn-edit icon-only-btn" onClick={() => setIsModalOpen(true)} aria-label={`Thêm quyền cho ${group.resource}`} title="Thêm quyền">
+                        <PlusIcon />
                       </button>
                     </div>
                   </td>
@@ -249,15 +251,21 @@ export default function PermissionsSection({
           type="button"
           disabled={permissionIsFirst || permissionTotalPages === 0}
           onClick={() => handlePermissionPageChange(1)}
+          className="icon-only-btn"
+          aria-label="Trang đầu"
+          title="Trang đầu"
         >
-          Đầu
+          <ChevronsLeftIcon />
         </button>
         <button
           type="button"
           disabled={permissionIsFirst || permissionTotalPages === 0}
           onClick={() => handlePermissionPageChange(Math.max(permissionPage - 1, 1))}
+          className="icon-only-btn"
+          aria-label="Trang trước"
+          title="Trang trước"
         >
-          Trước
+          <ChevronLeftIcon />
         </button>
         <span className="page-info">
           {permissionPage}/{Math.max(permissionTotalPages, 1)}
@@ -266,15 +274,21 @@ export default function PermissionsSection({
           type="button"
           disabled={permissionIsLast || permissionTotalPages === 0}
           onClick={() => handlePermissionPageChange(Math.min(permissionPage + 1, Math.max(permissionTotalPages, 1)))}
+          className="icon-only-btn"
+          aria-label="Trang sau"
+          title="Trang sau"
         >
-          Sau
+          <ChevronRightIcon />
         </button>
         <button
           type="button"
           disabled={permissionIsLast || permissionTotalPages === 0}
           onClick={() => handlePermissionPageChange(Math.max(permissionTotalPages, 1))}
+          className="icon-only-btn"
+          aria-label="Trang cuối"
+          title="Trang cuối"
         >
-          Cuối
+          <ChevronsRightIcon />
         </button>
       </div>
     </section>

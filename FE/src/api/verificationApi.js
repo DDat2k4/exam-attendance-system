@@ -38,7 +38,8 @@ const rethrow = (err) => {
 
 export const verifyCccd = async () => {
   try {
-    return await axiosClient.post(`${API_URL}/cccd/verify`, null)
+    const res = await axiosClient.post(`${API_URL}/cccd/verify`, null)
+    return unwrap(res)
   } catch (err) {
     rethrow(err)
   }
@@ -46,7 +47,8 @@ export const verifyCccd = async () => {
 
 export const verifyIdentity = async (request) => {
   try {
-    return await axiosClient.post(`${API_URL}/verify`, request)
+    const res = await axiosClient.post(`${API_URL}/verify`, request)
+    return unwrap(res)
   } catch (err) {
     rethrow(err)
   }
@@ -54,7 +56,8 @@ export const verifyIdentity = async (request) => {
 
 export const readCccd = async () => {
   try {
-    return await axiosClient.post(`${API_URL}/cccd/read`, null)
+    const res = await axiosClient.post(`${API_URL}/cccd/read`, null)
+    return unwrap(res)
   } catch (err) {
     rethrow(err)
   }

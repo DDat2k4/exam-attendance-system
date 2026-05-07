@@ -18,9 +18,9 @@ const NAV_ITEMS = [
     submenu: [
       { to: '/exam-hub', label: 'Tổng quan', allowRoles: ['ADMIN', 'PROCTOR', 'STUDENT'] },
       { to: '/exam-hub/exams', label: 'Kỳ thi', allowRoles: ['ADMIN', 'PROCTOR', 'STUDENT'] },
-      { to: '/exam-hub/rooms', label: 'Phòng thi', allowRoles: ['ADMIN', 'PROCTOR'] },
       { to: '/exam-hub/registrations', label: 'Đăng ký thí sinh', allowRoles: ['ADMIN'] },
-      { to: '/exam-hub/proctor', label: 'Giám sát proctor', allowRoles: ['ADMIN', 'PROCTOR'] },
+      { to: '/exam-hub/rooms', label: 'Phòng thi', allowRoles: ['ADMIN', 'PROCTOR'] },
+      { to: '/exam-hub/proctor', label: 'Giám sát', allowRoles: ['ADMIN', 'PROCTOR'] },
       { to: '/exam-hub/student-exams', label: 'Kỳ thi của tôi', allowRoles: ['STUDENT'] },
       { to: '/exam-hub/verification', label: 'Xác thực CCCD', allowRoles: ['STUDENT'] },
     ],

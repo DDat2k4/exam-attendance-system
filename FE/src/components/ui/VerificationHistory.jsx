@@ -2,6 +2,38 @@ import React from 'react'
 import './VerificationHistory.css'
 
 export default function VerificationHistory({ history = [], loading = false }) {
+  const TYPE_LABELS = {
+    INITIAL: 'Xác minh đầu vào',
+    RANDOM: 'Xác minh ngẫu nhiên',
+    VERIFY_FAIL: 'Xác minh thất bại',
+    VERIFY_SUCCESS: 'Xác minh thành công',
+    DEVICE_CHANGED: 'Đổi thiết bị',
+    MANUAL_REVIEW_REQUIRED: 'Cần duyệt thủ công',
+    MULTIPLE_VERIFY_FAILED: 'Nhiều lần thất bại',
+    SUSPICIOUS_ACTIVITY: 'Hành vi đáng ngờ',
+    APPROVED: 'Đã duyệt',
+    REJECTED: 'Đã từ chối',
+    FLAGGED: 'Đã gắn cờ',
+    UNFLAGGED: 'Đã bỏ cờ',
+    DEVICE_APPROVED: 'Đổi thiết bị đã duyệt',
+  }
+
+  const STATUS_LABELS = {
+    VERIFIED: 'Đã xác minh',
+    FAILED: 'Thất bại',
+    PASS: 'Thành công',
+    FAIL: 'Thất bại',
+    SUCCESS: 'Thành công',
+    REJECTED: 'Bị từ chối',
+    APPROVED: 'Đã duyệt',
+    FLAGGED: 'Đã gắn cờ',
+    UNFLAGGED: 'Đã bỏ cờ',
+    PENDING: 'Chờ xử lý',
+    PENDING_REVIEW: 'Chờ duyệt',
+  }
+
+  const formatLabel = (value, mapping) => mapping[String(value || '').toUpperCase()] || value || 'UNKNOWN'
+
   const formatDate = (dateString) => {
     if (!dateString) return '-'
     try {
@@ -11,11 +43,35 @@ export default function VerificationHistory({ history = [], loading = false }) {
     }
   }
 
-  const getVerificationStatusBadge = (verified) => {
-    if (verified) {
-      return <span className="verify-badge verify-success">✓ Thành công</span>
+  const formatConfidence = (value) => {
+    if (value === null || value === undefined || value === '') return '-'
+    const numeric = Number(value)
+    if (Number.isNaN(numeric)) return value
+    return `${(numeric * 100).toFixed(1)}%`
+  }
+
+  const getStatusText = (entry) => {
+    const rawStatus = entry?.status ?? entry?.result ?? entry?.verificationStatus
+    if (!rawStatus && typeof entry?.verified === 'boolean') {
+      return entry.verified ? 'VERIFIED' : 'FAILED'
     }
-    return <span className="verify-badge verify-failed">✕ Thất bại</span>
+    return String(rawStatus || '').toUpperCase()
+  }
+
+  const getStatusBadge = (entry) => {
+    const status = getStatusText(entry)
+    const isSuccess = status === 'VERIFIED' || status === 'PASS' || status === 'SUCCESS' || status === 'APPROVED'
+    const isPending = status === 'PENDING' || status === 'PENDING_REVIEW'
+
+    if (isPending) {
+      return <span className="verify-badge verify-pending">… {formatLabel(status, STATUS_LABELS)}</span>
+    }
+
+    if (isSuccess) {
+      return <span className="verify-badge verify-success">✓ {formatLabel(status, STATUS_LABELS)}</span>
+    }
+
+    return <span className="verify-badge verify-failed">✕ {formatLabel(status, STATUS_LABELS)}</span>
   }
 
   if (loading) {
@@ -35,10 +91,19 @@ export default function VerificationHistory({ history = [], loading = false }) {
             <div className="header-left">
               <span className="attempt-badge">Lần {entry.attemptNo || index + 1}</span>
               <span className={`type-badge type-${(entry.type || 'UNKNOWN').toLowerCase()}`}>
-                {entry.type || 'UNKNOWN'}
+                {formatLabel(entry.type, TYPE_LABELS)}
               </span>
             </div>
-            <div className="header-right">{getVerificationStatusBadge(entry.verified, entry.failReason)}</div>
+            <div className="header-right">{getStatusBadge(entry)}</div>
+          </div>
+
+          <div className="verification-card-subheader">
+            <span>
+              <strong>Thời gian:</strong> {formatDate(entry.verifiedAt || entry.createdAt)}
+            </span>
+            <span>
+              <strong>Độ tin cậy:</strong> {formatConfidence(entry.confidence)}
+            </span>
           </div>
 
           {/* Main Content */}
@@ -78,9 +143,9 @@ export default function VerificationHistory({ history = [], loading = false }) {
               <div className="metric">
                 <span className="metric-label">Độ tin cậy:</span>
                 <span className="metric-value">
-                  {entry.confidence ? `${(entry.confidence * 100).toFixed(1)}%` : '-'}
+                  {formatConfidence(entry.confidence)}
                 </span>
-                {entry.confidence && (
+                {entry.confidence !== null && entry.confidence !== undefined && entry.confidence !== '' && (
                   <div className="confidence-bar">
                     <div className="confidence-fill" style={{ width: `${entry.confidence * 100}%` }} />
                   </div>
@@ -88,12 +153,18 @@ export default function VerificationHistory({ history = [], loading = false }) {
               </div>
               <div className="metric">
                 <span className="metric-label">Ngày giờ xác minh:</span>
-                <span className="metric-value">{formatDate(entry.verifiedAt)}</span>
+                <span className="metric-value">{formatDate(entry.verifiedAt || entry.createdAt)}</span>
               </div>
               <div className="metric">
                 <span className="metric-label">Ngày giờ tạo:</span>
                 <span className="metric-value">{formatDate(entry.createdAt)}</span>
               </div>
+              {entry.deviceId && (
+                <div className="metric">
+                  <span className="metric-label">Thiết bị:</span>
+                  <span className="metric-value metric-value--wrap">{entry.deviceId}</span>
+                </div>
+              )}
             </div>
 
             {/* Device Info */}
@@ -126,6 +197,12 @@ export default function VerificationHistory({ history = [], loading = false }) {
               <div className="failure-section">
                 <h5>Lý do thất bại:</h5>
                 <p className="failure-reason">{entry.failReason}</p>
+              </div>
+            )}
+
+            {!entry.cccdImageUrl && !entry.captureImageUrl && (
+              <div className="verification-note">
+                Không có ảnh đính kèm cho lần xác minh này.
               </div>
             )}
           </div>

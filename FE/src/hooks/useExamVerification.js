@@ -38,7 +38,31 @@ export const useExamVerification = (examSessionId) => {
 
         setResult(response)
 
-        if (response.passed) {
+        // backend may return { reconnect: true } for trusted reconnects
+        const isReconnect = Boolean(response?.reconnect)
+        const status = String(response?.sessionStatus || '').toUpperCase()
+        const isTerminalBlocked = status === 'BLOCKED'
+        const isPendingReview = status === 'PENDING_REVIEW' || status === 'PENDING_DEVICE_APPROVAL'
+        const isPassed = Boolean(response?.passed) || isReconnect
+
+        if (typeof response?.attempt === 'number') {
+          setFailureCount(0)
+        }
+
+        if (isTerminalBlocked) {
+          setVerificationState('failed')
+          setError('Phiên thi đã bị khóa')
+          return false
+        }
+
+        if (isPendingReview) {
+          setVerificationState('failed')
+          setError('Phiên thi đang chờ giám thị xác nhận')
+          setFailureCount((prev) => prev + 1)
+          return false
+        }
+
+        if (isPassed) {
           setVerificationState('success')
           setFailureCount(0)
           return true

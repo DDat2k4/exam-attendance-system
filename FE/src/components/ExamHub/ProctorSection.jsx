@@ -1,6 +1,45 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import VerificationHistory from '../ui/VerificationHistory'
 import { useExcelExport } from '../../hooks/useExcelExport'
+import {
+  CheckIcon,
+  CloseIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DoorOpenIcon,
+  DownloadIcon,
+  FlagIcon,
+  PlusIcon,
+  RefreshIcon,
+  SearchIcon,
+  TrashIcon,
+} from '../ui/AppIcons'
+
+const PROCTOR_STATUS_LABELS = {
+  INIT: 'Khởi tạo',
+  CHECKED_IN: 'Đã check-in',
+  IN_PROGRESS: 'Đang thi',
+  DONE: 'Đã hoàn thành',
+  BLOCKED: 'Bị khóa',
+  PENDING_REVIEW: 'Chờ giám thị duyệt',
+  PENDING_DEVICE_APPROVAL: 'Chờ duyệt thiết bị',
+}
+
+const ALERT_TYPE_LABELS = {
+  VERIFY_FAIL: 'Xác minh thất bại',
+  VERIFY_SUCCESS: 'Xác minh thành công',
+  SESSION_BLOCKED: 'Khóa phiên thi',
+  APPROVED: 'Đã duyệt',
+  REJECTED: 'Bị từ chối',
+  FLAGGED: 'Đã gắn cờ',
+  UNFLAGGED: 'Đã bỏ cờ',
+  DEVICE_CHANGED: 'Đổi thiết bị',
+  MULTIPLE_VERIFY_FAILED: 'Nhiều lần thất bại',
+  MANUAL_REVIEW_REQUIRED: 'Cần duyệt thủ công',
+  SUSPICIOUS_ACTIVITY: 'Hành vi đáng ngờ',
+}
+
+const formatLabel = (value, mapping) => mapping[String(value || '').toUpperCase()] || value || 'UNKNOWN'
 
 export default function ProctorSection({
   openProctorRoomModal,
@@ -34,6 +73,11 @@ export default function ProctorSection({
 }) {
   const { loading: exporting, error: exportError, exportReport } = useExcelExport()
   const [showExportError, setShowExportError] = useState(false)
+  const [captureImageBroken, setCaptureImageBroken] = useState(false)
+
+  useEffect(() => {
+    setCaptureImageBroken(false)
+  }, [selectedProctorSessionId])
 
   const handleExportReport = async () => {
     console.log('handleExportReport clicked, proctorFilter.roomId:', proctorFilter.roomId)
@@ -71,113 +115,141 @@ export default function ProctorSection({
         <div className="inline-actions">
           <button
             type="button"
-            className="tiny-btn"
+            className="tiny-btn icon-only-btn"
             onClick={openProctorRoomModal}
             disabled={loadingProctorDashboard || proctorActionLoading || exporting}
+            aria-label="Chọn hoặc đổi phòng"
+            title="Chọn/Đổi phòng"
           >
-            Chọn/Đổi phòng
+            <DoorOpenIcon />
           </button>
           <button
             type="button"
-            className="tiny-btn"
+            className="tiny-btn icon-only-btn"
             onClick={refreshProctorDashboard}
             disabled={loadingProctorDashboard || proctorActionLoading || !proctorFilter.roomId || exporting}
+            aria-label="Tải lại dashboard"
+            title="Tải lại dashboard"
           >
-            {loadingProctorDashboard ? 'Đang tải...' : 'Tải lại dashboard'}
+            <RefreshIcon />
           </button>
           <button
             type="button"
-            className="tiny-btn success"
+            className="tiny-btn success icon-only-btn"
             onClick={handleExportReport}
             disabled={exporting || proctorActionLoading || !proctorFilter.roomId}
             title="Xuất báo cáo phòng thi ra file Excel"
+            aria-label="Xuất báo cáo"
           >
-            {exporting ? ' Đang xuất...' : ' Xuất báo cáo'}
+            <DownloadIcon />
           </button>
           {showExportError && exportError && (
-            <span style={{ color: '#d32f2f', fontSize: '12px', marginLeft: '8px' }}>
+            <span className="proctor-inline-error">
               {exportError}
+              <button type="button" className="proctor-inline-error__close" onClick={() => setShowExportError(false)} aria-label="Đóng lỗi xuất báo cáo">
+                <CloseIcon />
+              </button>
             </span>
           )}
         </div>
       </div>
 
       <form className="grid-form proctor-filter-form" onSubmit={(e) => { e.preventDefault(); fetchProctorDashboard(null, 0) }}>
-        <label htmlFor="proctorRoomId">Room</label>
-        <select
-          id="proctorRoomId"
-          value={proctorFilter.roomId}
-          onChange={(e) => setProctorFilter((prev) => ({ ...prev, roomId: e.target.value }))}
-        >
-          <option value="">Chọn phòng theo tên</option>
-          {proctorRoomFilterOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <div className="proctor-filter-item">
+          <label htmlFor="proctorRoomId">Room</label>
+          <select
+            id="proctorRoomId"
+            value={proctorFilter.roomId}
+            onChange={(e) => setProctorFilter((prev) => ({ ...prev, roomId: e.target.value }))}
+          >
+            <option value="">Chọn phòng theo tên</option>
+            {proctorRoomFilterOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <label htmlFor="proctorStatus">Status</label>
-        <select
-          id="proctorStatus"
-          value={proctorFilter.status}
-          onChange={(e) => setProctorFilter((prev) => ({ ...prev, status: e.target.value }))}
-        >
-          <option value="">Tất cả trạng thái</option>
-          {proctorStatusOptions.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
+        <div className="proctor-filter-item">
+          <label htmlFor="proctorStatus">Status</label>
+          <select
+            id="proctorStatus"
+            value={proctorFilter.status}
+            onChange={(e) => setProctorFilter((prev) => ({ ...prev, status: e.target.value }))}
+          >
+            <option value="">Tất cả trạng thái</option>
+            {proctorStatusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <label htmlFor="proctorFlagged">Flagged</label>
-        <select
-          id="proctorFlagged"
-          value={proctorFilter.flagged}
-          onChange={(e) => setProctorFilter((prev) => ({ ...prev, flagged: e.target.value }))}
-        >
-          <option value="">Tất cả</option>
-          <option value="true">Có</option>
-          <option value="false">Không</option>
-        </select>
+        <div className="proctor-filter-item">
+          <label htmlFor="proctorFlagged">Flagged</label>
+          <select
+            id="proctorFlagged"
+            value={proctorFilter.flagged}
+            onChange={(e) => setProctorFilter((prev) => ({ ...prev, flagged: e.target.value }))}
+          >
+            <option value="">Tất cả</option>
+            <option value="true">Có</option>
+            <option value="false">Không</option>
+          </select>
+        </div>
 
-        <label htmlFor="proctorKeyword">Keyword</label>
-        <input
-          id="proctorKeyword"
-          value={proctorFilter.keyword}
-          onChange={(e) => setProctorFilter((prev) => ({ ...prev, keyword: e.target.value }))}
-          placeholder="Tìm theo tên(In hoa không dấu), CCCD(9 số cuối)"
-        />
+        <div className="proctor-filter-item proctor-filter-keyword">
+          <label htmlFor="proctorKeyword">Keyword</label>
+          <input
+            id="proctorKeyword"
+            value={proctorFilter.keyword}
+            onChange={(e) => setProctorFilter((prev) => ({ ...prev, keyword: e.target.value }))}
+            placeholder="Tìm theo tên(In hoa không dấu), CCCD(9 số cuối)"
+          />
+        </div>
 
-        <label htmlFor="proctorSize">Size</label>
-        <select
-          id="proctorSize"
-          value={proctorFilter.size}
-          onChange={(e) => setProctorFilter((prev) => ({ ...prev, size: Number(e.target.value) }))}
-        >
-          <option value={10}>10</option>
-          <option value={20}>20</option>
-          <option value={50}>50</option>
-          <option value={100}>100</option>
-        </select>
+        <div className="proctor-filter-item">
+          <label htmlFor="proctorSize">Size</label>
+          <select
+            id="proctorSize"
+            value={proctorFilter.size}
+            onChange={(e) => setProctorFilter((prev) => ({ ...prev, size: Number(e.target.value) }))}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </div>
 
-        <button className="primary" type="submit" disabled={loadingProctorDashboard || !proctorFilter.roomId}>
-          Áp dụng bộ lọc
-        </button>
-        <button
-          className="secondary"
-          type="button"
-          onClick={() => {
-            setProctorFilter({ roomId: '', status: '', flagged: '', keyword: '', page: 0, size: 20 })
-            setSelectedProctorSession(null)
-            setProctorHistory([])
-            setProctorReason('')
-          }}
-          disabled={loadingProctorDashboard}
-        >
-          Xóa lọc
-        </button>
+        <div className="proctor-filter-actions">
+          <button
+            className="primary icon-only-btn"
+            type="submit"
+            disabled={loadingProctorDashboard || !proctorFilter.roomId}
+            aria-label="Áp dụng bộ lọc"
+            title="Áp dụng bộ lọc"
+          >
+            <SearchIcon />
+          </button>
+          <button
+            className="secondary"
+            type="button"
+            onClick={() => {
+              setProctorFilter({ roomId: '', status: '', flagged: '', keyword: '', page: 0, size: 20 })
+              setSelectedProctorSession(null)
+              setProctorHistory([])
+              setProctorReason('')
+            }}
+            disabled={loadingProctorDashboard}
+            aria-label="Xóa lọc"
+            title="Xóa lọc"
+          >
+            <CloseIcon />
+          </button>
+        </div>
       </form>
 
       <div className="proctor-alert-feed">
@@ -189,11 +261,13 @@ export default function ProctorSection({
           <div className="inline-actions">
             <button
               type="button"
-              className="tiny-btn"
+              className="tiny-btn icon-only-btn"
               onClick={clearProctorAlerts}
               disabled={proctorAlerts.length === 0}
+              aria-label="Xóa feed cảnh báo"
+              title="Xóa feed"
             >
-              Xóa feed
+              <TrashIcon />
             </button>
           </div>
         </div>
@@ -205,6 +279,9 @@ export default function ProctorSection({
             {proctorAlerts.map((alert, index) => (
               <article key={`${alert.sessionId || 'session'}-${alert.timestamp}-${index}`} className="proctor-alert-item">
                 <div className="proctor-alert-item-head">
+                  <span className="risk-badge risk-info">
+                    {formatLabel(alert.type, ALERT_TYPE_LABELS)}
+                  </span>
                   <span className={`risk-badge risk-${String(alert.severity || 'LOW').toLowerCase()}`}>
                     {alert.severity || 'LOW'}
                   </span>
@@ -258,12 +335,12 @@ export default function ProctorSection({
                         <td>{item?.roomCode ?? item?.roomId ?? item?.room?.id ?? '-'}</td>
                         <td>
                           <span className={`status-badge badge-${(item?.attendanceStatus || 'UNKNOWN').toLowerCase()}`}>
-                            {item?.attendanceStatus || 'UNKNOWN'}
+                            {formatLabel(item?.attendanceStatus, PROCTOR_STATUS_LABELS)}
                           </span>
                         </td>
                         <td>
                           <span className={`status-badge badge-${(item?.examSessionStatus || 'UNKNOWN').toLowerCase()}`}>
-                            {item?.examSessionStatus || 'UNKNOWN'}
+                            {formatLabel(item?.examSessionStatus, PROCTOR_STATUS_LABELS)}
                           </span>
                         </td>
                         <td>
@@ -300,19 +377,23 @@ export default function ProctorSection({
               <div className="inline-actions">
                 <button
                   type="button"
-                  className="tiny-btn"
+                  className="tiny-btn icon-only-btn"
                   onClick={() => fetchProctorDashboard(null, Math.max(0, proctorPagination.currentPage - 1))}
                   disabled={loadingProctorDashboard || proctorPagination.currentPage === 0}
+                  aria-label="Trang trước"
+                  title="Trang trước"
                 >
-                  Trước
+                  <ChevronLeftIcon />
                 </button>
                 <button
                   type="button"
-                  className="tiny-btn"
+                  className="tiny-btn icon-only-btn"
                   onClick={() => fetchProctorDashboard(null, proctorPagination.currentPage + 1)}
                   disabled={loadingProctorDashboard || proctorPagination.currentPage >= proctorPagination.totalPages - 1}
+                  aria-label="Trang sau"
+                  title="Trang sau"
                 >
-                  Sau
+                  <ChevronRightIcon />
                 </button>
               </div>
             </div>
@@ -330,18 +411,19 @@ export default function ProctorSection({
           <div className="proctor-modal" onClick={(e) => e.stopPropagation()}>
             <div className="proctor-modal-header">
               <h3>Chi tiết phiên xác minh</h3>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => {
-                  setShowProctorDetailModal(false)
-                  setSelectedProctorSession(null)
-                  setProctorHistory([])
-                  setProctorReason('')
-                }}
-              >
-                ✕
-              </button>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => {
+                    setShowProctorDetailModal(false)
+                    setSelectedProctorSession(null)
+                    setProctorHistory([])
+                    setProctorReason('')
+                  }}
+                  aria-label="Đóng chi tiết"
+                >
+                  <CloseIcon />
+                </button>
             </div>
 
             <div className="proctor-modal-content">
@@ -352,12 +434,17 @@ export default function ProctorSection({
                   <div className="proctor-student-header">
                     <div>
                       <h4>{selectedProctorSession?.studentName ?? 'Student'}</h4>
-                      <span className={`status-badge badge-${(selectedProctorSession?.attendanceStatus || 'pending').toLowerCase()}`}>
-                        {selectedProctorSession?.attendanceStatus || 'PENDING'}
-                      </span>
-                      {selectedProctorSession?.flagged && (
-                        <span className="flagged-indicator-badge">🚩 Flagged</span>
-                      )}
+                      <div className="proctor-student-tags">
+                        <span className={`status-badge badge-${(selectedProctorSession?.attendanceStatus || 'pending').toLowerCase()}`}>
+                          {formatLabel(selectedProctorSession?.attendanceStatus, PROCTOR_STATUS_LABELS)}
+                        </span>
+                        <span className={`status-badge badge-${(selectedProctorSession?.examSessionStatus || 'unknown').toLowerCase()}`}>
+                          {formatLabel(selectedProctorSession?.examSessionStatus, PROCTOR_STATUS_LABELS)}
+                        </span>
+                        {selectedProctorSession?.flagged && (
+                          <span className="flagged-indicator-badge">🚩 Flagged</span>
+                        )}
+                      </div>
                     </div>
                     <div className={`risk-indicator risk-${(selectedProctorSession?.riskLevel || 'LOW').toLowerCase()}`}>
                       {selectedProctorSession?.riskLevel || 'LOW'}
@@ -369,8 +456,8 @@ export default function ProctorSection({
                     <div><span>Room Code</span><strong>{selectedProctorSession?.roomCode ?? selectedProctorSession?.roomId ?? '-'}</strong></div>
                     <div><span>Device</span><strong className="device-id">{selectedProctorSession?.deviceId ?? '-'}</strong></div>
 
-                    <div><span>Attendance Status</span><strong className={`status-text badge-${(selectedProctorSession?.attendanceStatus || 'unknown').toLowerCase()}`}>{selectedProctorSession?.attendanceStatus ?? '-'}</strong></div>
-                    <div><span>Exam Status</span><strong>{selectedProctorSession?.examSessionStatus ?? '-'}</strong></div>
+                    <div><span>Attendance Status</span><strong className={`status-text badge-${(selectedProctorSession?.attendanceStatus || 'unknown').toLowerCase()}`}>{formatLabel(selectedProctorSession?.attendanceStatus, PROCTOR_STATUS_LABELS)}</strong></div>
+                    <div><span>Exam Status</span><strong>{formatLabel(selectedProctorSession?.examSessionStatus, PROCTOR_STATUS_LABELS)}</strong></div>
 
                     <div><span>Attempt</span><strong>{selectedProctorSession?.attemptNo ?? '-'}</strong></div>
                     <div><span>Last Verify ID</span><strong>{selectedProctorSession?.lastVerifyId ?? '-'}</strong></div>
@@ -386,7 +473,19 @@ export default function ProctorSection({
                       <div className="capture-image-preview">
                         <span>Ảnh xác minh</span>
                         <a href={selectedProctorSession?.captureImageUrl} target="_blank" rel="noopener noreferrer">
-                          <img src={selectedProctorSession?.captureImageUrl} alt="Capture" loading="lazy" />
+                          {!captureImageBroken ? (
+                            <img
+                              src={selectedProctorSession?.captureImageUrl}
+                              alt="Capture"
+                              loading="lazy"
+                              onError={() => setCaptureImageBroken(true)}
+                            />
+                          ) : (
+                            <div className="capture-image-fallback">
+                              <strong>Không tải được ảnh xem trước</strong>
+                              <span>Mở liên kết để xem ảnh gốc.</span>
+                            </div>
+                          )}
                         </a>
                       </div>
                     )}
@@ -397,11 +496,13 @@ export default function ProctorSection({
                       <h4>Lịch sử xác minh</h4>
                       <button
                         type="button"
-                        className="tiny-btn"
+                        className="tiny-btn icon-only-btn"
                         onClick={() => fetchProctorHistory(selectedProctorSession)}
                         disabled={loadingProctorHistory}
+                        aria-label="Tải lại lịch sử xác minh"
+                        title="Tải lại lịch sử"
                       >
-                        {loadingProctorHistory ? 'Đang tải...' : 'Tải lại lịch sử'}
+                        <RefreshIcon />
                       </button>
                     </div>
 
@@ -422,38 +523,46 @@ export default function ProctorSection({
                 <div className="proctor-footer-actions">
                   <button
                     type="button"
-                    className="tiny-btn"
+                    className="tiny-btn icon-only-btn"
                     onClick={() => runProctorAction('approve')}
                     disabled={proctorActionLoading}
+                    aria-label="Duyệt phiên"
+                    title="Duyệt"
                   >
-                    {proctorActionLoading ? 'Đang xử lý...' : '✓ Duyệt'}
+                    <CheckIcon />
                   </button>
                   {!selectedProctorSession?.flagged ? (
                     <button
                       type="button"
-                      className="tiny-btn danger"
+                      className="tiny-btn danger icon-only-btn"
                       onClick={() => runProctorAction('flag')}
                       disabled={proctorActionLoading}
+                      aria-label="Gắn cờ phiên"
+                      title="Gắn cờ"
                     >
-                      {proctorActionLoading ? 'Đang xử lý...' : '🚩 Gắn cờ'}
+                      <FlagIcon />
                     </button>
                   ) : (
                     <button
                       type="button"
-                      className="tiny-btn warning"
+                      className="tiny-btn warning icon-only-btn"
                       onClick={() => runProctorAction('unflag')}
                       disabled={proctorActionLoading}
+                      aria-label="Bỏ cờ phiên"
+                      title="Bỏ cờ"
                     >
-                      {proctorActionLoading ? 'Đang xử lý...' : '✓ Bỏ cờ'}
+                      <CloseIcon />
                     </button>
                   )}
                   <button
                     type="button"
-                    className="tiny-btn danger"
+                    className="tiny-btn danger icon-only-btn"
                     onClick={() => runProctorAction('reject')}
                     disabled={proctorActionLoading}
+                    aria-label="Từ chối phiên"
+                    title="Từ chối"
                   >
-                    {proctorActionLoading ? 'Đang xử lý...' : '✕ Từ chối'}
+                    <CloseIcon />
                   </button>
                   <button
                     type="button"

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import FormModal from './FormModal'
+import { ChevronsLeftIcon, ChevronsRightIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon } from '../ui/AppIcons'
 
 const emptyUserForm = {
   username: '',
@@ -163,13 +164,14 @@ export default function UsersSection({
             onChange={(e) => setKeyword(e.target.value)}
             placeholder="Tìm theo ID, email, phone hoặc tài khoản..."
           />
-          <button type="button" onClick={() => fetchUsers(1, roleFilter)} className="btn-search">
-            🔍
+          <button type="button" onClick={() => fetchUsers(1, roleFilter)} className="btn-search icon-only-btn" aria-label="Tìm kiếm" title="Tìm kiếm">
+            <SearchIcon />
           </button>
         </div>
 
         <button type="button" className="btn-new" onClick={openCreateModal}>
-          + TẠO USER
+          <PlusIcon size={16} />
+          TẠO USER
         </button>
       </div>
 
@@ -338,11 +340,11 @@ export default function UsersSection({
                     </td>
                     <td>
                       <div className="action-buttons">
-                        <button type="button" className="btn-edit" onClick={() => openEditModal(user)}>
-                          Sửa
+                        <button type="button" className="btn-edit icon-only-btn" onClick={() => openEditModal(user)} aria-label={`Sửa user #${user.id}`} title="Sửa">
+                          <PencilIcon />
                         </button>
-                        <button type="button" className="btn-delete" onClick={() => handleDeleteUser(user.id)}>
-                          Xóa
+                        <button type="button" className="btn-delete icon-only-btn" onClick={() => handleDeleteUser(user.id)} aria-label={`Xóa user #${user.id}`} title="Xóa">
+                          <TrashIcon />
                         </button>
                       </div>
                     </td>
@@ -355,20 +357,20 @@ export default function UsersSection({
       </div>
 
       <div className="pagination">
-        <button type="button" disabled={isFirst} onClick={() => fetchUsers(1, roleFilter)}>
-          Đầu
+        <button type="button" disabled={isFirst} onClick={() => fetchUsers(1, roleFilter)} className="icon-only-btn" aria-label="Trang đầu" title="Trang đầu">
+          <ChevronsLeftIcon />
         </button>
-        <button type="button" disabled={isFirst} onClick={() => fetchUsers(page - 1, roleFilter)}>
-          Trước
+        <button type="button" disabled={isFirst} onClick={() => fetchUsers(page - 1, roleFilter)} className="icon-only-btn" aria-label="Trang trước" title="Trang trước">
+          <ChevronLeftIcon />
         </button>
         <span className="page-info">
           {page}/{Math.max(totalPages, 1)}
         </span>
-        <button type="button" disabled={isLast || totalPages === 0} onClick={() => fetchUsers(page + 1, roleFilter)}>
-          Sau
+        <button type="button" disabled={isLast || totalPages === 0} onClick={() => fetchUsers(page + 1, roleFilter)} className="icon-only-btn" aria-label="Trang sau" title="Trang sau">
+          <ChevronRightIcon />
         </button>
-        <button type="button" disabled={isLast || totalPages === 0} onClick={() => fetchUsers(totalPages, roleFilter)}>
-          Cuối
+        <button type="button" disabled={isLast || totalPages === 0} onClick={() => fetchUsers(totalPages, roleFilter)} className="icon-only-btn" aria-label="Trang cuối" title="Trang cuối">
+          <ChevronsRightIcon />
         </button>
       </div>
 

@@ -46,6 +46,8 @@ export default function RoomsSection({
   handleAssignRoom,
   handleOpenRoomStudents,
   handleCloseRoomStudents,
+  showRoomFormModal,
+  closeRoomFormModal,
 }) {
   const [showExamDropdown, setShowExamDropdown] = useState(false)
   const [examFilterText, setExamFilterText] = useState('')
@@ -83,250 +85,221 @@ export default function RoomsSection({
     setAssignRegistrationQuery(value)
     setShowRegistrationDropdown(true)
   }
+
+  const ActionIcon = ({ children }) => (
+    <svg className="room-icon-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {children}
+    </svg>
+  )
+
+  const CloseIcon = () => (
+    <ActionIcon>
+      <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    </ActionIcon>
+  )
+
+  const ChevronLeftIcon = () => (
+    <ActionIcon>
+      <path d="M14.5 5.8 8.3 12l6.2 6.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+    </ActionIcon>
+  )
+
+  const ChevronRightIcon = () => (
+    <ActionIcon>
+      <path d="M9.5 5.8 15.7 12l-6.2 6.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+    </ActionIcon>
+  )
+
   return (
     <>
-      <section className="panel">
-        <h2>{editingRoomId ? `Cập nhật phòng thi #${editingRoomId}` : 'Tạo phòng thi'}</h2>
-        <form className="grid-form" onSubmit={handleCreateRoom}>
-          <label htmlFor="examId">Kỳ thi</label>
-          <select id="examId" name="examId" value={roomForm.examId} onChange={onRoomChange}>
-            <option value="">Chọn kỳ thi</option>
-            {examOptions.map((opt) => (
-              <option key={opt.id} value={opt.id}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+      {canCreateRooms && showRoomFormModal && (
+        <div className="proctor-room-modal-overlay" onClick={closeRoomFormModal} role="presentation">
+          <div className="assign-room-modal exam-form-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="assign-room-modal__header">
+              <div>
+                <h3>{editingRoomId ? `Cập nhật phòng thi #${editingRoomId}` : 'Tạo phòng thi mới'}</h3>
+                <p>Nhập thông tin phòng thi và lưu thay đổi để cập nhật danh sách.</p>
+              </div>
+              <button type="button" className="modal-close-btn" onClick={closeRoomFormModal} aria-label="Đóng">
+                <CloseIcon />
+              </button>
+            </div>
 
-          <label htmlFor="roomCode">Mã phòng</label>
-          <input
-            id="roomCode"
-            name="roomCode"
-            value={roomForm.roomCode}
-            onChange={onRoomChange}
-            placeholder="VD: A101"
-          />
+            <form className="grid-form exam-form-grid room-form-grid" onSubmit={handleCreateRoom}>
+              <div className="exam-field exam-field--full">
+                <label htmlFor="examId">Kỳ thi</label>
+                <select id="examId" name="examId" value={roomForm.examId} onChange={onRoomChange}>
+                  <option value="">Chọn kỳ thi</option>
+                  {examOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <label htmlFor="maxStudents">Số lượng tối đa</label>
-          <input
-            id="maxStudents"
-            type="number"
-            min="1"
-            name="maxStudents"
-            value={roomForm.maxStudents}
-            onChange={onRoomChange}
-            placeholder="VD: 30"
-          />
+              <div className="exam-field-row">
+                <div className="exam-field exam-field--half">
+                  <label htmlFor="roomCode">Mã phòng</label>
+                  <input
+                    id="roomCode"
+                    name="roomCode"
+                    value={roomForm.roomCode}
+                    onChange={onRoomChange}
+                    placeholder="VD: A101"
+                  />
+                </div>
 
-          <button className="primary" type="submit" disabled={submittingRoom || !canCreateRooms}>
-            {submittingRoom ? 'Đang lưu...' : editingRoomId ? 'Cập nhật phòng' : 'Tạo phòng'}
-          </button>
+                <div className="exam-field exam-field--half">
+                  <label htmlFor="maxStudents">Số lượng tối đa</label>
+                  <input
+                    id="maxStudents"
+                    type="number"
+                    min="1"
+                    name="maxStudents"
+                    value={roomForm.maxStudents}
+                    onChange={onRoomChange}
+                    placeholder="VD: 30"
+                  />
+                </div>
+              </div>
 
-          {editingRoomId && (
-            <button
-              className="secondary"
-              type="button"
-              onClick={handleCancelEditRoom}
-              disabled={submittingRoom}
-            >
-              Hủy chỉnh sửa
-            </button>
-          )}
-        </form>
-      </section>
+              <div className="inline-actions exam-form-actions">
+                <button
+                  className="secondary"
+                  type="button"
+                  onClick={closeRoomFormModal}
+                  disabled={submittingRoom}
+                >
+                  Hủy
+                </button>
+                <button className="primary" type="submit" disabled={submittingRoom || !canCreateRooms}>
+                  {submittingRoom ? 'Đang lưu...' : editingRoomId ? 'Cập nhật phòng' : 'Tạo phòng'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <section className="panel">
         <h2>Danh sách phòng thi</h2>
 
-        <div style={{ marginBottom: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto auto', gap: '8px', alignItems: 'flex-end' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#2f3f82', marginBottom: '4px' }}>Mã phòng</label>
-            <input
-              type="text"
-              placeholder="VD: A101"
-              value={roomFilterCode}
-              onChange={(e) => setRoomFilterCode(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px 10px',
-                border: '1px solid #c8d2fa',
-                borderRadius: '6px',
-                fontSize: '13px',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
+        <div className="rooms-toolbar">
+          <div className="rooms-toolbar__filters">
+            <div className="rooms-filter-group">
+              <label htmlFor="roomFilterCode">Mã phòng</label>
+              <input
+                id="roomFilterCode"
+                type="text"
+                placeholder="VD: A101"
+                value={roomFilterCode}
+                onChange={(e) => setRoomFilterCode(e.target.value)}
+                className="rooms-filter-input"
+              />
+            </div>
 
-          <div style={{ position: 'relative' }}>
-            <label style={{ display: 'block', fontSize: '13px', color: '#2f3f82', marginBottom: '4px' }}>Kỳ thi</label>
-            <input
-              type="text"
-              placeholder="Gõ để tìm kỳ thi..."
-              value={examFilterText}
-              onChange={(e) => {
-                const value = e.target.value
-                setExamFilterText(value)
-                setRoomFilterExamId(value)
-              }}
-              onFocus={() => setShowExamDropdown(true)}
-              onBlur={() => setTimeout(() => setShowExamDropdown(false), 150)}
-              style={{
-                width: '100%',
-                padding: '8px 10px',
-                border: '1px solid #c8d2fa',
-                borderRadius: '6px',
-                fontSize: '13px',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-
-            {showExamDropdown && filteredExamOptions.length > 0 && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  zIndex: 10,
-                  background: '#ffffff',
-                  border: '1px solid #c8d2fa',
-                  borderTop: 'none',
-                  borderRadius: '0 0 6px 6px',
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.08)',
+            <div className="rooms-filter-group rooms-filter-group--exam" style={{ position: 'relative' }}>
+              <label htmlFor="roomFilterExamId">Kỳ thi</label>
+              <input
+                id="roomFilterExamId"
+                type="text"
+                placeholder="Gõ để tìm kỳ thi..."
+                value={examFilterText}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setExamFilterText(value)
+                  setRoomFilterExamId(value)
                 }}
-              >
-                {filteredExamOptions.map((opt) => (
-                  <div
-                    key={opt.id}
-                    onMouseDown={() => {
-                      setRoomFilterExamId(String(opt.id))
-                      setExamFilterText(opt.label)
-                      setShowExamDropdown(false)
-                    }}
-                    style={{
-                      padding: '8px 10px',
-                      cursor: 'pointer',
-                      borderBottom: '1px solid #f0f0f0',
-                      fontSize: '13px',
-                      color: '#333',
-                      transition: 'background 0.15s ease',
-                      background: Number(roomFilterExamId) === opt.id ? '#f0f5ff' : '#fff',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#f5f7ff'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = Number(roomFilterExamId) === opt.id ? '#f0f5ff' : '#fff'
-                    }}
-                  >
-                    {opt.label}
-                  </div>
-                ))}
+                onFocus={() => setShowExamDropdown(true)}
+                onBlur={() => setTimeout(() => setShowExamDropdown(false), 150)}
+                className="rooms-filter-input"
+              />
 
-                {roomFilterExamId && (
-                  <div
-                    onMouseDown={() => {
-                      setRoomFilterExamId('')
-                      setExamFilterText('')
-                      setShowExamDropdown(false)
-                    }}
-                    style={{
-                      padding: '8px 10px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      color: '#999',
-                      background: '#f9f9f9',
-                      textAlign: 'center',
-                      borderTop: '1px solid #e0e0e0',
-                      transition: 'background 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#f0f0f0'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#f9f9f9'
-                    }}
-                  >
-                    Xóa lọc
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              {showExamDropdown && filteredExamOptions.length > 0 && (
+                <div className="rooms-exam-dropdown" role="listbox">
+                  {filteredExamOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className="rooms-exam-dropdown__item"
+                      onMouseDown={() => {
+                        setRoomFilterExamId(String(opt.id))
+                        setExamFilterText(opt.label)
+                        setShowExamDropdown(false)
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
 
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#2f3f82', marginBottom: '4px' }}>Số lượng tối đa</label>
+                  {roomFilterExamId && (
+                    <button
+                      type="button"
+                      className="rooms-exam-dropdown__clear rooms-icon-only-btn"
+                      aria-label="Xóa lọc kỳ thi"
+                      onMouseDown={() => {
+                        setRoomFilterExamId('')
+                        setExamFilterText('')
+                        setShowExamDropdown(false)
+                      }}
+                    >
+                      <CloseIcon />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="rooms-filter-group">
+              <label htmlFor="roomFilterMaxStudents">Số lượng tối đa</label>
             <input
+              id="roomFilterMaxStudents"
               type="number"
               placeholder="VD: 30"
               value={roomFilterMaxStudents}
               onChange={(e) => setRoomFilterMaxStudents(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px 10px',
-                border: '1px solid #c8d2fa',
-                borderRadius: '6px',
-                fontSize: '13px',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
+              className="rooms-filter-input"
             />
+            </div>
           </div>
 
-          {(roomFilterCode || roomFilterExamId || roomFilterMaxStudents) && (
+          <div className="rooms-toolbar__meta">
+            {(roomFilterCode || roomFilterExamId || roomFilterMaxStudents) && (
             <button
               type="button"
+              className="rooms-filter-reset rooms-icon-only-btn"
+              aria-label="Xóa toàn bộ bộ lọc"
               onClick={() => {
                 setRoomFilterCode('')
                 setRoomFilterExamId('')
                 setExamFilterText('')
                 setRoomFilterMaxStudents('')
               }}
-              style={{
-                padding: '8px 12px',
-                background: '#f5f7ff',
-                border: '1px solid #cdd8ff',
-                borderRadius: '6px',
-                color: '#2e4288',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '600',
-                whiteSpace: 'nowrap',
-              }}
             >
-              Xóa lọc
+              <CloseIcon />
             </button>
-          )}
+            )}
 
-          <span
-            style={{
-              fontSize: '12px',
-              color: '#5d6ea1',
-              whiteSpace: 'nowrap',
-              fontWeight: '500',
-            }}
-          >
-            {roomFilterCode || roomFilterExamId || roomFilterMaxStudents
-              ? `${roomRows.length} / ${roomTotalCount}`
-              : `Tổng: ${roomTotalCount}`}
-          </span>
+            <span className="rooms-filter-count">
+              {roomFilterCode || roomFilterExamId || roomFilterMaxStudents
+                ? `${roomRows.length} / ${roomTotalCount}`
+                : `Tổng: ${roomTotalCount}`}
+            </span>
+          </div>
         </div>
         {roomRows.length === 0 ? (
           <p>Chưa có phòng thi nào.</p>
         ) : (
           <div className="table-wrap">
-            <table>
+            <table className="rooms-table">
               <thead>
                 <tr>
                   <th>Room ID</th>
-                  <th>Ma phong</th>
-                  <th>Ky thi</th>
-                  <th>So luong toi da</th>
-                  <th>Thao tac</th>
+                  <th>Mã phòng</th>
+                  <th>Kỳ thi</th>
+                  <th>Số lượng tối đa</th>
+                  <th>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -337,11 +310,13 @@ export default function RoomsSection({
                     <td>{examTitle || `#${examId}`}</td>
                     <td>{room.maxStudents ?? '-'}</td>
                     <td>
-                      <div className="room-action-stack">
-                        <div className="room-action-row room-action-row--primary">
+                      <div className="room-action-grid">
+                        <div className="room-action-row room-action-row--all">
                           <button
                             type="button"
-                            className="tiny-btn tiny-btn--primary"
+                            className="tiny-btn tiny-btn--primary room-icon-btn"
+                            title="Gán sinh viên"
+                            aria-label="Gán sinh viên"
                             onClick={() =>
                               handleOpenAssignRoom({
                                 roomId,
@@ -352,12 +327,17 @@ export default function RoomsSection({
                             }
                             disabled={processingExamId === roomId}
                           >
-                            Gán sinh viên
+                            <ActionIcon>
+                              <path d="M8.5 11.2a3.2 3.2 0 1 0 0-6.4a3.2 3.2 0 0 0 0 6.4Zm7 1a2.5 2.5 0 1 0 0-5a2.5 2.5 0 0 0 0 5ZM3.8 20c.5-3.3 2.8-5 4.7-5s4.2 1.7 4.7 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M14.5 20c.2-2.2 1.6-3.8 3.6-4.5c1.2-.4 2.4-.3 3.2.1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            </ActionIcon>
                           </button>
 
                           <button
                             type="button"
-                            className="tiny-btn tiny-btn--primary"
+                            className="tiny-btn tiny-btn--primary room-icon-btn"
+                            title="Xem sinh viên"
+                            aria-label="Xem sinh viên"
                             onClick={() =>
                               handleOpenRoomStudents({
                                 roomId,
@@ -367,14 +347,17 @@ export default function RoomsSection({
                             }
                             disabled={processingExamId === roomId}
                           >
-                            Xem sinh viên
+                            <ActionIcon>
+                              <path d="M2.8 12s3.1-6 9.2-6s9.2 6 9.2 6s-3.1 6-9.2 6S2.8 12 2.8 12Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                              <circle cx="12" cy="12" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                            </ActionIcon>
                           </button>
-                        </div>
 
-                        <div className="room-action-row room-action-row--secondary">
                           <button
                             type="button"
-                            className="tiny-btn"
+                            className="tiny-btn room-icon-btn"
+                            title="Sửa phòng"
+                            aria-label="Sửa phòng"
                             onClick={() =>
                               handleSelectEditRoom({
                                 roomId,
@@ -385,16 +368,26 @@ export default function RoomsSection({
                             }
                             disabled={processingExamId === roomId}
                           >
-                            Sửa
+                            <ActionIcon>
+                              <path d="M4.5 15.5 15.8 4.2c.5-.5 1.2-.5 1.7 0l2.3 2.3c.5.5.5 1.2 0 1.7L8.5 19.5l-4.7.9.7-4.9Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                              <path d="M13.7 6.3 17.8 10.4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                            </ActionIcon>
                           </button>
 
                           <button
                             type="button"
-                            className="tiny-btn danger"
+                            className="tiny-btn danger room-icon-btn"
+                            title="Xóa phòng"
+                            aria-label="Xóa phòng"
                             onClick={() => handleDeleteRoom(roomId)}
                             disabled={processingExamId === roomId}
                           >
-                            Xóa phòng
+                            <ActionIcon>
+                              <path d="M4.5 7h15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                              <path d="M9 7V5.8c0-.7.6-1.3 1.3-1.3h3.4c.7 0 1.3.6 1.3 1.3V7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M7.8 7.5l.5 11.2c0 .8.6 1.3 1.3 1.3h4.8c.7 0 1.3-.5 1.3-1.3l.5-11.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                              <path d="M10.2 10.2v5.6M13.8 10.2v5.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                            </ActionIcon>
                           </button>
                         </div>
                       </div>
@@ -419,7 +412,7 @@ export default function RoomsSection({
                   <p>Chọn một registration và số ghế cho phòng đang mở.</p>
                 </div>
                 <button type="button" className="assign-room-modal__close" onClick={handleCloseAssignRoom} aria-label="Đóng">
-                  ×
+                  <CloseIcon />
                 </button>
               </div>
 
@@ -555,7 +548,7 @@ export default function RoomsSection({
                   </p>
                 </div>
                 <button type="button" className="assign-room-modal__close" onClick={handleCloseRoomStudents} aria-label="Đóng">
-                  ×
+                  <CloseIcon />
                 </button>
               </div>
 
@@ -610,19 +603,23 @@ export default function RoomsSection({
           <div className="inline-actions">
             <button
               type="button"
-              className="tiny-btn"
+              className="tiny-btn room-pager-btn"
               onClick={handlePrevRoomPage}
               disabled={roomCurrentPage <= 1}
+              aria-label="Trang trước"
+              title="Trang trước"
             >
-              Trước
+              <ChevronLeftIcon />
             </button>
             <button
               type="button"
-              className="tiny-btn"
+              className="tiny-btn room-pager-btn"
               onClick={handleNextRoomPage}
               disabled={roomCurrentPage >= roomTotalPages}
+              aria-label="Trang sau"
+              title="Trang sau"
             >
-              Sau
+              <ChevronRightIcon />
             </button>
           </div>
         </div>

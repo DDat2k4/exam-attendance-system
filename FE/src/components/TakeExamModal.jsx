@@ -7,6 +7,24 @@ import { useExamSessionAlerts } from '../hooks/useExamSessionAlerts'
 import { showConfirmDialog } from '../utils/confirmDialog'
 import './TakeExamModal.css'
 
+const verificationFlowCards = [
+  {
+    title: 'Verify ban đầu',
+    text: 'AI so khớp mặt với embedding CCCD. Pass thì vào thi, fail 1-2 lần thì được thử lại, fail lần 3 sẽ chờ giám thị duyệt.',
+    tone: 'success',
+  },
+  {
+    title: 'Trong lúc thi',
+    text: 'Hệ thống kiểm tra ngẫu nhiên theo chu kỳ. Pass thì giữ trạng thái đang thi, fail nhẹ chỉ ghi log và cảnh báo.',
+    tone: 'warning',
+  },
+  {
+    title: 'Đổi thiết bị / reconnect',
+    text: 'Nếu quay lại bằng thiết bị cũ trong khoảng an toàn, hệ thống có thể cho vào lại; đổi thiết bị sẽ chờ giám thị duyệt.',
+    tone: 'info',
+  },
+]
+
 /**
  * Modal flow for exam taking:
  * 1. Show instructions
@@ -19,6 +37,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [examResult, setExamResult] = useState(null)
   const [realtimeNotice, setRealtimeNotice] = useState(null)
+  const [verificationWaiting, setVerificationWaiting] = useState(false)
   const endSessionCalledRef = useRef(false)
   const stepRef = useRef(step)
 
@@ -61,12 +80,78 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
       const alertType = String(alert?.type || '').toUpperCase()
       const message = alert?.message || 'Có cập nhật mới từ giám thị.'
 
+      if (alertType === 'VERIFY_SUCCESS') {
+        setRealtimeNotice({
+          variant: 'success',
+          title: 'Xác minh thành công',
+          message,
+        })
+
+        return
+      }
+
+      if (alertType === 'VERIFY_FAIL') {
+        setRealtimeNotice({
+          variant: 'warning',
+          title: 'Xác minh thất bại',
+          message,
+        })
+
+        return
+      }
+
+      if (alertType === 'DEVICE_CHANGED') {
+        setRealtimeNotice({
+          variant: 'warning',
+          title: 'Đã phát hiện đổi thiết bị',
+          message,
+        })
+
+        return
+      }
+
+      if (alertType === 'MULTIPLE_VERIFY_FAILED') {
+        setRealtimeNotice({
+          variant: 'danger',
+          title: 'Nhiều lần xác minh thất bại',
+          message,
+        })
+
+        return
+      }
+
+      if (alertType === 'MANUAL_REVIEW_REQUIRED' || alertType === 'SUSPICIOUS_ACTIVITY') {
+        setRealtimeNotice({
+          variant: 'warning',
+          title: 'Cần giám thị kiểm tra',
+          message,
+        })
+
+        return
+      }
+
+      if (alertType === 'SESSION_BLOCKED') {
+        setRealtimeNotice({
+          variant: 'danger',
+          title: 'Phiên thi đã bị khóa',
+          message,
+        })
+
+        void handleExamEnded({
+          status: 'BLOCKED',
+          message,
+        })
+        return
+      }
+
       if (alertType === 'APPROVED') {
         setRealtimeNotice({
           variant: 'success',
           title: 'Phiên thi đã được duyệt',
           message,
         })
+
+        setVerificationWaiting(false)
 
         if (stepRef.current === 'verification') {
           setStep('exam')
@@ -126,12 +211,27 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
 
   const handleStartVerification = () => {
     setRealtimeNotice(null)
+    setVerificationWaiting(false)
     setStep('verification')
   }
 
   const handleVerificationSuccess = (result) => {
+    setVerificationWaiting(false)
     setExamResult({ status: 'VERIFIED', message: 'Xác minh khuôn mặt thành công', result })
     setStep('exam')
+  }
+
+  const handleVerificationPending = (status) => {
+    const nextStatus = String(status || 'PENDING_REVIEW').toUpperCase()
+    setVerificationWaiting(true)
+    setRealtimeNotice({
+      variant: 'warning',
+      title: 'Đang chờ giám thị duyệt',
+      message:
+        nextStatus === 'PENDING_DEVICE_APPROVAL'
+          ? 'Thiết bị đã thay đổi. Vui lòng chờ giám thị phê duyệt để tiếp tục vào thi.'
+          : 'Bạn đã được chuyển sang trạng thái chờ xử lý. Khi giám thị duyệt, hệ thống sẽ tự mở phiên thi.',
+    })
   }
 
   const handleVerificationFailed = (reason = 'Xác minh khuôn mặt thất bại') => {
@@ -194,25 +294,32 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
               )}
             </div>
 
+            <div className="verification-flow">
+              {verificationFlowCards.map((card) => (
+                <article key={card.title} className={`verification-flow__card verification-flow__card--${card.tone}`}>
+                  <h4>{card.title}</h4>
+                  <p>{card.text}</p>
+                </article>
+              ))}
+            </div>
+
             <div className="instructions">
-              <h4>📋 Hướng Dẫn:</h4>
+              <h4>Chuẩn bị trước khi bắt đầu</h4>
               <ul>
-                <li>✓ Hãy chuẩn bị một nơi yên tĩnh, thoáng đãng</li>
-                <li>✓ Kết nối internet ổn định (không sử dụng mạng di động)</li>
-                <li>✓ Sử dụng như máy tính (không dùng điện thoại)</li>
-                <li>✓ Bật camera theo yêu cầu xác minh</li>
-                <li>✓ Đảm bảo ánh sáng đủ sáng để nhận diện khuôn mặt</li>
-                <li>✓ Không được tắt camera trong suốt quá trình thi</li>
+                <li>Chuẩn bị không gian yên tĩnh, đủ sáng và có camera rõ mặt.</li>
+                <li>Dùng máy tính hoặc laptop, hạn chế đổi thiết bị trong lúc thi.</li>
+                <li>Nếu mất kết nối hoặc quay lại phiên thi, hệ thống sẽ ưu tiên reconnect an toàn trước khi chấp nhận verify mới.</li>
+                <li>Fail 3 lần ở bước xác minh sẽ chuyển sang trạng thái chờ giám thị duyệt.</li>
               </ul>
             </div>
 
             <div className="warnings">
-              <h4>⚠️ Quy Định Kỷ Luật:</h4>
+              <h4>Quy tắc xử lý</h4>
               <ul>
-                <li>• Xác minh khuôn mặt không thành công → Không được vào thi</li>
-                <li>• Thất bại xác minh trên 2 lần trong thi → BỊ HỦY BÀI</li>
-                <li>• Thay đổi thiết bị trong quá trình thi → Phiên bị đánh dấu</li>
-                <li>• Tắt camera hoặc từ chối xác minh → Phiên bị kết thúc</li>
+                <li>Fail 1-2 lần: không block, chỉ lưu ảnh và cho thử lại.</li>
+                <li>Fail lần 3: chuyển chờ giám thị duyệt.</li>
+                <li>Đổi thiết bị: chuyển chờ duyệt thiết bị.</li>
+                <li>Giám thị có thể approve, reject hoặc bỏ cờ từ dashboard.</li>
               </ul>
             </div>
 
@@ -244,12 +351,21 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
       )}
 
       {step === 'verification' && (
-        <FaceVerification
-          examSessionId={examId}
-          onVerified={handleVerificationSuccess}
-          onFailed={handleVerificationFailed}
-          onClose={handleClose}
-        />
+        <>
+          {verificationWaiting && (
+            <div className="realtime-notice realtime-notice--warning" style={{ marginBottom: '12px' }}>
+              <strong>Đang chờ giám thị duyệt</strong>
+              <span>Fail 3 lần rồi thì hệ thống đã khóa thử lại. Khi giám thị duyệt, phiên sẽ mở tự động.</span>
+            </div>
+          )}
+          <FaceVerification
+            examSessionId={examId}
+            onVerified={handleVerificationSuccess}
+            onFailed={handleVerificationFailed}
+            onPending={handleVerificationPending}
+            onClose={handleClose}
+          />
+        </>
       )}
 
       {step === 'exam' && (

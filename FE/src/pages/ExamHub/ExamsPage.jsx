@@ -10,6 +10,7 @@ import ExamsSection from '../../components/ExamHub/ExamsSection'
 import { useAuth } from '../../context/AuthContext'
 import { canAccess } from '../../utils/rbac'
 import { showConfirmDialog } from '../../utils/confirmDialog'
+import { PlusIcon, RefreshIcon } from '../../components/ui/AppIcons'
 import '../../components/ExamHub/ExamHub.css'
 
 const INITIAL_EXAM_FORM = {
@@ -37,6 +38,7 @@ export default function ExamsPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showExamFormModal, setShowExamFormModal] = useState(false)
   const [importTarget, setImportTarget] = useState(null)
   const [importFile, setImportFile] = useState(null)
   const [submittingImport, setSubmittingImport] = useState(false)
@@ -83,6 +85,19 @@ export default function ExamsPage() {
     setExamForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
+  const openCreateExamModal = () => {
+    setError('')
+    setSuccess('')
+    setEditingExamId(null)
+    setExamForm(INITIAL_EXAM_FORM)
+    setShowExamFormModal(true)
+  }
+
+  const closeExamFormModal = () => {
+    setShowExamFormModal(false)
+    cancelEditExam()
+  }
+
   const formatDateTime = (raw) => {
     if (!raw) return '-'
     const date = new Date(raw)
@@ -115,7 +130,7 @@ export default function ExamsPage() {
         endTime: examForm.endTime,
       })
       setSuccess('Tạo kỳ thi thành công.')
-      setExamForm(INITIAL_EXAM_FORM)
+      closeExamFormModal()
       await fetchExams(1)
     } catch (err) {
       setError(err.message || 'Tạo kỳ thi thất bại.')
@@ -132,6 +147,7 @@ export default function ExamsPage() {
       startTime: (exam.startTime || '').slice(0, 16),
       endTime: (exam.endTime || '').slice(0, 16),
     })
+    setShowExamFormModal(true)
   }
 
   const cancelEditExam = () => {
@@ -160,7 +176,7 @@ export default function ExamsPage() {
         endTime: examForm.endTime,
       })
       setSuccess('Cập nhật kỳ thi thành công.')
-      cancelEditExam()
+      closeExamFormModal()
       await fetchExams(examPage)
     } catch (err) {
       setError(err.message || 'Cập nhật kỳ thi thất bại.')
@@ -312,11 +328,20 @@ export default function ExamsPage() {
           <h1>Quản lý kỳ thi</h1>
           <p className="exam-subtitle">Tạo, cập nhật, xóa kỳ thi và xem danh sách tất cả kỳ thi</p>
         </div>
-        {canViewExams && (
-          <button type="button" onClick={() => fetchExams(examPage)} disabled={loading}>
-            {loading ? 'Đang tải...' : 'Tải lại'}
-          </button>
-        )}
+        <div className="inline-actions">
+          {canCreateExams && (
+            <button type="button" className="exam-create-btn" onClick={openCreateExamModal}>
+              <PlusIcon size={16} />
+              Tạo mới
+            </button>
+          )}
+          {canViewExams && (
+            <button type="button" onClick={() => fetchExams(examPage)} disabled={loading}>
+              <RefreshIcon size={16} />
+              {loading ? 'Đang tải...' : 'Tải lại'}
+            </button>
+          )}
+        </div>
       </header>
 
       {error && <p className="feedback error">{error}</p>}
@@ -332,6 +357,8 @@ export default function ExamsPage() {
         updatingExam={updatingExam}
         canCreateExams={canCreateExams}
         cancelEditExam={cancelEditExam}
+        showExamFormModal={showExamFormModal}
+        closeExamFormModal={closeExamFormModal}
         canViewExams={canViewExams}
         loading={loading}
         exams={exams}

@@ -26,3 +26,75 @@ body {
 p {
   margin: 0;
 }
+
+.app-icon {
+  display: block;
+  flex: none;
+  color: currentColor;
+}
+
+.icon-only-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0 !important;
+  display: inline-grid !important;
+  place-items: center;
+  border-radius: 10px;
+  border: 1px solid #c9d3fb;
+  background: #ffffff;
+  color: #2e4288;
+  box-shadow: 0 6px 14px rgba(40, 68, 161, 0.06);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.icon-only-btn .app-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-only-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(40, 68, 161, 0.1);
+}
+
+.btn-search.icon-only-btn {
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+}
+
+.btn-search.icon-only-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.4);
+}
+
+.btn-edit.icon-only-btn,
+.tiny-btn.icon-only-btn:not(.danger) {
+  background: #f5f8ff;
+  color: #2850c8;
+}
+
+.btn-delete.icon-only-btn,
+.tiny-btn.danger.icon-only-btn {
+  background: #fff7f9;
+  border-color: #ffc4cf;
+  color: #c0364f;
+}
+
+.pagination button.icon-only-btn,
+.registration-pagination button.icon-only-btn,
+.inline-actions .icon-only-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.pagination button.icon-only-btn .app-icon,
+.registration-pagination button.icon-only-btn .app-icon,
+.inline-actions .icon-only-btn .app-icon {
+  width: 15px;
+  height: 15px;
+}

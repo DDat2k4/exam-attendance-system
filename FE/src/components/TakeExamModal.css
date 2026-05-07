@@ -187,6 +187,50 @@
   margin-bottom: 1.5rem;
 }
 
+.verification-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.verification-flow__card {
+  border-radius: 12px;
+  border: 1px solid #e3e8f5;
+  padding: 12px 14px;
+  background: #fbfcff;
+  display: grid;
+  gap: 6px;
+}
+
+.verification-flow__card h4 {
+  margin: 0;
+  font-size: 0.98rem;
+  color: #243577;
+}
+
+.verification-flow__card p {
+  margin: 0;
+  color: #5d6ea1;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.verification-flow__card--success {
+  border-color: #cfead8;
+  background: #f5fbf7;
+}
+
+.verification-flow__card--warning {
+  border-color: #f4dfb0;
+  background: #fffaf1;
+}
+
+.verification-flow__card--info {
+  border-color: #d8e1ff;
+  background: #f7f9ff;
+}
+
 .instructions h4,
 .warnings h4 {
   margin: 0 0 0.75rem 0;
@@ -207,6 +251,14 @@
   color: #666;
   font-size: 0.95rem;
   line-height: 1.5;
+}
+
+.instructions ul {
+  list-style: disc;
+}
+
+.warnings ul {
+  list-style: disc;
 }
 
 .confirmation {
@@ -370,6 +422,10 @@
   .instructions ul,
   .warnings ul {
     padding: 0 0 0 1.25rem;
+  }
+
+  .verification-flow {
+    grid-template-columns: 1fr;
   }
 
   .button-group {

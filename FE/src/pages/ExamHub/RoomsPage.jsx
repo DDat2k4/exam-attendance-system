@@ -61,6 +61,7 @@ export default function RoomsPage() {
   const [submittingRoom, setSubmittingRoom] = useState(false)
   const [processingExamId, setProcessingExamId] = useState(null)
   const [editingRoomId, setEditingRoomId] = useState(null)
+  const [showRoomFormModal, setShowRoomFormModal] = useState(false)
   const [roomFilterCode, setRoomFilterCode] = useState('') // lọc theo mã phòng
   const [roomFilterExamId, setRoomFilterExamId] = useState('') // lọc theo kỳ thi
   const [roomFilterMaxStudents, setRoomFilterMaxStudents] = useState('') // lọc theo số lượng tối đa
@@ -178,6 +179,20 @@ export default function RoomsPage() {
     setRoomForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
+  const openCreateRoomModal = () => {
+    setError('')
+    setSuccess('')
+    setEditingRoomId(null)
+    setRoomForm(INITIAL_ROOM_FORM)
+    setShowRoomFormModal(true)
+  }
+
+  const closeRoomFormModal = () => {
+    setShowRoomFormModal(false)
+    setEditingRoomId(null)
+    setRoomForm(INITIAL_ROOM_FORM)
+  }
+
   const handleCreateRoom = async (e) => {
     e.preventDefault()
     setError('')
@@ -206,8 +221,7 @@ export default function RoomsPage() {
         setSuccess('Tạo phòng thi thành công.')
       }
 
-      setRoomForm(INITIAL_ROOM_FORM)
-      setEditingRoomId(null)
+      closeRoomFormModal()
       await fetchExams()
     } catch (err) {
       setError(err.message || (editingRoomId ? 'Cập nhật phòng thi thất bại.' : 'Tạo phòng thi thất bại.'))
@@ -230,9 +244,11 @@ export default function RoomsPage() {
       roomCode: roomCode || '',
       maxStudents: String(maxStudents ?? ''),
     })
+    setShowRoomFormModal(true)
   }
 
   const handleCancelEditRoom = () => {
+    setShowRoomFormModal(false)
     setEditingRoomId(null)
     setRoomForm(INITIAL_ROOM_FORM)
     setError('')
@@ -471,9 +487,16 @@ export default function RoomsPage() {
           <h1>Quản lý phòng thi</h1>
           <p className="exam-subtitle">Tạo, xem, xóa phòng thi liên kết với các kỳ thi</p>
         </div>
-        <button type="button" onClick={fetchExams} disabled={loading}>
-          {loading ? 'Đang tải...' : 'Tải lại'}
-        </button>
+        <div className="inline-actions">
+          {canCreateRooms && (
+            <button type="button" className="exam-create-btn" onClick={openCreateRoomModal}>
+              + Tạo mới
+            </button>
+          )}
+          <button type="button" onClick={fetchExams} disabled={loading}>
+            {loading ? 'Đang tải...' : 'Tải lại'}
+          </button>
+        </div>
       </header>
 
       {error && <p className="feedback error">{error}</p>}
@@ -525,6 +548,8 @@ export default function RoomsPage() {
         handleAssignRoom={handleAssignRoom}
         handleOpenRoomStudents={handleOpenRoomStudents}
         handleCloseRoomStudents={handleCloseRoomStudents}
+        showRoomFormModal={showRoomFormModal}
+        closeRoomFormModal={closeRoomFormModal}
       />
     </div>
   )

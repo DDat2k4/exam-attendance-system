@@ -1,3 +1,13 @@
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CloseIcon,
+  ImportIcon,
+  PencilIcon,
+  SearchIcon,
+  TrashIcon,
+} from '../ui/AppIcons'
+
 export default function ExamsSection({
   editingExamId,
   examForm,
@@ -8,6 +18,8 @@ export default function ExamsSection({
   updatingExam,
   canCreateExams,
   cancelEditExam,
+  showExamFormModal,
+  closeExamFormModal,
   canViewExams,
   loading,
   exams,
@@ -35,46 +47,12 @@ export default function ExamsSection({
 }) {
   return (
     <>
-      {canCreateExams && (
-        <section className="panel">
-          <h2>{editingExamId ? `Cập nhật kỳ thi #${editingExamId}` : 'Tạo kỳ thi'}</h2>
-          <form className="grid-form" onSubmit={editingExamId ? handleUpdateExam : handleCreateExam}>
-            <label htmlFor="title">Tên kỳ thi</label>
-            <input id="title" name="title" value={examForm.title} onChange={onExamChange} placeholder="VD: Midterm 2026" />
-
-            <label htmlFor="description">Mô tả</label>
-            <textarea
-              id="description"
-              name="description"
-              value={examForm.description}
-              onChange={onExamChange}
-              placeholder="Mô tả kỳ thi"
-            />
-
-            <label htmlFor="startTime">Thời gian bắt đầu</label>
-            <input id="startTime" type="datetime-local" name="startTime" value={examForm.startTime} onChange={onExamChange} />
-
-            <label htmlFor="endTime">Thời gian kết thúc</label>
-            <input id="endTime" type="datetime-local" name="endTime" value={examForm.endTime} onChange={onExamChange} />
-
-            <button className="primary" type="submit" disabled={(submittingExam || updatingExam) || !canCreateExams}>
-              {editingExamId ? (updatingExam ? 'Đang cập nhật...' : 'Cập nhật kỳ thi') : (submittingExam ? 'Đang tạo...' : 'Tạo kỳ thi')}
-            </button>
-            {editingExamId && (
-              <button className="secondary" type="button" onClick={cancelEditExam}>
-                Hủy sửa
-              </button>
-            )}
-          </form>
-        </section>
-      )}
-
       {canViewExams && (
         <section className="panel">
           <h2>Danh sách kỳ thi</h2>
           <form className="exam-filter-bar" onSubmit={handleSearchExams}>
             <div className="exam-filter-field">
-              <span className="exam-filter-icon">⌕</span>
+              <span className="exam-filter-icon"><SearchIcon size={14} /></span>
               <input
                 className="exam-filter-input"
                 value={examKeyword}
@@ -83,8 +61,8 @@ export default function ExamsSection({
                 aria-label="Tìm theo tên kỳ thi"
               />
             </div>
-            <button type="submit" className="tiny-btn exam-filter-button" disabled={loading}>
-              Tìm kiếm
+            <button type="submit" className="tiny-btn exam-filter-button icon-only-btn" disabled={loading} aria-label="Tìm kiếm" title="Tìm kiếm">
+              <SearchIcon />
             </button>
           </form>
 
@@ -121,23 +99,27 @@ export default function ExamsSection({
                             <>
                               <button
                                 type="button"
-                                className="tiny-btn"
+                                  className="tiny-btn icon-only-btn"
                                 onClick={() => handleOpenImport(exam.id, exam.title)}
                                 disabled={processingExamId === exam.id}
+                                  aria-label={`Import dữ liệu cho kỳ thi #${exam.id}`}
+                                  title="Import dữ liệu"
                               >
-                                Import
+                                  <ImportIcon />
                               </button>
 
-                              <button type="button" className="tiny-btn" onClick={() => startEditExam(exam)}>
-                                Sửa
+                                <button type="button" className="tiny-btn icon-only-btn" onClick={() => startEditExam(exam)} aria-label={`Sửa kỳ thi #${exam.id}`} title="Sửa kỳ thi">
+                                  <PencilIcon />
                               </button>
                               <button
                                 type="button"
-                                className="tiny-btn danger"
+                                  className="tiny-btn danger icon-only-btn"
                                 onClick={() => handleDeleteExam(exam.id)}
                                 disabled={processingExamId === exam.id}
+                                  aria-label={`Xóa kỳ thi #${exam.id}`}
+                                  title="Xóa kỳ thi"
                               >
-                                Xóa
+                                  <TrashIcon />
                               </button>
                             </>
                           )}
@@ -155,34 +137,94 @@ export default function ExamsSection({
             <div className="inline-actions">
               <button
                 type="button"
-                className="tiny-btn"
+                className="tiny-btn icon-only-btn"
                 onClick={handlePrevPage}
                 disabled={loading || examPage <= 1}
+                aria-label="Trang trước"
+                title="Trang trước"
               >
-                Trước
+                <ChevronLeftIcon />
               </button>
               <button
                 type="button"
-                className="tiny-btn"
+                className="tiny-btn icon-only-btn"
                 onClick={handleNextPage}
                 disabled={loading || examPage >= (examTotalPages || 1)}
+                aria-label="Trang sau"
+                title="Trang sau"
               >
-                Sau
+                <ChevronRightIcon />
               </button>
             </div>
           </div>
+
+          {canCreateExams && showExamFormModal && (
+            <div className="proctor-room-modal-overlay" onClick={closeExamFormModal} role="presentation">
+              <div className="assign-room-modal exam-form-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+                <div className="assign-room-modal__header">
+                  <div>
+                    <h3>{editingExamId ? `Cập nhật kỳ thi #${editingExamId}` : 'Tạo kỳ thi mới'}</h3>
+                    <p>Nhập thông tin kỳ thi và lưu thay đổi để cập nhật danh sách.</p>
+                  </div>
+                  <button type="button" className="modal-close-btn" onClick={closeExamFormModal} aria-label="Đóng">
+                    <CloseIcon />
+                  </button>
+                </div>
+
+                <form className="grid-form exam-form-grid" onSubmit={editingExamId ? handleUpdateExam : handleCreateExam}>
+                  <div className="exam-field exam-field--full">
+                    <label htmlFor="title">Tên kỳ thi</label>
+                    <input id="title" name="title" value={examForm.title} onChange={onExamChange} placeholder="VD: Midterm 2026" />
+                  </div>
+
+                  <div className="exam-field-row">
+                    <div className="exam-field exam-field--half">
+                      <label htmlFor="startTime">Thời gian bắt đầu</label>
+                      <input id="startTime" type="datetime-local" name="startTime" value={examForm.startTime} onChange={onExamChange} />
+                    </div>
+
+                    <div className="exam-field exam-field--half">
+                      <label htmlFor="endTime">Thời gian kết thúc</label>
+                      <input id="endTime" type="datetime-local" name="endTime" value={examForm.endTime} onChange={onExamChange} />
+                    </div>
+                  </div>
+
+                  <div className="exam-field exam-field--full">
+                    <label htmlFor="description">Mô tả</label>
+                    <textarea
+                      id="description"
+                      name="description"
+                      value={examForm.description}
+                      onChange={onExamChange}
+                      placeholder="Mô tả kỳ thi"
+                    />
+                  </div>
+
+                  <div className="inline-actions exam-form-actions">
+                    <button className="secondary" type="button" onClick={closeExamFormModal}>
+                      Hủy
+                    </button>
+                    <button className="primary" type="submit" disabled={(submittingExam || updatingExam) || !canCreateExams}>
+                      {editingExamId ? (updatingExam ? 'Đang cập nhật...' : 'Cập nhật kỳ thi') : (submittingExam ? 'Đang tạo...' : 'Tạo kỳ thi')}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           {showImportModal && importTarget && (
             <div
               className="proctor-room-modal-overlay"
               onClick={handleCloseImport}
+
               role="presentation"
             >
               <div className="assign-room-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
                 <div className="assign-room-modal__header">
                   <h3>Import dữ liệu từ Excel</h3>
-                  <button type="button" className="modal-close-btn" onClick={handleCloseImport}>
-                    ✕
+                  <button type="button" className="modal-close-btn" onClick={handleCloseImport} aria-label="Đóng import">
+                    <CloseIcon />
                   </button>
                 </div>
 

@@ -51,25 +51,33 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let active = true
 
-    const syncAuth = async () => {
-      setAuthLoading(true)
+    const syncAuth = async (showLoading = false) => {
+      if (showLoading) {
+        setAuthLoading(true)
+      }
+
       try {
         await refreshUser()
       } finally {
-        if (active) setAuthLoading(false)
+        if (active && showLoading) setAuthLoading(false)
       }
     }
 
-    void syncAuth()
-    window.addEventListener('storage', syncAuth)
-    window.addEventListener('focus', syncAuth)
-    window.addEventListener('auth-changed', syncAuth)
+    void syncAuth(true)
+
+    const handleStorage = () => void syncAuth(false)
+    const handleFocus = () => void syncAuth(false)
+    const handleAuthChanged = () => void syncAuth(false)
+
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('auth-changed', handleAuthChanged)
 
     return () => {
       active = false
-      window.removeEventListener('storage', syncAuth)
-      window.removeEventListener('focus', syncAuth)
-      window.removeEventListener('auth-changed', syncAuth)
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('auth-changed', handleAuthChanged)
     }
   }, [refreshUser])
 

@@ -36,13 +36,16 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
       setVerificationStatus(nextStatus)
       setTotalFailures((prev) => {
         const newFailures = prev + 1
+
+        // Do NOT auto end the session here. Backend will mark session PENDING_REVIEW when needed.
+        // FE should notify proctor / show warning and allow manual review.
         if (newFailures >= MAX_FAILURES) {
-          setTimeout(() => {
-            onSessionEnd?.('VERIFICATION_FAILED_EXAM')
-          }, 1200)
+          // set a visible state but do not call onSessionEnd; proctor must review
+          setVerificationStatus('needs_review')
         } else {
           setTimeout(() => setVerificationStatus('idle'), 2500)
         }
+
         return newFailures
       })
     },
@@ -134,10 +137,38 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
         type: 'RANDOM',
         passed: response.passed,
         confidence: response.confidence,
+        attempt: response.attempt,
+        sessionStatus: response.sessionStatus,
+        reconnect: response.reconnect,
       }
 
       setVerificationLog((prev) => [...prev, logEntry])
       setLastVerification(response)
+
+      // Respect backend sessionStatus: backend may set PENDING_REVIEW or PENDING_DEVICE_APPROVAL.
+      const status = (response.sessionStatus || '').toUpperCase()
+      const isReconnect = Boolean(response?.reconnect)
+
+      if (isReconnect) {
+        setVerificationStatus('success')
+        setTimeout(() => setVerificationStatus('idle'), 2000)
+        return
+      }
+
+      if (status === 'BLOCKED') {
+        setVerificationStatus('blocked')
+        // backend blocked the session; end locally
+        onSessionEnd?.('BLOCKED')
+        return
+      }
+
+      if (status === 'PENDING_REVIEW' || status === 'PENDING_DEVICE_APPROVAL') {
+        // backend flagged session — show proctor notice, do not auto-block
+        setVerificationStatus('needs_review')
+        // still record log entry and increment failures locally
+        registerFailure('needs_review')
+        return
+      }
 
       if (response.passed) {
         setVerificationStatus('success')
