@@ -27,7 +27,7 @@ public class ExamRoomController extends BaseController {
 
     // Lấy room theo id
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<ExamRoomDTO>> getById(
             @PathVariable Long id,
             Authentication auth
@@ -39,7 +39,7 @@ public class ExamRoomController extends BaseController {
 
     // Tạo room
     @PostMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ExamRoomDTO>> create(
             @RequestBody ExamRoomRequest request,
             Authentication auth
@@ -51,7 +51,7 @@ public class ExamRoomController extends BaseController {
 
     // Cập nhật room
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ExamRoomDTO>> update(
             @PathVariable Long id,
             @RequestBody ExamRoomRequest request,
@@ -64,7 +64,7 @@ public class ExamRoomController extends BaseController {
 
     // Xóa room
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable Long id,
             Authentication auth
@@ -78,7 +78,7 @@ public class ExamRoomController extends BaseController {
 
     // Phân trang, lọc
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<Page<ExamRoomDTO>>> getRooms(
             @RequestParam Long examId,
             @RequestParam(defaultValue = "0") int page,
@@ -92,7 +92,7 @@ public class ExamRoomController extends BaseController {
 
     // Gán student vào room
     @PostMapping("/assign")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> assignRoom(
             @RequestParam Long registrationId,
             @RequestParam Long roomId,
@@ -108,7 +108,7 @@ public class ExamRoomController extends BaseController {
 
     // Gán nhiều student vào room
     @PostMapping("/assign-batch")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> assignRoomBatch(
             @RequestBody AssignRoomBatchRequest request,
             Authentication auth
@@ -122,7 +122,7 @@ public class ExamRoomController extends BaseController {
 
     // Xem danh sách sinh viên trong room
     @GetMapping("/{roomId}/students")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Page<RoomStudentDTO>>> getStudentsInRoom(
             @PathVariable Long roomId,
             @RequestParam(defaultValue = "0") int page,

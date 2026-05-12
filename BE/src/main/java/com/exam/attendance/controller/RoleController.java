@@ -29,7 +29,7 @@ public class RoleController extends BaseController {
 
     // Lấy chi tiết role theo ID
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<RoleResponse>> getById(
             @PathVariable Long id,
             Authentication auth
@@ -44,7 +44,7 @@ public class RoleController extends BaseController {
 
     // Danh sách role
     @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<RoleResponse>>> getAll(
             @RequestParam(required = false) String name,
             @RequestParam(defaultValue = "1") int page,
@@ -65,7 +65,7 @@ public class RoleController extends BaseController {
 
     // Tạo role
     @PostMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Long>> create(
             @RequestBody RoleRequest request,
             Authentication auth
@@ -80,7 +80,7 @@ public class RoleController extends BaseController {
 
     // Update role
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> update(
             @PathVariable Long id,
             @RequestBody RoleRequest request,
@@ -96,7 +96,7 @@ public class RoleController extends BaseController {
 
     // Delete role
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable Long id,
             Authentication auth

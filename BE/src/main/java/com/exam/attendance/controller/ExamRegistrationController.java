@@ -25,7 +25,7 @@ public class ExamRegistrationController extends BaseController {
 
     // Lấy theo ID
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<ExamRegistrationResponse>> getById(
             @PathVariable Long id,
             Authentication auth
@@ -38,7 +38,7 @@ public class ExamRegistrationController extends BaseController {
 
     // Lấy danh sách theo exam
     @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<ExamRegistrationResponse>>> getAll(
             @RequestParam Long examId,
             @RequestParam(defaultValue = "1") int page,
@@ -59,7 +59,7 @@ public class ExamRegistrationController extends BaseController {
 
     // Add 1 user vào exam
     @PostMapping("/single")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> addUser(
             @RequestParam Long userId,
             @RequestParam Long examId,
@@ -75,7 +75,7 @@ public class ExamRegistrationController extends BaseController {
 
     // Add nhiều user
     @PostMapping("/batch")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> addUsers(
             @RequestBody ExamRegistrationRequest request,
             Authentication auth
@@ -90,7 +90,7 @@ public class ExamRegistrationController extends BaseController {
 
     // Remove user khỏi exam
     @DeleteMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> removeUser(
             @RequestParam Long userId,
             @RequestParam Long examId,
@@ -106,7 +106,7 @@ public class ExamRegistrationController extends BaseController {
 
     // Check user có trong exam không
     @GetMapping("/check")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Boolean>> check(
             @RequestParam Long userId,
             @RequestParam Long examId,
@@ -122,7 +122,7 @@ public class ExamRegistrationController extends BaseController {
 
     // My exams
     @GetMapping("/my-exams")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<Page<ExamRegistrationResponse>>> getMyExams(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

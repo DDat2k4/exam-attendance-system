@@ -29,7 +29,7 @@ public class PermissionController extends BaseController {
 
     // Lấy permission theo id
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<PermissionResponse>> getById(
             @PathVariable Long id,
             Authentication auth
@@ -43,7 +43,7 @@ public class PermissionController extends BaseController {
 
     // Phân trang permission
     @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<PermissionResponse>>> getAll(
             @RequestParam(required = false) String resource,
             @RequestParam(defaultValue = "1") int page,
@@ -63,7 +63,7 @@ public class PermissionController extends BaseController {
 
     // Tạo permission
     @PostMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Long>> create(
             @RequestBody PermissionRequest request,
             Authentication auth
@@ -77,7 +77,7 @@ public class PermissionController extends BaseController {
 
     // Update permission
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> update(
             @PathVariable Long id,
             @RequestBody PermissionRequest request,
@@ -92,7 +92,7 @@ public class PermissionController extends BaseController {
 
     // Delete permission
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable Long id,
             Authentication auth
@@ -106,7 +106,7 @@ public class PermissionController extends BaseController {
 
     // Grouped permissions
     @GetMapping("/grouped")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<PermissionGroupResponse>>> getGrouped(
             Authentication auth
     ) {

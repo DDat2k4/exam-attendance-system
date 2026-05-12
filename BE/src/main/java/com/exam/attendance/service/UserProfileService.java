@@ -18,8 +18,14 @@ public class UserProfileService {
 
     private final UserProfileRepository repo;
 
-    public UserProfileDTO getById(Long id) {
+    public UserProfileDTO getByUserId(Long id) {
         return repo.findByUserId(id)
+                .map(UserProfileMapper::toDTO)
+                .orElseThrow(() -> new RuntimeException("Profile not found"));
+    }
+
+    public UserProfileDTO getById(Long id) {
+        return repo.findById(id)
                 .map(UserProfileMapper::toDTO)
                 .orElseThrow(() -> new RuntimeException("Profile not found"));
     }

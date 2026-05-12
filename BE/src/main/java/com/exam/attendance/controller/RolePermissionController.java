@@ -26,7 +26,7 @@ public class RolePermissionController extends BaseController {
 
     // Lấy permissions của role
     @GetMapping("/{roleId}/permissions")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<PermissionResponse>>> getPermissions(
             @PathVariable Long roleId,
             Authentication auth
@@ -44,7 +44,7 @@ public class RolePermissionController extends BaseController {
 
     // Thêm permissions vào role
     @PostMapping("/{roleId}/permissions")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> addPermissions(
             @PathVariable Long roleId,
             @RequestBody RolePermissionRequest request,
@@ -60,7 +60,7 @@ public class RolePermissionController extends BaseController {
 
     // Replace toàn bộ permissions
     @PutMapping("/{roleId}/permissions")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> replacePermissions(
             @PathVariable Long roleId,
             @RequestBody RolePermissionRequest request,
@@ -76,7 +76,7 @@ public class RolePermissionController extends BaseController {
 
     // Xoá permission khỏi role
     @DeleteMapping("/{roleId}/permissions/{permissionId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> removePermission(
             @PathVariable Long roleId,
             @PathVariable Long permissionId,

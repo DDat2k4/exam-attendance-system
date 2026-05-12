@@ -8,6 +8,7 @@ import com.exam.attendance.data.response.UploadResponse;
 import com.exam.attendance.repository.CitizenCardRepository;
 import com.exam.attendance.repository.UserProfileRepository;
 import com.exam.attendance.service.uploads.FileUploadService;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -32,38 +34,40 @@ public class CccdService {
     private final ObjectMapper objectMapper;
 
     private static final int MAX_IMAGE_SIZE = 2_000_000;
+    private static final double FACE_MATCH_THRESHOLD = 0.75;
 
-    public void verifyCccd(CCCDInfo cccdInfo, User user) {
+    public void verifyCccd(CCCDInfo cccdInfo) {
 
-        validateRequest(cccdInfo, user);
+        validateRequest(cccdInfo);
 
-        checkDuplicate(cccdInfo, user);
+        User user = findUserByCitizenId(cccdInfo.getCitizenId());
+
+        validateProfileMatch(cccdInfo, user);
 
         byte[] imageBytes = decodeBase64(cccdInfo.getFaceImage());
 
-        String embedding = extractEmbedding(imageBytes);
+        String newEmbedding = extractEmbedding(imageBytes);
+
+        verifyFace(user, newEmbedding);
 
         UploadResponse upload = uploadImage(cccdInfo, user);
 
-        saveCccd(user, cccdInfo, upload, embedding);
+        saveCccd(user, cccdInfo, upload, newEmbedding);
     }
 
-
-    private void validateRequest(CCCDInfo cccdInfo, User user) {
-
-        if (user == null) {
-            throw new RuntimeException("User chưa đăng nhập");
-        }
+    private void validateRequest(CCCDInfo cccdInfo) {
 
         if (cccdInfo == null) {
             throw new RuntimeException("Request rỗng");
         }
 
-        if (cccdInfo.getCitizenId() == null || cccdInfo.getCitizenId().isBlank()) {
+        if (cccdInfo.getCitizenId() == null
+                || cccdInfo.getCitizenId().isBlank()) {
             throw new RuntimeException("Thiếu citizenId");
         }
 
-        if (cccdInfo.getFullName() == null || cccdInfo.getFullName().isBlank()) {
+        if (cccdInfo.getFullName() == null
+                || cccdInfo.getFullName().isBlank()) {
             throw new RuntimeException("Thiếu họ tên");
         }
 
@@ -71,66 +75,67 @@ public class CccdService {
             throw new RuntimeException("Thiếu ngày sinh");
         }
 
-        if (cccdInfo.getFaceImage() == null || cccdInfo.getFaceImage().isBlank()) {
+        if (cccdInfo.getFaceImage() == null
+                || cccdInfo.getFaceImage().isBlank()) {
             throw new RuntimeException("Thiếu ảnh khuôn mặt");
         }
 
-        // match citizenId với profile nếu đã có
-        if (user.getUserProfile() != null &&
-                user.getUserProfile().getCitizenId() != null) {
-                String citizenId1 = user.getUserProfile().getCitizenId();
-                String citizenId2 = cccdInfo.getCitizenId();
-
-                String last9Id1 = citizenId1.substring(Math.max(0,
-                        citizenId1.length() - 9));
-
-                if (!last9Id1.equals(citizenId2)) {
-                    throw new RuntimeException("CitizenId không khớp");
-                }
-        }
-
-        log.info("Verify CCCD userId={}", user.getId());
+        log.info("Verify CCCD citizenId={}",
+                cccdInfo.getCitizenId());
     }
 
-    private void checkDuplicate(CCCDInfo cccdInfo, User user) {
+    private User findUserByCitizenId(String citizenId) {
 
-        // check trong citizen_card
-        CitizenCard existCard = citizenCardRepository
-                .findByCitizenId(cccdInfo.getCitizenId())
-                .orElse(null);
+        UserProfile profile = userProfileRepository
+                .findByCitizenId(citizenId)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Không tìm thấy người dùng"
+                        ));
 
-        if (existCard != null &&
-                !existCard.getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("CCCD đã được dùng bởi tài khoản khác");
+        if (profile.getUser() == null) {
+            throw new RuntimeException("User không tồn tại");
         }
 
-        // check trong user_profile
-        UserProfile existProfile = userProfileRepository
-                .findByCitizenId(cccdInfo.getCitizenId())
-                .orElse(null);
+        return profile.getUser();
+    }
 
-        if (existProfile != null &&
-                !existProfile.getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("CCCD đã tồn tại trong hệ thống");
+    private void validateProfileMatch(CCCDInfo cccdInfo,
+                                      User user) {
+
+        UserProfile profile = user.getUserProfile();
+
+        if (profile == null) {
+            throw new RuntimeException(
+                    "UserProfile không tồn tại"
+            );
         }
 
         // check tên
-        if (user.getUserProfile() != null &&
-                user.getUserProfile().getName() != null) {
+        if (profile.getName() != null &&
+                !normalize(profile.getName())
+                        .equals(normalize(cccdInfo.getFullName()))) {
 
-            String dbName = user.getUserProfile().getName();
-            String inputName = cccdInfo.getFullName();
+            throw new RuntimeException(
+                    "Tên CCCD không khớp"
+            );
+        }
 
-            if (!normalize(dbName).equals(normalize(inputName))) {
-                throw new RuntimeException("Tên CCCD không khớp hồ sơ");
-            }
+        // check ngày sinh
+        if (profile.getBirthDate() != null &&
+                !profile.getBirthDate()
+                        .equals(cccdInfo.getBirthDate())) {
+
+            throw new RuntimeException(
+                    "Ngày sinh không khớp"
+            );
         }
     }
 
-
     private String extractEmbedding(byte[] imageBytes) {
 
-        Map<String, Object> aiResult = aiClientService.extractEmbedding(imageBytes);
+        Map<String, Object> aiResult =
+                aiClientService.extractEmbedding(imageBytes);
 
         log.info("AI response: {}", aiResult);
 
@@ -138,10 +143,13 @@ public class CccdService {
             throw new RuntimeException("AI không phản hồi");
         }
 
-        String status = String.valueOf(aiResult.get("status"));
+        String status =
+                String.valueOf(aiResult.get("status"));
 
         if (!"SUCCESS".equalsIgnoreCase(status)) {
-            throw new RuntimeException("AI không extract được embedding");
+            throw new RuntimeException(
+                    "AI không extract được embedding"
+            );
         }
 
         Object embedding = aiResult.get("embedding");
@@ -151,24 +159,130 @@ public class CccdService {
         }
 
         try {
-            return objectMapper.writeValueAsString(embedding);
+
+            return objectMapper.writeValueAsString(
+                    embedding
+            );
+
         } catch (Exception e) {
-            throw new RuntimeException("Convert embedding lỗi");
+
+            log.error("Convert embedding fail", e);
+
+            throw new RuntimeException(
+                    "Convert embedding lỗi"
+            );
         }
     }
 
-    private UploadResponse uploadImage(CCCDInfo cccdInfo, User user) {
+    private void verifyFace(User user,
+                            String newEmbeddingJson) {
+
+        CitizenCard card = citizenCardRepository
+                .findByUserId(user.getId())
+                .orElse(null);
+
+        // lần đầu verify -> skip compare
+        if (card == null ||
+                card.getFaceEmbedding() == null) {
+
+            log.info("First verify userId={}",
+                    user.getId());
+
+            return;
+        }
+
+        List<Double> oldEmbedding =
+                parseEmbedding(card.getFaceEmbedding());
+
+        List<Double> newEmbedding =
+                parseEmbedding(newEmbeddingJson);
+
+        double similarity =
+                cosineSimilarity(
+                        oldEmbedding,
+                        newEmbedding
+                );
+
+        log.info("Face similarity={}", similarity);
+
+        if (similarity < FACE_MATCH_THRESHOLD) {
+            throw new RuntimeException(
+                    "Khuôn mặt không khớp"
+            );
+        }
+    }
+
+    private List<Double> parseEmbedding(String json) {
 
         try {
-            return fileUploadService
-                    .uploadBase64Async(cccdInfo.getFaceImage(), user.getId())
-                    .join();
+
+            return objectMapper.readValue(
+                    json,
+                    new TypeReference<List<Double>>() {}
+            );
+
         } catch (Exception e) {
-            log.error("Upload ảnh lỗi", e);
-            throw new RuntimeException("Upload ảnh thất bại");
+
+            log.error("Parse embedding fail", e);
+
+            throw new RuntimeException(
+                    "Embedding không hợp lệ"
+            );
         }
     }
 
+    private double cosineSimilarity(List<Double> a,
+                                    List<Double> b) {
+
+        if (a == null ||
+                b == null ||
+                a.size() != b.size()) {
+
+            return 0;
+        }
+
+        double dot = 0.0;
+        double normA = 0.0;
+        double normB = 0.0;
+
+        for (int i = 0; i < a.size(); i++) {
+
+            dot += a.get(i) * b.get(i);
+
+            normA += Math.pow(a.get(i), 2);
+
+            normB += Math.pow(b.get(i), 2);
+        }
+
+        if (normA == 0 || normB == 0) {
+            return 0;
+        }
+
+        return dot /
+                (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    private UploadResponse uploadImage(CCCDInfo cccdInfo,
+                                       User user) {
+
+        try {
+
+            return fileUploadService
+                    .uploadBase64Async(
+                            cccdInfo.getFaceImage(),
+                            user.getId()
+                    )
+                    .join();
+
+        } catch (Exception e) {
+
+            log.error("Upload ảnh lỗi", e);
+
+            throw new RuntimeException(
+                    "Upload ảnh thất bại"
+            );
+        }
+    }
 
     @Transactional
     protected void saveCccd(User user,
@@ -179,16 +293,25 @@ public class CccdService {
         CitizenCard card = citizenCardRepository
                 .findByUserId(user.getId())
                 .orElseGet(() -> {
+
                     CitizenCard c = new CitizenCard();
+
                     c.setUser(user);
+
                     return c;
                 });
 
         // delete ảnh cũ
         if (card.getFaceImagePublicId() != null) {
+
             try {
-                fileUploadService.deleteImage(card.getFaceImagePublicId());
+
+                fileUploadService.deleteImage(
+                        card.getFaceImagePublicId()
+                );
+
             } catch (Exception e) {
+
                 log.warn("Delete old image fail", e);
             }
         }
@@ -198,8 +321,10 @@ public class CccdService {
         card.setFullName(cccdInfo.getFullName());
         card.setBirthDate(cccdInfo.getBirthDate());
         card.setExpiry(cccdInfo.getExpiry());
+
         card.setFaceImageUrl(upload.getUrl());
         card.setFaceImagePublicId(upload.getPublicId());
+
         card.setFaceEmbedding(embedding);
 
         citizenCardRepository.save(card);
@@ -208,44 +333,72 @@ public class CccdService {
         UserProfile profile = user.getUserProfile();
 
         if (profile == null) {
-            throw new RuntimeException("UserProfile chưa tồn tại");
+            throw new RuntimeException(
+                    "UserProfile chưa tồn tại"
+            );
         }
 
         profile.setCitizenId(cccdInfo.getCitizenId());
+
         profile.setName(cccdInfo.getFullName());
-        profile.setBirthDate(cccdInfo.getBirthDate());
+
+        profile.setBirthDate(
+                cccdInfo.getBirthDate()
+        );
+
         profile.setIsVerified(true);
-        profile.setVerifiedAt(LocalDateTime.now());
+
+        profile.setVerifiedAt(
+                LocalDateTime.now()
+        );
 
         userProfileRepository.save(profile);
 
-        log.info("CCCD verified success userId={}", user.getId());
+        log.info("CCCD verified success userId={}",
+                user.getId());
     }
 
     private byte[] decodeBase64(String image) {
 
         try {
-            String[] parts = image.split(",");
-            String base64 = parts.length > 1 ? parts[1] : parts[0];
 
-            byte[] bytes = Base64.getDecoder().decode(base64);
+            String[] parts = image.split(",");
+
+            String base64 =
+                    parts.length > 1
+                            ? parts[1]
+                            : parts[0];
+
+            byte[] bytes =
+                    Base64.getDecoder()
+                            .decode(base64);
 
             if (bytes.length > MAX_IMAGE_SIZE) {
-                throw new RuntimeException("Ảnh > 2MB");
+                throw new RuntimeException(
+                        "Ảnh > 2MB"
+                );
             }
 
             return bytes;
 
         } catch (Exception e) {
-            throw new RuntimeException("Ảnh base64 không hợp lệ");
+
+            throw new RuntimeException(
+                    "Ảnh base64 không hợp lệ"
+            );
         }
     }
 
     public static String normalize(String input) {
 
-        if (input == null) return null;
+        if (input == null) {
+            return null;
+        }
 
-        String text = Normalizer.normalize(input, Normalizer.Form.NFD);
+        String text = Normalizer.normalize(
+                input,
+                Normalizer.Form.NFD
+        );
 
         return text
                 .replaceAll("\\p{M}", "")

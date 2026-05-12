@@ -27,7 +27,7 @@ public class UserController extends BaseController {
     private final AccessControlService accessControlService;
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT')")
     public ResponseEntity<ApiResponse<UserDetailResponse>> getUser(
             @PathVariable Long id,
             Authentication auth
@@ -48,7 +48,7 @@ public class UserController extends BaseController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Page<UserDetailResponse>>> getUsers(
             @RequestParam(required = false) String role,
             @RequestParam(defaultValue = "1") int page,
@@ -68,7 +68,7 @@ public class UserController extends BaseController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Long>> createUser(
             @RequestBody UserCreateRequest request,
             Authentication auth
@@ -87,7 +87,7 @@ public class UserController extends BaseController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> updateUser(
             @PathVariable Long id,
             @RequestBody UserUpdateRequest request,
@@ -111,7 +111,7 @@ public class UserController extends BaseController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteUser(
             @PathVariable Long id,
             Authentication auth

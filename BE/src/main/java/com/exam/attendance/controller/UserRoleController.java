@@ -27,7 +27,7 @@ public class UserRoleController extends BaseController {
 
     // Lấy roles của user
     @GetMapping("/{userId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<RoleResponse>>> getUserRoles(
             @PathVariable Long userId,
             Authentication auth
@@ -53,7 +53,7 @@ public class UserRoleController extends BaseController {
 
     // Thêm role cho user
     @PostMapping("/{userId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> addRolesToUser(
             @PathVariable Long userId,
             @RequestBody UserRoleRequest request,
@@ -73,7 +73,7 @@ public class UserRoleController extends BaseController {
 
     // Replace toàn bộ role
     @PutMapping("/{userId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> replaceUserRoles(
             @PathVariable Long userId,
             @RequestBody UserRoleRequest request,
@@ -93,7 +93,7 @@ public class UserRoleController extends BaseController {
 
     // Xóa role khỏi user
     @DeleteMapping("/{userId}/{roleId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> removeUserRole(
             @PathVariable Long userId,
             @PathVariable Long roleId,

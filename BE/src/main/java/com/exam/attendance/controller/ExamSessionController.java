@@ -40,7 +40,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @PostMapping("/start")
-    @PreAuthorize("hasAuthority('STUDENT')")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<ApiResponse<ExamSessionResponse>> startExam(
             @RequestBody ExamSessionStartRequest request,
             Authentication auth
@@ -70,7 +70,7 @@ public class ExamSessionController extends BaseController {
 
     @PostMapping("/{sessionId}/end")
     @PreAuthorize(
-            "hasAnyAuthority('STUDENT', 'PROCTOR', 'ADMIN')"
+            "hasAnyRole('STUDENT', 'PROCTOR', 'ADMIN')"
     )
     public ResponseEntity<ApiResponse<Void>> endExam(
             @PathVariable Long sessionId,
@@ -105,7 +105,7 @@ public class ExamSessionController extends BaseController {
 
     @GetMapping("/{id}")
     @PreAuthorize(
-            "hasAnyAuthority('STUDENT', 'PROCTOR', 'ADMIN')"
+            "hasAnyRole('STUDENT', 'PROCTOR', 'ADMIN')"
     )
     public ResponseEntity<ApiResponse<ExamSessionResponse>>
     getById(
@@ -146,7 +146,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<ExamSessionResponse>>>
     getAll(
             Authentication auth
@@ -172,7 +172,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @GetMapping("/me")
-    @PreAuthorize("hasAuthority('STUDENT')")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<ApiResponse<List<ExamSessionResponse>>>
     getMySessions(
             Authentication auth
@@ -197,7 +197,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasAuthority('PROCTOR')")
+    @PreAuthorize("hasRole('PROCTOR')")
     public ResponseEntity<ApiResponse<Page<ProctorDashboardDTO>>>
     dashboard(
             @ModelAttribute
@@ -221,7 +221,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @GetMapping("/dashboard-fast")
-    @PreAuthorize("hasAuthority('PROCTOR')")
+    @PreAuthorize("hasRole('PROCTOR')")
     public ResponseEntity<ApiResponse<List<ProctorDashboardDTO>>>
     dashboardFast(
             @RequestParam Long roomId,
@@ -244,7 +244,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @PostMapping("/{sessionId}/flag")
-    @PreAuthorize("hasAuthority('PROCTOR')")
+    @PreAuthorize("hasRole('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> flag(
             @PathVariable Long sessionId,
             @RequestParam String reason,
@@ -270,7 +270,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @PostMapping("/{sessionId}/unflag")
-    @PreAuthorize("hasAuthority('PROCTOR')")
+    @PreAuthorize("hasRole('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> unflag(
             @PathVariable Long sessionId,
             Authentication auth
@@ -292,7 +292,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @PostMapping("/{sessionId}/approve")
-    @PreAuthorize("hasAuthority('PROCTOR')")
+    @PreAuthorize("hasRole('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> approve(
             @PathVariable Long sessionId,
             Authentication auth
@@ -317,7 +317,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @PostMapping("/{sessionId}/reject")
-    @PreAuthorize("hasAuthority('PROCTOR')")
+    @PreAuthorize("hasRole('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> reject(
             @PathVariable Long sessionId,
             @RequestParam String reason,
@@ -344,7 +344,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @PostMapping("/{sessionId}/approve-device")
-    @PreAuthorize("hasAuthority('PROCTOR')")
+    @PreAuthorize("hasRole('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>>
     approveDevice(
             @PathVariable Long sessionId,
@@ -372,7 +372,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @GetMapping("/{sessionId}/verifications")
-    @PreAuthorize("hasAuthority('PROCTOR')")
+    @PreAuthorize("hasRole('PROCTOR')")
     public ResponseEntity<ApiResponse<List<IdentityVerification>>>
     history(
             @PathVariable Long sessionId,
@@ -396,7 +396,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @GetMapping("/flagged")
-    @PreAuthorize("hasAuthority('PROCTOR')")
+    @PreAuthorize("hasRole('PROCTOR')")
     public ResponseEntity<ApiResponse<List<ExamSessionResponse>>>
     flagged(
             Authentication auth
@@ -423,7 +423,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
 
     @GetMapping("/me/room")
-    @PreAuthorize("hasAuthority('STUDENT')")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<ApiResponse<MyRoomInfoDTO>>
     getMyRoom(
             @RequestParam Long examId

@@ -28,7 +28,7 @@ public class ExamController extends BaseController {
 
     // Tạo exam
     @PostMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ExamResponse>> createExam(
             @RequestBody ExamRequest request,
             Authentication auth
@@ -45,7 +45,7 @@ public class ExamController extends BaseController {
 
     // Phân trang exam
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<Page<ExamResponse>>> getExams(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
@@ -62,7 +62,7 @@ public class ExamController extends BaseController {
 
     // Tìm exam theo id
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<ExamResponse>> getById(
             @PathVariable Long id,
             Authentication auth
@@ -77,7 +77,7 @@ public class ExamController extends BaseController {
 
     // Cập nhật exam theo id
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ExamResponse>> update(
             @PathVariable Long id,
             @RequestBody ExamRequest request,
@@ -103,7 +103,7 @@ public class ExamController extends BaseController {
 
     // Xóa exam theo id
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable Long id,
             Authentication auth
@@ -128,7 +128,7 @@ public class ExamController extends BaseController {
 
     // Tạo room theo examId
     @PostMapping("/{examId}/rooms")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ExamRoomResponse>> createRoom(
             @PathVariable Long examId,
             @RequestBody ExamRoomRequest request,
@@ -144,7 +144,7 @@ public class ExamController extends BaseController {
 
     // Xóa room
     @DeleteMapping("/rooms/{roomId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteRoom(
             @PathVariable Long roomId,
             Authentication auth
@@ -159,7 +159,7 @@ public class ExamController extends BaseController {
 
     // Import exam
     @PostMapping("/{examId}/import")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> importExcel(
             @PathVariable Long examId,
             @RequestParam("file") MultipartFile file,

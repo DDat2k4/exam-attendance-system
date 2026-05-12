@@ -21,7 +21,7 @@ public class ReportController extends BaseController {
     private final AccessControlService accessControl;
 
     @GetMapping("/export-excel")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR')")
     public ResponseEntity<byte[]> exportExcel(
             @RequestParam Long roomId,
             Authentication auth

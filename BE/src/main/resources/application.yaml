@@ -10,7 +10,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     open-in-view: false
     properties:
       hibernate:
@@ -50,3 +50,8 @@ cloudinary:
   cloud_name: ${CLOUDINARY_CLOUD_NAME}
   api_key: ${CLOUDINARY_API_KEY}
   api_secret: ${CLOUDINARY_API_SECRET}
+
+app:
+  crypto:
+    aes-key: ${AES_KEY:12345678901234567890123456789012}
+    hmac-key: ${HMAC_KEY:DEV_HMAC_SECRET_KEY}

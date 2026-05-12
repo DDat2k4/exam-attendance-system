@@ -1,18 +1,15 @@
 package com.exam.attendance.controller;
 
-import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.pojo.CCCDInfo;
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.data.request.EncryptedRequest;
 import com.exam.attendance.data.response.ApiResponse;
-import com.exam.attendance.repository.UserRepository;
 import com.exam.attendance.service.CccdService;
-import com.exam.attendance.service.security.AccessControlService;
-import com.exam.attendance.util.SecurityUtils;
+import com.exam.attendance.service.security.CryptoService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,32 +18,53 @@ import org.springframework.web.bind.annotation.*;
 public class CccdController extends BaseController {
 
     private final CccdService cccdService;
-    private final UserRepository userRepository;
-    private final AccessControlService accessControlService;
 
-    // Verify CCCD
+    private final CryptoService cryptoService;
+
+    private final ObjectMapper objectMapper;
+
     @PostMapping("/verify")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR', 'STUDENT')")
-    public ResponseEntity<ApiResponse<CCCDInfo>> verify(
-            @RequestBody CCCDInfo cccdInfo,
-            Authentication auth
+    public ResponseEntity<ApiResponse<Void>> verify(
+            @RequestBody EncryptedRequest request
     ) {
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        // verify HMAC
+        boolean valid =
+                cryptoService.verifySignature(
+                        request.getData(),
+                        request.getSignature()
+                );
 
-        accessControlService.checkPermission(
-                auth,
-                Resource.CITIZENCARD,
-                Action.VERIFY,
-                currentUserId,
-                currentUserId
-        );
+        if (!valid) {
+            throw new RuntimeException(
+                    "Invalid signature"
+            );
+        }
 
-        User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        // decrypt
+        String json =
+                cryptoService.decrypt(
+                        request.getData(),
+                        request.getIv()
+                );
 
-        cccdService.verifyCccd(cccdInfo, user);
+        try {
 
-        return success(null);
+            CCCDInfo cccdInfo =
+                    objectMapper.readValue(
+                            json,
+                            CCCDInfo.class
+                    );
+
+            cccdService.verifyCccd(cccdInfo);
+
+            return success(null);
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Parse request thất bại"
+            );
+        }
     }
 }

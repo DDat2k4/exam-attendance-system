@@ -31,7 +31,7 @@ public class UserProfileController extends BaseController {
 
     // Lấy profile theo id
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'PROCTOR')")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getById(
             @PathVariable Long id,
             Authentication auth
@@ -52,15 +52,39 @@ public class UserProfileController extends BaseController {
         return success(UserProfileMapper.toResponse(dto));
     }
 
+    // Lấy profile của chính mình
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'PROCTOR')")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> me(
+            Authentication auth
+    ) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        UserProfileDTO dto = service.getByUserId(currentUserId);
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.USER_PROFILE,
+                Action.READ,
+                dto.getUserId(),
+                currentUserId
+        );
+
+        return success(UserProfileMapper.toResponse(dto));
+    }
+
     // Lấy danh sách profile (phân trang)
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Page<UserProfileResponse>>> getAll(
             @RequestParam(required = false) String name,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication auth
     ) {
+
+        auth.getAuthorities()
+                .forEach(a -> System.out.println(a.getAuthority()));
 
         accessControlService.checkPermission(auth, Resource.USER_PROFILE, Action.READ);
 
@@ -75,13 +99,21 @@ public class UserProfileController extends BaseController {
 
     // Tạo profile
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Long>> create(
             @Valid @RequestBody UserProfileRequest request,
             Authentication auth
     ) {
 
-        accessControlService.checkPermission(auth, Resource.USER_PROFILE, Action.CREATE);
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.USER_PROFILE,
+                Action.CREATE,
+                request.getUserId(),
+                currentUserId
+        );
 
         Long id = service.create(request);
 
@@ -90,14 +122,22 @@ public class UserProfileController extends BaseController {
 
     // Cập nhật profile
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'STUDENT', 'PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> update(
             @PathVariable Long id,
             @RequestBody UserProfileRequest request,
             Authentication auth
     ) {
 
-        accessControlService.checkPermission(auth, Resource.USER_PROFILE, Action.UPDATE);
+        UserProfileDTO dto = service.getById(id);
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        accessControlService.checkPermission(
+                auth,
+                Resource.USER_PROFILE,
+                Action.UPDATE,
+                dto.getUserId(),
+                currentUserId
+        );
 
         service.update(id, request);
 
@@ -106,7 +146,7 @@ public class UserProfileController extends BaseController {
 
     // Xóa profile
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'PROCTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable Long id,
             Authentication auth

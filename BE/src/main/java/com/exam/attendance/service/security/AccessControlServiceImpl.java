@@ -7,6 +7,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 @Service
 @RequiredArgsConstructor
 public class AccessControlServiceImpl implements AccessControlService {
@@ -33,7 +35,15 @@ public class AccessControlServiceImpl implements AccessControlService {
                                 Long ownerId,
                                 Long currentUserId) {
 
-        // check RBAC trước
+        // ADMIN bypass owner check
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ADMIN"));
+
+        if (isAdmin) {
+            return;
+        }
+
+        // check RBAC
         checkPermission(auth, resource, action);
 
         // check owner
