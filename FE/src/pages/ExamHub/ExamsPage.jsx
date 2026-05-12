@@ -185,11 +185,11 @@ export default function ExamsPage() {
     }
   }
 
-  const handleDeleteExam = async (examId) => {
+  const handleDeleteExam = async (examId, examTitle) => {
     setError('')
     setSuccess('')
 
-    const ok = await showConfirmDialog(`Bạn chắc chắn muốn xóa kỳ thi #${examId}?`, {
+    const ok = await showConfirmDialog(`Bạn chắc chắn muốn xóa kỳ thi ${examTitle || examId}?`, {
       title: 'Xác nhận xóa kỳ thi',
       confirmText: 'Xóa',
       cancelText: 'Hủy',

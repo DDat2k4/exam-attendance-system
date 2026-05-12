@@ -49,6 +49,17 @@ export function DoorOpenIcon(props) {
   )
 }
 
+export function LayoutGridIcon(props) {
+  return (
+    <AppIcon {...props}>
+      <rect x="4.8" y="4.8" width="6.2" height="6.2" rx="1.6" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="13" y="4.8" width="6.2" height="6.2" rx="1.6" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="4.8" y="13" width="6.2" height="6.2" rx="1.6" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="13" y="13" width="6.2" height="6.2" rx="1.6" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </AppIcon>
+  )
+}
+
 export function DownloadIcon(props) {
   return (
     <AppIcon {...props}>
@@ -133,9 +144,10 @@ export function EyeIcon(props) {
 export function ImportIcon(props) {
   return (
     <AppIcon {...props}>
-      <path d="M12 4.5v8.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-      <path d="M8.8 9.7 12 12.9l3.2-3.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M5.5 15.5h13" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M12 15.5V6.8" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M8.8 10.1 12 6.9l3.2 3.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5.5 17.2h13" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M7 17.2v-1.1M17 17.2v-1.1" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
     </AppIcon>
   )
 }

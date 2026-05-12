@@ -25,6 +25,7 @@ export const useExcelExport = () => {
     } catch (err) {
       setError(err.message || 'Failed to export report')
       console.error('Export error:', err)
+      throw err
     } finally {
       setLoading(false)
     }

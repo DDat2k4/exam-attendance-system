@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   createUserProfile,
   deleteUserProfile,
+  getMyUserProfile,
   getUserProfile,
   getUserProfiles,
   updateUserProfile,
 } from '../../api/userProfileApi'
+import { useAuth } from '../../context/AuthContext'
 import { showConfirmDialog } from '../../utils/confirmDialog'
-import { getUserFromToken } from '../../utils/jwt'
+import { canAccess } from '../../utils/rbac'
 import './Profile.css'
 
 const INITIAL_FORM = {
@@ -17,22 +19,29 @@ const INITIAL_FORM = {
   citizenId: '',
 }
 
-const PERSONAL_LOOKUP_PAGE_SIZE = 50
-
-const toPayload = (form, userIdValue) => {
-  const userId = Number(userIdValue)
+const normalizeProfileFields = (form) => {
   const gender = Number(form.gender)
 
   return {
-    userId: Number.isNaN(userId) ? null : userId,
     name: form.name.trim(),
-    gender: Number.isNaN(gender) ? null : gender,
-    birthDate: form.birthDate || null,
-    citizenId: form.citizenId.trim() || null,
+    ...(form.citizenId.trim() ? { citizenId: form.citizenId.trim() } : {}),
+    ...(Number.isNaN(gender) ? {} : { gender }),
+    ...(form.birthDate ? { birthDate: form.birthDate } : {}),
   }
 }
 
+const toCreatePayload = (form, userIdValue) => {
+  const userId = Number(userIdValue)
+  return {
+    ...(Number.isNaN(userId) ? {} : { userId }),
+    ...normalizeProfileFields(form),
+  }
+}
+
+const toUpdatePayload = (form) => normalizeProfileFields(form)
+
 export default function Profile() {
+  const { user } = useAuth()
   const [profiles, setProfiles] = useState([])
   const [form, setForm] = useState(INITIAL_FORM)
   const [personalProfile, setPersonalProfile] = useState(null)
@@ -49,6 +58,10 @@ export default function Profile() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  const canViewProfileList = canAccess(user, {
+    allowRoles: ['ADMIN'],
+  })
+
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / size)), [size, total])
 
   const mapItemToForm = (item) => ({
@@ -59,32 +72,18 @@ export default function Profile() {
   })
 
   const fetchPersonalProfile = async () => {
-    const tokenUser = getUserFromToken()
-    const userIdRaw = tokenUser?.id ?? tokenUser?.userId ?? localStorage.getItem('userId')
-    const userId = Number(userIdRaw)
-    const profileIdRaw = tokenUser?.profileId ?? localStorage.getItem('profileId')
+    const profileIdRaw = localStorage.getItem('profileId')
     const profileId = Number(profileIdRaw)
 
     try {
       setLoadingPersonal(true)
       let profile = null
 
-      if (userId) {
-        let lookupPage = 1
-        let lookupTotalPages = 1
-
-        while (!profile && lookupPage <= lookupTotalPages) {
-          const pageResult = await getUserProfiles({ page: lookupPage, size: PERSONAL_LOOKUP_PAGE_SIZE })
-          const items = Array.isArray(pageResult?.items) ? pageResult.items : []
-          const matched = items.find((item) => Number(item?.userId) === userId)
-          if (matched) {
-            profile = matched
-            break
-          }
-
-          const totalElements = Number(pageResult?.total ?? 0)
-          lookupTotalPages = Math.max(1, Math.ceil(totalElements / PERSONAL_LOOKUP_PAGE_SIZE))
-          lookupPage += 1
+      try {
+        profile = await getMyUserProfile()
+      } catch (meLookupErr) {
+        if (meLookupErr?.response?.status !== 404) {
+          throw meLookupErr
         }
       }
 
@@ -117,6 +116,13 @@ export default function Profile() {
   }
 
   const fetchProfiles = async () => {
+    if (!canViewProfileList) {
+      setProfiles([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       setError('')
@@ -133,8 +139,15 @@ export default function Profile() {
   }
 
   useEffect(() => {
-    fetchProfiles()
-  }, [page, size, search])
+    if (canViewProfileList) {
+      fetchProfiles()
+      return
+    }
+
+    setProfiles([])
+    setTotal(0)
+    setLoading(false)
+  }, [page, size, search, canViewProfileList])
 
   useEffect(() => {
     fetchPersonalProfile()
@@ -164,24 +177,26 @@ export default function Profile() {
       setError('')
       const targetId = editingId ?? personalProfile?.id ?? null
       const userIdSource = editingUserId ?? personalProfile?.userId ?? localStorage.getItem('userId')
-      const payload = toPayload(form, userIdSource)
-
-      if (!payload.userId) {
-        setError('Không tìm thấy userId hiện tại để tạo profile.')
-        return
-      }
 
       if (targetId) {
-        await updateUserProfile(targetId, payload)
+        await updateUserProfile(targetId, toUpdatePayload(form))
         setSuccess('Cập nhật profile thành công.')
       } else {
+        const payload = toCreatePayload(form, userIdSource)
+        if (!payload.userId) {
+          setError('Không tìm thấy userId hiện tại để tạo profile.')
+          return
+        }
+
         await createUserProfile(payload)
         setSuccess('Thêm profile thành công.')
       }
 
       resetForm()
       await fetchPersonalProfile()
-      await fetchProfiles()
+      if (canViewProfileList) {
+        await fetchProfiles()
+      }
     } catch (err) {
       setError(err.message || 'Không thể lưu profile.')
     } finally {
@@ -331,86 +346,84 @@ export default function Profile() {
         {success ? <p className="msg success">{success}</p> : null}
       </section>
 
-      <section className="profile-card">
-        <header className="list-header">
-          <div>
-            <p className="mini">Hồ sơ người dùng</p>
-            <h2>Danh sách profile</h2>
-          </div>
-          <form className="search-box" onSubmit={onSearch}>
-            <input
-              type="text"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Tìm theo tên"
-            />
-            <button type="submit">Tìm</button>
-          </form>
-        </header>
+      {canViewProfileList && (
+        <section className="profile-card">
+          <header className="list-header">
+            <div>
+              <p className="mini">Hồ sơ người dùng</p>
+              <h2>Danh sách profile</h2>
+            </div>
+            <form className="search-box" onSubmit={onSearch}>
+              <input
+                type="text"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="Tìm theo tên"
+              />
+              <button type="submit">Tìm</button>
+            </form>
+          </header>
 
-        {loading ? <p className="state">Đang tải profile...</p> : null}
+          {loading ? <p className="state">Đang tải profile...</p> : null}
 
-        {!loading && profiles.length === 0 ? <p className="state">Chưa có profile nào.</p> : null}
+          {!loading && profiles.length === 0 ? <p className="state">Chưa có profile nào.</p> : null}
 
-        {!loading && profiles.length > 0 ? (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Mã người dùng</th>
-                  <th>Họ và tên</th>
-                  <th>Căn cước công dân</th>
-                  <th>Giới tính</th>
-                  <th>Ngày sinh</th>
-                  <th>Trạng thái xác minh</th>
-                  <th>Thời điểm xác minh</th>
-                  <th>Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {profiles.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.id}</td>
-                    <td>{item.userId}</td>
-                    <td>{item.name || '-'}</td>
-                    <td>{item.citizenId || '-'}</td>
-                    <td>{item.gender === 1 ? 'Nam' : item.gender === 2 ? 'Nữ' : item.gender === 0 ? 'Khác/Không xác định' : '-'}</td>
-                    <td>{item.birthDate || '-'}</td>
-                    <td>{item.isVerified === true ? 'Đã xác minh' : item.isVerified === false ? 'Chưa xác minh' : '-'}</td>
-                    <td>{formatVerifiedAt(item.verifiedAt)}</td>
-                    <td className="actions">
-                      <button type="button" className="ghost" onClick={() => onEdit(item)}>
-                        Sửa
-                      </button>
-                      <button type="button" className="danger" onClick={() => onDelete(item.id)}>
-                        Xóa
-                      </button>
-                    </td>
+          {!loading && profiles.length > 0 ? (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>CCCD</th>
+                    <th>Họ và tên</th>
+                    <th>Giới tính</th>
+                    <th>Ngày sinh</th>
+                    <th>Trạng thái xác minh</th>
+                    <th>Thời điểm xác minh</th>
+                    <th>Hành động</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
+                </thead>
+                <tbody>
+                  {profiles.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.citizenId || '-'}</td>
+                      <td>{item.name || '-'}</td>
+                      <td>{item.gender === 1 ? 'Nam' : item.gender === 2 ? 'Nữ' : item.gender === 0 ? 'Khác/Không xác định' : '-'}</td>
+                      <td>{item.birthDate || '-'}</td>
+                      <td>{item.isVerified === true ? 'Đã xác minh' : item.isVerified === false ? 'Chưa xác minh' : '-'}</td>
+                      <td>{formatVerifiedAt(item.verifiedAt)}</td>
+                      <td className="actions">
+                        <button type="button" className="ghost" onClick={() => onEdit(item)}>
+                          Sửa
+                        </button>
+                        <button type="button" className="danger" onClick={() => onDelete(item.id)}>
+                          Xóa
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
 
-        <footer className="pager">
-          <button type="button" className="ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-            Trang trước
-          </button>
-          <span>
-            Trang {page}/{totalPages} - Tổng: {total}
-          </span>
-          <button
-            type="button"
-            className="ghost"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Trang sau
-          </button>
-        </footer>
-      </section>
+          <footer className="pager">
+            <button type="button" className="ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              Trang trước
+            </button>
+            <span>
+              Trang {page}/{totalPages} - Tổng: {total}
+            </span>
+            <button
+              type="button"
+              className="ghost"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Trang sau
+            </button>
+          </footer>
+        </section>
+      )}
     </div>
   )
 }

@@ -348,6 +348,71 @@
   cursor: not-allowed;
 }
 
+/* Import Modal Button Styles */
+.import-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.import-modal-actions button {
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  padding: 0 16px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.import-modal-actions .primary {
+  background: linear-gradient(135deg, #3152d8 0%, #2a42c0 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(49, 82, 216, 0.3);
+}
+
+.import-modal-actions .primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2a42c0 0%, #2238b0 100%);
+  box-shadow: 0 6px 16px rgba(49, 82, 216, 0.4);
+  transform: translateY(-1px);
+}
+
+.import-modal-actions .primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(49, 82, 216, 0.2);
+}
+
+.import-modal-actions .secondary {
+  background: #f5f8ff;
+  color: #2f448e;
+  border: 1.5px solid #d1dff8;
+  box-shadow: 0 2px 6px rgba(49, 82, 216, 0.08);
+}
+
+.import-modal-actions .secondary:hover:not(:disabled) {
+  background: #eef2ff;
+  border-color: #bec9fb;
+  box-shadow: 0 4px 10px rgba(49, 82, 216, 0.12);
+  transform: translateY(-1px);
+}
+
+.import-modal-actions .secondary:active:not(:disabled) {
+  transform: translateY(0);
+  background: #e8ecff;
+}
+
+.import-modal-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .exam-form-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
@@ -1033,6 +1098,20 @@
   min-width: 120px;
 }
 
+.proctor-filter-keyword {
+  flex: 1 1 360px;
+  min-width: 340px;
+}
+
+.proctor-filter-size {
+  flex: 0 0 110px;
+  min-width: 110px;
+}
+
+.proctor-filter-size select {
+  min-width: 110px;
+}
+
 .proctor-filter-item label {
   font-size: 12px;
   color: #2f3f82;
@@ -1074,13 +1153,10 @@
   border-radius: 10px;
 }
 
-/* Make Keyword wider on desktop */
-.proctor-filter-keyword {
-  min-width: 300px;
-}
-
 @media (max-width: 900px) {
-  .proctor-filter-keyword { min-width: 160px; }
+  .proctor-filter-keyword { min-width: 220px; }
+  .proctor-filter-size { flex-basis: 92px; min-width: 92px; }
+  .proctor-filter-size select { min-width: 92px; }
   .proctor-filter-actions .primary.icon-only-btn { width: 40px; height: 36px; }
 }
 
@@ -1092,6 +1168,17 @@
 .proctor-filter-form .secondary {
   height: 38px;
   font-size: 13px;
+}
+
+.proctor-panel .inline-actions .proctor-hero-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+
+.proctor-panel .inline-actions .proctor-hero-icon-btn .app-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .proctor-inline-error {

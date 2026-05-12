@@ -27,12 +27,16 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Request interceptor: thêm token
+// Request interceptor: thêm token + xử lý FormData
 axiosClient.interceptors.request.use(
   (config) => {
     const token = getAccessToken();
     if (token) {
       config.headers["Authorization"] = `Bearer ${token}`;
+    }
+    // Nếu data là FormData, xóa Content-Type để browser tự set multipart/form-data
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
     }
     return config;
   },

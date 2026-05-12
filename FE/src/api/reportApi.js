@@ -9,13 +9,13 @@ const API_URL = import.meta.env.VITE_API_BASE_URL
  */
 export const exportSessionReportExcel = async (roomId) => {
   try {
-    const response = await axiosClient.get(
+    const blob = await axiosClient.get(
       `${API_URL}/reports/export-excel?roomId=${roomId}`,
       {
         responseType: 'blob',
       }
     )
-    return response.data
+    return blob
   } catch (err) {
     const message = err.response?.data?.message || err.message || 'Failed to export report'
     const error = new Error(message)
@@ -30,6 +30,10 @@ export const exportSessionReportExcel = async (roomId) => {
  * @param {string} fileName - Name of the file to save
  */
 export const downloadFile = (blob, fileName) => {
+  if (!(blob instanceof Blob)) {
+    throw new Error('Exported file is not a valid Blob')
+  }
+
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url

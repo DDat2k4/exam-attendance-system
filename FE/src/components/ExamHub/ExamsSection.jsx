@@ -105,7 +105,7 @@ export default function ExamsSection({
                                   aria-label={`Import dữ liệu cho kỳ thi #${exam.id}`}
                                   title="Import dữ liệu"
                               >
-                                  <ImportIcon />
+                                    <ImportIcon />
                               </button>
 
                                 <button type="button" className="tiny-btn icon-only-btn" onClick={() => startEditExam(exam)} aria-label={`Sửa kỳ thi #${exam.id}`} title="Sửa kỳ thi">
@@ -114,7 +114,7 @@ export default function ExamsSection({
                               <button
                                 type="button"
                                   className="tiny-btn danger icon-only-btn"
-                                onClick={() => handleDeleteExam(exam.id)}
+                                onClick={() => handleDeleteExam(exam.id, exam.title)}
                                 disabled={processingExamId === exam.id}
                                   aria-label={`Xóa kỳ thi #${exam.id}`}
                                   title="Xóa kỳ thi"
@@ -232,7 +232,7 @@ export default function ExamsSection({
                   {importError && <div className="feedback error" style={{ marginBottom: '12px' }}>{importError}</div>}
 
                   <div style={{ marginBottom: '12px' }}>
-                    <label htmlFor="import-file-input" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                    <label htmlFor="import-file-input" style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#2f3f82', fontSize: '14px' }}>
                       Chọn file Excel
                     </label>
                     <input
@@ -244,35 +244,42 @@ export default function ExamsSection({
                       style={{
                         display: 'block',
                         width: '100%',
-                        padding: '8px',
-                        border: '1px solid #c8d2fa',
-                        borderRadius: '6px',
+                        padding: '10px 12px',
+                        border: '1.5px solid #d1dff8',
+                        borderRadius: '8px',
                         fontSize: '13px',
+                        backgroundColor: '#fafbff',
+                        color: '#243577',
+                        fontFamily: 'inherit',
+                        cursor: submittingImport ? 'not-allowed' : 'pointer',
+                        opacity: submittingImport ? 0.6 : 1,
+                        transition: 'all 0.2s ease',
                       }}
                     />
                     {importFile && (
-                      <small style={{ display: 'block', marginTop: '4px', color: '#0f9d7a' }}>
+                      <small style={{ display: 'block', marginTop: '6px', color: '#0f9d7a', fontWeight: '500', fontSize: '12px' }}>
                         ✓ {importFile.name}
                       </small>
                     )}
                   </div>
 
-                  <div style={{ fontSize: '13px', color: '#5d6ea1', marginBottom: '12px' }}>
-                    <p style={{ margin: '0 0 8px' }}>
-                      Kỳ thi: <strong>{importTarget.examTitle}</strong>
+                  <div style={{ fontSize: '13px', color: '#5d6ea1', marginBottom: '16px' }}>
+                    <p style={{ margin: '0 0 8px', fontWeight: '500' }}>
+                      Kỳ thi: <strong style={{ color: '#243577' }}>{importTarget.examTitle}</strong>
                     </p>
                     <p style={{ margin: '0', fontSize: '12px', color: '#999' }}>
                       File Excel sẽ được import vào kỳ thi {importTarget.examTitle}
                     </p>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <div className="import-modal-actions">
                     <button
                       type="button"
                       className="secondary"
                       onClick={handleCloseImport}
                       disabled={submittingImport}
                     >
+                      <CloseIcon size={16} />
                       Hủy
                     </button>
                     <button
@@ -280,6 +287,7 @@ export default function ExamsSection({
                       className="primary"
                       disabled={!importFile || submittingImport}
                     >
+                      <ImportIcon size={16} />
                       {submittingImport ? 'Đang import...' : 'Import'}
                     </button>
                   </div>

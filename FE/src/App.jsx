@@ -12,7 +12,6 @@ import RegistrationsPage from './pages/ExamHub/RegistrationsPage'
 import ProctorPage from './pages/ExamHub/ProctorPage'
 import RoomsPage from './pages/ExamHub/RoomsPage'
 import StudentExamsPage from './pages/ExamHub/StudentExamsPage'
-import VerificationPage from './pages/ExamHub/VerificationPage'
 import RBACOverviewPage from './pages/RBAC/RBACOverviewPage'
 import RBACRolesPage from './pages/RBAC/RBACRolesPage'
 import RBACPermissionsPage from './pages/RBAC/RBACPermissionsPage'
@@ -101,14 +100,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/exam-hub/verification"
-          element={
-            <ProtectedRoute allowRoles={['STUDENT']}>
-              <VerificationPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* Verification handled in mobile app — route removed */}
         <Route
           path="/profiles"
           element={

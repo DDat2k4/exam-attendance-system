@@ -202,9 +202,6 @@ export default function ExamOverviewPage() {
               <a href="/exam-hub/student-exams" className="tiny-btn">
                 Kỳ thi của tôi
               </a>
-              <a href="/exam-hub/verification" className="tiny-btn">
-                Xác thực CCCD
-              </a>
             </>
           )}
         </div>

@@ -1,16 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
 
 .profile-page {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 18px;
+  min-height: calc(100vh - 170px);
 }
 
 .profile-card {
+  flex: 1;
   border-radius: 18px;
   border: 1px solid rgba(46, 66, 144, 0.18);
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 14px 24px rgba(32, 50, 120, 0.08);
   padding: 18px;
+}
+
+.profile-page > .profile-card:first-child {
+  min-height: 360px;
 }
 
 .profile-card h2 {
@@ -38,6 +45,7 @@
 
 .personal-profile {
   margin-top: 14px;
+  flex: 1;
   display: grid;
   gap: 12px;
   border: 1px solid rgba(77, 100, 200, 0.22);

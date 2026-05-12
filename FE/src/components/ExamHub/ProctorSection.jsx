@@ -6,9 +6,9 @@ import {
   CloseIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  DoorOpenIcon,
   DownloadIcon,
   FlagIcon,
+  LayoutGridIcon,
   PlusIcon,
   RefreshIcon,
   SearchIcon,
@@ -73,6 +73,7 @@ export default function ProctorSection({
 }) {
   const { loading: exporting, error: exportError, exportReport } = useExcelExport()
   const [showExportError, setShowExportError] = useState(false)
+  const [exportErrorMessage, setExportErrorMessage] = useState('')
   const [captureImageBroken, setCaptureImageBroken] = useState(false)
 
   useEffect(() => {
@@ -84,6 +85,7 @@ export default function ProctorSection({
     
     if (!proctorFilter.roomId) {
       console.warn('roomId không có, không thể xuất báo cáo')
+      setExportErrorMessage('Vui lòng chọn phòng thi trước khi xuất báo cáo.')
       setShowExportError(true)
       return
     }
@@ -91,9 +93,11 @@ export default function ProctorSection({
     try {
       console.log('Gọi exportReport với roomId:', proctorFilter.roomId)
       await exportReport(proctorFilter.roomId)
+      setExportErrorMessage('')
       setShowExportError(false)
     } catch (err) {
       console.error('Export error:', err)
+      setExportErrorMessage(err.message || 'Không thể xuất báo cáo')
       setShowExportError(true)
     }
   }
@@ -115,17 +119,17 @@ export default function ProctorSection({
         <div className="inline-actions">
           <button
             type="button"
-            className="tiny-btn icon-only-btn"
+            className="tiny-btn icon-only-btn proctor-hero-icon-btn"
             onClick={openProctorRoomModal}
             disabled={loadingProctorDashboard || proctorActionLoading || exporting}
             aria-label="Chọn hoặc đổi phòng"
             title="Chọn/Đổi phòng"
           >
-            <DoorOpenIcon />
+            <LayoutGridIcon />
           </button>
           <button
             type="button"
-            className="tiny-btn icon-only-btn"
+            className="tiny-btn icon-only-btn proctor-hero-icon-btn"
             onClick={refreshProctorDashboard}
             disabled={loadingProctorDashboard || proctorActionLoading || !proctorFilter.roomId || exporting}
             aria-label="Tải lại dashboard"
@@ -135,7 +139,7 @@ export default function ProctorSection({
           </button>
           <button
             type="button"
-            className="tiny-btn success icon-only-btn"
+            className="tiny-btn success icon-only-btn proctor-hero-icon-btn"
             onClick={handleExportReport}
             disabled={exporting || proctorActionLoading || !proctorFilter.roomId}
             title="Xuất báo cáo phòng thi ra file Excel"
@@ -143,10 +147,18 @@ export default function ProctorSection({
           >
             <DownloadIcon />
           </button>
-          {showExportError && exportError && (
+          {showExportError && (exportErrorMessage || exportError) && (
             <span className="proctor-inline-error">
-              {exportError}
-              <button type="button" className="proctor-inline-error__close" onClick={() => setShowExportError(false)} aria-label="Đóng lỗi xuất báo cáo">
+              {exportErrorMessage || exportError}
+              <button
+                type="button"
+                className="proctor-inline-error__close"
+                onClick={() => {
+                  setShowExportError(false)
+                  setExportErrorMessage('')
+                }}
+                aria-label="Đóng lỗi xuất báo cáo"
+              >
                 <CloseIcon />
               </button>
             </span>
@@ -210,7 +222,7 @@ export default function ProctorSection({
           />
         </div>
 
-        <div className="proctor-filter-item">
+        <div className="proctor-filter-item proctor-filter-size">
           <label htmlFor="proctorSize">Size</label>
           <select
             id="proctorSize"

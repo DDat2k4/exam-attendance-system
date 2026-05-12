@@ -52,6 +52,7 @@ export default function RegistrationsPage() {
     setRegistrationUserRole,
     selectedRegistrationUserIds,
     registrationPage,
+    registrationUsers,
     registrationTotalPages,
     filteredRegistrationUsers,
     fetchRegistrationUsers,
@@ -121,6 +122,7 @@ export default function RegistrationsPage() {
         toggleRegistrationUser={toggleRegistrationUser}
         submittingRegistration={submittingRegistration}
         fetchRegistrations={fetchRegistrations}
+        registrationUsers={registrationUsers}
         registrationPage={registrationPage}
         loadingRegistrations={loadingRegistrations}
         registrationRows={registrationRows}

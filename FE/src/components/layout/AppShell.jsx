@@ -22,7 +22,7 @@ const NAV_ITEMS = [
       { to: '/exam-hub/rooms', label: 'Phòng thi', allowRoles: ['ADMIN', 'PROCTOR'] },
       { to: '/exam-hub/proctor', label: 'Giám sát', allowRoles: ['ADMIN', 'PROCTOR'] },
       { to: '/exam-hub/student-exams', label: 'Kỳ thi của tôi', allowRoles: ['STUDENT'] },
-      { to: '/exam-hub/verification', label: 'Xác thực CCCD', allowRoles: ['STUDENT'] },
+      // verification moved to mobile app; menu entry removed
     ],
   },
   {

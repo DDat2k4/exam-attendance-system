@@ -44,6 +44,24 @@ export const getUserProfile = async (id) => {
   }
 };
 
+// GET /user-profiles/me
+export const getMyUserProfile = async () => {
+  try {
+    return await dedupeGet(axiosClient, `${API_URL}/user-profiles/me`);
+  } catch (err) {
+    rethrow(err);
+  }
+};
+
+// GET /user-profiles/user/{userId}
+export const getUserProfileByUserId = async (userId) => {
+  try {
+    return await dedupeGet(axiosClient, `${API_URL}/user-profiles/user/${userId}`);
+  } catch (err) {
+    rethrow(err);
+  }
+};
+
 
 // GET /user-profiles (paged list with filters)
 export const getUserProfiles = async ({

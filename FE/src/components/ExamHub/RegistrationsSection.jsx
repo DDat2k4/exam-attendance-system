@@ -20,11 +20,42 @@ export default function RegistrationsSection({
   registrationPage,
   loadingRegistrations,
   registrationRows,
+  registrationUsers = [],
   formatDateTime,
   handleRemoveRegistration,
   processingRegistrationId,
   registrationTotalPages,
 }) {
+  const findExamLabel = (examId) => {
+    try {
+      const found = examOptions.find((o) => Number(o.id) === Number(examId))
+      return found?.label || examId || '-'
+    } catch (e) {
+      return examId || '-'
+    }
+  }
+
+  const findUserLabel = (userId) => {
+    try {
+      const found = (registrationUsers || []).find((u) => Number(u?.id) === Number(userId))
+      return found?.name || found?.username || userId || '-'
+    } catch (e) {
+      return userId || '-'
+    }
+  }
+
+  const REG_STATUS = {
+    0: 'Chờ',
+    1: 'Đã đăng ký',
+    2: 'Đã hủy',
+  }
+
+  const renderStatus = (s) => {
+    if (s === null || s === undefined) return '-'
+    if (typeof s === 'string') return s
+    return REG_STATUS[s] ?? String(s)
+  }
+
   return (
     <section className="panel">
       <h2>Đăng ký danh sách thí sinh</h2>
@@ -44,7 +75,7 @@ export default function RegistrationsSection({
           ))}
         </select>
 
-        <label htmlFor="registrationUserSearch">Danh sách user</label>
+        <label htmlFor="registrationUserSearch">Danh sách sinh viên</label>
         <div className="registration-user-picker">
           <div className="registration-user-head">
             <input
@@ -78,15 +109,15 @@ export default function RegistrationsSection({
               disabled={loadingRegistrationUsers}
             >
               <RefreshIcon size={14} />
-              {loadingRegistrationUsers ? 'Đang tải...' : 'Tải user'}
+              {loadingRegistrationUsers ? 'Đang tải...' : 'Tải sinh viên'}
             </button>
           </div>
 
           <div className="registration-user-list">
             {loadingRegistrationUsers ? (
-              <p>Đang tải danh sách user...</p>
+              <p>Đang tải danh sách sinh viên...</p>
             ) : filteredRegistrationUsers.length === 0 ? (
-              <p>Không có user phù hợp.</p>
+              <p>Không có sinh viên phù hợp.</p>
             ) : (
               filteredRegistrationUsers.map((u) => {
                 const uid = Number(u?.id)
@@ -99,7 +130,7 @@ export default function RegistrationsSection({
                       checked={isChecked}
                       onChange={() => toggleRegistrationUser(uid)}
                     />
-                    <span>#{u?.id ?? '-'} | {displayName} | {u?.email || '-'}</span>
+                    <span>{displayName} | {u?.email || '-'}</span>
                   </label>
                 )
               })
@@ -107,7 +138,7 @@ export default function RegistrationsSection({
           </div>
 
           <small>
-            Đã chọn {selectedRegistrationUserIds.length} user
+            Đã chọn {selectedRegistrationUserIds.length} sinh viên
             {selectedRegistrationUserIds.length > 0 ? `: ${selectedRegistrationUserIds.join(', ')}` : ''}
           </small>
         </div>
@@ -136,18 +167,18 @@ export default function RegistrationsSection({
         ) : loadingRegistrations ? (
           <p>Đang tải danh sách đã đăng ký...</p>
         ) : registrationRows.length === 0 ? (
-          <p>Kỳ thi này chưa có user nào được đăng ký.</p>
+          <p>Kỳ thi này chưa có sinh viên nào được đăng ký.</p>
         ) : (
           <>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Registration ID</th>
-                    <th>Exam ID</th>
-                    <th>User ID</th>
-                    <th>Status</th>
-                    <th>Registered At</th>
+                    <th>Mã đăng ký</th>
+                    <th>Kỳ thi</th>
+                    <th>Thí sinh</th>
+                    <th>Trạng thái</th>
+                    <th>Thời gian đăng ký</th>
                     <th>Thao tác</th>
                   </tr>
                 </thead>
@@ -155,9 +186,9 @@ export default function RegistrationsSection({
                   {registrationRows.map((row) => (
                     <tr key={row.id ?? `${row.examId}-${row.userId}`}>
                       <td>{row.id ?? '-'}</td>
-                      <td>{row.examId ?? '-'}</td>
-                      <td>{row.userId ?? '-'}</td>
-                      <td>{row.status ?? '-'}</td>
+                      <td>{findExamLabel(row.examId)}</td>
+                      <td>{findUserLabel(row.userId)}</td>
+                      <td>{renderStatus(row.status)}</td>
                       <td>{formatDateTime(row.registeredAt)}</td>
                       <td>
                         <button
