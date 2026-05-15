@@ -89,6 +89,8 @@ export const useExamSessionAlerts = ({ sessionId, roomId, userId, enabled = true
     const roomTopic = `/topic/room/${parsedRoomId}`
     const token = localStorage.getItem('access_token')
 
+    // initializing websocket
+
     const client = new Client({
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
@@ -106,8 +108,12 @@ export const useExamSessionAlerts = ({ sessionId, roomId, userId, enabled = true
         const incomingSessionId = toComparableId(incomingAlert.sessionId)
         const incomingUserId = toComparableId(incomingAlert.userId)
 
+        // websocket alert received
+
         const sessionMatches = !incomingSessionId || incomingSessionId === normalizedSessionId
         const userMatches = !incomingUserId || !normalizedUserId || incomingUserId === normalizedUserId
+
+        // filter check
 
         if (!sessionMatches || !userMatches) {
           return
@@ -117,11 +123,13 @@ export const useExamSessionAlerts = ({ sessionId, roomId, userId, enabled = true
       })
     }
 
-    client.onStompError = () => {
+    client.onStompError = (error) => {
+      console.error('Websocket STOMP error:', error)
       setSocketStatus(SOCKET_STATUS.ERROR)
     }
 
-    client.onWebSocketError = () => {
+    client.onWebSocketError = (error) => {
+      console.error('Websocket connection error:', error)
       setSocketStatus(SOCKET_STATUS.ERROR)
     }
 

@@ -106,7 +106,22 @@ export default function StudentExamsPage() {
         }),
       )
 
-      setStudentRegisteredExams(enriched)
+      // Fetch assigned room info for each registration so UI can display it immediately
+      const withRooms = await Promise.all(
+        enriched.map(async (item) => {
+          try {
+            const room = await getMyRoomInfo(item.examId)
+            return { ...item, roomInfo: room || null }
+          } catch {
+            return { ...item, roomInfo: null }
+          }
+        }),
+      )
+
+      setStudentRegisteredExams(withRooms)
+      // set a generic myRoomInfo to the first assigned room (if any) for backwards compatibility
+      const firstAssigned = withRooms.find((r) => r.roomInfo && r.roomInfo.roomId)
+      setMyRoomInfo(firstAssigned?.roomInfo ?? null)
       setStudentExamPage(Number(result?.number ?? page - 1) + 1)
       setStudentExamTotalPages(Number(result?.totalPages ?? 0))
     } catch (err) {

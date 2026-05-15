@@ -1,5 +1,6 @@
 import React from 'react'
 import './VerificationHistory.css'
+import { getSessionStatusLabel } from '../../utils/examSessionStatus'
 
 export default function VerificationHistory({ history = [], loading = false }) {
   const TYPE_LABELS = {
@@ -63,15 +64,17 @@ export default function VerificationHistory({ history = [], loading = false }) {
     const isSuccess = status === 'VERIFIED' || status === 'PASS' || status === 'SUCCESS' || status === 'APPROVED'
     const isPending = status === 'PENDING' || status === 'PENDING_REVIEW'
 
+    const label = getSessionStatusLabel(status) || formatLabel(status, STATUS_LABELS)
+
     if (isPending) {
-      return <span className="verify-badge verify-pending">… {formatLabel(status, STATUS_LABELS)}</span>
+      return <span className="verify-badge verify-pending">… {label}</span>
     }
 
     if (isSuccess) {
-      return <span className="verify-badge verify-success">✓ {formatLabel(status, STATUS_LABELS)}</span>
+      return <span className="verify-badge verify-success">✓ {label}</span>
     }
 
-    return <span className="verify-badge verify-failed">✕ {formatLabel(status, STATUS_LABELS)}</span>
+    return <span className="verify-badge verify-failed">✕ {label}</span>
   }
 
   if (loading) {

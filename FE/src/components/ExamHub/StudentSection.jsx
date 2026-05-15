@@ -1,3 +1,5 @@
+import { getSessionStatusLabel, statusToBadgeClass } from '../../utils/examSessionStatus'
+
 export default function StudentSection({
   studentExamPage,
   fetchStudentRegisteredExams,
@@ -7,9 +9,10 @@ export default function StudentSection({
   handleTakeExam,
   takingExamId,
   studentExamTotalPages,
-  myRoomInfo,
 }) {
-  const roomExamId = Number(myRoomInfo?.examId)
+  // Determine a representative assigned room from the fetched registrations (if any)
+  const assigned = studentRegisteredExams.find((r) => r.roomInfo && r.roomInfo.roomId)
+  const roomExamId = Number(assigned?.examId)
 
   return (
     <section className="panel">
@@ -19,8 +22,8 @@ export default function StudentSection({
         <div>
           <p className="student-exam-note">Chỉ hiển thị các kỳ thi bạn đã đăng ký.</p>
           <p className="student-exam-note">
-            {myRoomInfo?.roomId
-              ? `Phòng thi hiện tại: ${myRoomInfo.roomCode || myRoomInfo.roomId} · Ghế ${myRoomInfo.seatNumber ?? '-'}`
+            {assigned?.roomInfo?.roomId
+              ? `Phòng thi hiện tại: ${assigned.roomInfo.roomCode || assigned.roomInfo.roomId} · Ghế ${assigned.roomInfo.seatNumber ?? '-'}`
               : 'Bạn chưa có phòng thi được gán.'}
           </p>
         </div>
@@ -80,16 +83,16 @@ export default function StudentSection({
                       <td>{item.examId ?? item.exam?.id ?? '-'}</td>
                       <td>{item.exam?.title || '-'}</td>
                       <td>
-                        {hasAssignedRoom
-                          ? `${myRoomInfo?.roomCode || myRoomInfo?.roomId || '-'}${myRoomInfo?.seatNumber != null ? ` · Ghế ${myRoomInfo.seatNumber}` : ''}`
+                        {item.roomInfo?.roomId
+                          ? `${item.roomInfo.roomCode || item.roomInfo.roomId || '-'}${item.roomInfo.seatNumber != null ? ` · Ghế ${item.roomInfo.seatNumber}` : ''}`
                           : '-'}
                       </td>
                       <td>{formatDateTime(item.registeredAt)}</td>
                       <td>{formatDateTime(item.exam?.startTime)}</td>
                       <td>{formatDateTime(item.exam?.endTime)}</td>
                       <td>
-                        <span className={`status-badge badge-${(item.sessionStatus || 'pending').toLowerCase()}`}>
-                          {item.sessionStatus || 'Chưa làm'}
+                        <span className={`status-badge badge-${statusToBadgeClass(item.sessionStatus || 'NOT_STARTED')}`}>
+                          {getSessionStatusLabel(item.sessionStatus) || 'Chưa làm'}
                         </span>
                       </td>
                       <td>

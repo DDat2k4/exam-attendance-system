@@ -1495,61 +1495,64 @@
 
 .status-badge {
   display: inline-block;
-  padding: 4px 10px !important;
-  border-radius: 12px !important;
-  font-size: 11px !important;
+  padding: 6px 12px !important;
+  border-radius: 14px !important;
+  font-size: 12px !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
+  letter-spacing: 0.4px;
 }
 
-.status-badge.badge-checked_in {
-  background: #e8f5e9 !important;
-  color: #28a745 !important;
-}
-
-.status-badge.badge-in_progress {
-  background: #e3f2fd !important;
-  color: #1976d2 !important;
-}
-
-.status-badge.badge-submitted {
-  background: #f3e5f5 !important;
-  color: #7b1fa2 !important;
-}
-
-.status-badge.badge-verified {
-  background: #d4edda !important;
-  color: #155724 !important;
-}
-
-.status-badge.badge-pending {
-  background: #fff3cd !important;
-  color: #856404 !important;
-}
-
-.status-badge.badge-init {
-  background: #fff3cd !important;
-  color: #856404 !important;
-}
-
-.status-badge.badge-unknown {
-  background: #e2e3e5 !important;
-  color: #383d41 !important;
-}
-
-.status-badge.badge-started {
-  background: #e3f2fd !important;
-  color: #1976d2 !important;
-}
-
+/* Positive / success */
+.status-badge.badge-checked_in,
 .status-badge.badge-done {
-  background: #d4edda !important;
-  color: #155724 !important;
+  background: #e6f4ea !important;
+  color: #1b5e20 !important;
+  border: 1px solid rgba(27,94,32,0.08) !important;
 }
 
+/* In progress */
+.status-badge.badge-in_progress,
+.status-badge.badge-started {
+  background: #eaf4ff !important;
+  color: #0d47a1 !important;
+  border: 1px solid rgba(13,71,161,0.08) !important;
+}
+
+/* Pending review (requires human action) */
+.status-badge.badge-pending_review {
+  background: #fff8e1 !important;
+  color: #a66300 !important;
+  border: 1px solid rgba(166,99,0,0.08) !important;
+}
+
+/* Pending device approval (special pending) */
+.status-badge.badge-pending_device_approval {
+  background: #f3e5f5 !important;
+  color: #6a1b9a !important;
+  border: 1px solid rgba(106,27,154,0.06) !important;
+}
+
+/* Neutral / unknown */
+.status-badge.badge-unknown {
+  background: #f4f6f8 !important;
+  color: #263238 !important;
+  border: 1px solid rgba(38,50,56,0.04) !important;
+}
+
+/* Blocked / error */
 .status-badge.badge-blocked {
-  background: #f8d7da !important;
-  color: #721c24 !important;
+  background: #fff1f0 !important;
+  color: #b71c1c !important;
+  border: 1px solid rgba(183,28,28,0.06) !important;
+}
+
+/* Generic pending / init */
+.status-badge.badge-pending,
+.status-badge.badge-init,
+.status-badge.badge-submitted {
+  background: #fff9f0 !important;
+  color: #7a5a00 !important;
 }
 
 .proctor-summary-grid {

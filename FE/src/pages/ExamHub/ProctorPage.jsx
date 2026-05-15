@@ -168,7 +168,10 @@ export default function ProctorPage() {
             </div>
             <p>{toast.message}</p>
             <small>
-              Room #{toast.roomId || '-'} • User #{toast.userId || '-'} • {formatDateTime(toast.timestamp)}
+              {toast.roomName ? `${toast.roomName}` : toast.roomId ? `Room #${toast.roomId}` : '-'}
+              {toast.userName ? ` • ${toast.userName}` : ` • User #${toast.userId || '-'}`}
+              {toast.citizenId ? ` • CCCD ${toast.citizenId}` : ''}
+              {` • ${formatDateTime(toast.timestamp)}`}
             </small>
           </div>
         ))}

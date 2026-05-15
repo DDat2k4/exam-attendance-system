@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { requestCameraAccess, captureFrame, getDeviceInfo } from '../../utils/faceCapture'
 import { verifyIdentity } from '../../api/verificationApi'
+import { getExamSessionById } from '../../api/examSessionApi'
+import { isApprovedSessionStatus, normalizeSessionStatus } from '../../utils/examSessionStatus'
 import './ExamProctor.css'
 
-export default function ExamProctor({ examSessionId, onSessionEnd, questions = [] }) {
+export default function ExamProctor({ examSessionId, onSessionEnd, questions = [], verificationWaiting = false, verificationClearedAt = null, externalFailures = 0 }) {
   const videoRef = useRef(null)
   const randomTimeoutRef = useRef(null)
   const cameraPromptTimeoutRef = useRef(null)
   const countdownIntervalRef = useRef(null)
+  const prevVerificationWaitingRef = useRef(verificationWaiting)
   const [cameraActive, setCameraActive] = useState(false)
   const [verificationStatus, setVerificationStatus] = useState('idle') // idle, verifying, success, failed
   const [lastVerification, setLastVerification] = useState(null)
@@ -16,6 +19,8 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
   const [examTime, setExamTime] = useState(0)
   const [showCamera, setShowCamera] = useState(false)
   const [randomCountdown, setRandomCountdown] = useState(null)
+  const [awaitingReview, setAwaitingReview] = useState(false)
+  const [ignoreExternalUntil, setIgnoreExternalUntil] = useState(0)
   const streamRef = useRef(null)
   const showCameraRef = useRef(false)
 
@@ -24,7 +29,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
   const RANDOM_COUNTDOWN_MIN = 3 // 3 seconds
   const RANDOM_COUNTDOWN_MAX = 5 // 5 seconds
   const CAMERA_PROMPT_DURATION = 6000 // keep camera visible after capture for random checks
-  const MAX_FAILURES = 2
+  const MAX_FAILURES = 3
   const EXAM_DURATION = 3600 // 1 hour in seconds
 
   useEffect(() => {
@@ -36,12 +41,9 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
       setVerificationStatus(nextStatus)
       setTotalFailures((prev) => {
         const newFailures = prev + 1
-
-        // Do NOT auto end the session here. Backend will mark session PENDING_REVIEW when needed.
-        // FE should notify proctor / show warning and allow manual review.
         if (newFailures >= MAX_FAILURES) {
-          // set a visible state but do not call onSessionEnd; proctor must review
           setVerificationStatus('needs_review')
+          setAwaitingReview(true)
         } else {
           setTimeout(() => setVerificationStatus('idle'), 2500)
         }
@@ -96,6 +98,79 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
     }
   }, [showCamera])
 
+  // Poll session status while awaiting review — auto exit if proctor approves
+  useEffect(() => {
+    if (!awaitingReview || !examSessionId) return
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const session = await getExamSessionById(examSessionId)
+        const sessionStatus = normalizeSessionStatus(session?.examSessionStatus)
+
+        // If proctor approved (status changed to CHECKED_IN/IN_PROGRESS), exit waiting state
+        if (isApprovedSessionStatus(sessionStatus) || sessionStatus === 'NOT_STARTED') {
+          
+          setAwaitingReview(false)
+          // reset failures so random checks can resume normally
+          setTotalFailures(0)
+          setVerificationStatus('idle')
+          // temporarily ignore externalFailures updates to avoid immediate re-sync
+          setIgnoreExternalUntil(Date.now() + 3000)
+        }
+      } catch (err) {
+        console.error('Error polling session status:', err.message)
+      }
+    }, 2000) // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval)
+  }, [awaitingReview, examSessionId])
+
+  // Log awaitingReview changes
+  useEffect(() => {}, [awaitingReview])
+
+  // If parent signals verification cleared (timestamp changed), reset local failure counter and logs
+  useEffect(() => {
+    if (!verificationClearedAt) return
+    setAwaitingReview(false)
+    setTotalFailures(0)
+    setVerificationStatus('idle')
+    setVerificationLog([])
+  }, [verificationClearedAt])
+
+  // Sync external failures reported by initial verification flow
+  useEffect(() => {
+    if (!externalFailures) return
+    // If we recently cleared (proctor approved), ignore external updates for a short window
+    if (Date.now() < ignoreExternalUntil) {
+      return
+    }
+    setTotalFailures((prev) => {
+      if (externalFailures > prev) return externalFailures
+      return prev
+    })
+    if (externalFailures >= MAX_FAILURES) {
+      setVerificationStatus('needs_review')
+      if (verificationWaiting) {
+        setAwaitingReview(true)
+      }
+    }
+  }, [externalFailures, verificationWaiting, ignoreExternalUntil])
+
+  // Log combined failures for debugging display issues
+  useEffect(() => {}, [totalFailures, externalFailures])
+  useEffect(() => {
+    if (prevVerificationWaitingRef.current === true && verificationWaiting === false && awaitingReview) {
+      setAwaitingReview(false)
+      setTotalFailures(0)
+      setVerificationStatus('idle')
+    }
+
+    prevVerificationWaitingRef.current = verificationWaiting
+  }, [verificationWaiting, awaitingReview])
+
+  const combinedFailures = Math.max(totalFailures, externalFailures)
+  const displayedStatus = awaitingReview ? 'needs_review' : verificationStatus
+
   // Start exam timer
   useEffect(() => {
     const timer = setInterval(() => {
@@ -114,8 +189,9 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
 
   // Perform verification
   const performRandomVerification = useCallback(async () => {
-    if (!videoRef.current || !cameraActive) {
-      registerFailure('failed')
+    const combinedFailures = Math.max(totalFailures, externalFailures)
+    if (!videoRef.current || !cameraActive || awaitingReview || (combinedFailures >= MAX_FAILURES && verificationWaiting)) {
+    
       return
     }
 
@@ -151,12 +227,14 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
 
       if (isReconnect) {
         setVerificationStatus('success')
+        setAwaitingReview(false)
         setTimeout(() => setVerificationStatus('idle'), 2000)
         return
       }
 
       if (status === 'BLOCKED') {
         setVerificationStatus('blocked')
+        setAwaitingReview(false)
         // backend blocked the session; end locally
         onSessionEnd?.('BLOCKED')
         return
@@ -165,13 +243,16 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
       if (status === 'PENDING_REVIEW' || status === 'PENDING_DEVICE_APPROVAL') {
         // backend flagged session — show proctor notice, do not auto-block
         setVerificationStatus('needs_review')
-        // still record log entry and increment failures locally
         registerFailure('needs_review')
+        if (verificationWaiting) {
+          setAwaitingReview(true)
+        }
         return
       }
 
       if (response.passed) {
         setVerificationStatus('success')
+        setAwaitingReview(false)
         setTimeout(() => setVerificationStatus('idle'), 2000)
       } else {
         registerFailure('failed')
@@ -180,10 +261,11 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
       console.error('Verification error:', err.message)
       registerFailure('failed')
     }
-  }, [cameraActive, examSessionId, registerFailure])
+  }, [cameraActive, examSessionId, registerFailure, totalFailures, externalFailures, awaitingReview, verificationWaiting])
 
   const scheduleNextRandomVerification = useCallback(function scheduleNextRandomVerificationImpl() {
-    if (totalFailures >= MAX_FAILURES || !cameraActive) return
+    const combinedFailures = Math.max(totalFailures, externalFailures)
+    if ((combinedFailures >= MAX_FAILURES && verificationWaiting) || !cameraActive || awaitingReview) return
 
     const delay =
       Math.floor(Math.random() * (RANDOM_MAX_INTERVAL - RANDOM_MIN_INTERVAL + 1)) + RANDOM_MIN_INTERVAL
@@ -225,11 +307,12 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
         }
       }, 1000)
     }, delay)
-  }, [cameraActive, performRandomVerification, totalFailures])
+  }, [cameraActive, performRandomVerification, totalFailures, awaitingReview, externalFailures])
 
   // Periodic verification (RANDOM)
   useEffect(() => {
-    if (!cameraActive || totalFailures >= MAX_FAILURES) {
+    const combinedFailures = Math.max(totalFailures, externalFailures)
+    if (!cameraActive || (combinedFailures >= MAX_FAILURES && verificationWaiting) || awaitingReview) {
       return
     }
 
@@ -247,10 +330,11 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
       }
       setRandomCountdown(null)
     }
-  }, [cameraActive, totalFailures, scheduleNextRandomVerification])
+  }, [cameraActive, totalFailures, awaitingReview, scheduleNextRandomVerification])
 
   // Manual verification
   const handleManualVerify = async () => {
+    if (awaitingReview) return
     await performRandomVerification()
   }
 
@@ -310,10 +394,22 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
         </div>
 
         <div className="exam-actions">
-          <button className="btn-submit" onClick={() => onSessionEnd?.('SUBMITTED')}>
+          <button className="btn-submit" onClick={() => onSessionEnd?.('SUBMITTED')} disabled={awaitingReview}>
             Nộp bài
           </button>
         </div>
+
+        {awaitingReview && (
+          <div className="review-overlay" role="dialog" aria-modal="true" aria-live="polite">
+            <div className="review-overlay__card">
+              <div className="review-overlay__icon">⏳</div>
+              <h3>Đang chờ giám thị duyệt</h3>
+              <p>
+                Hệ thống đã chuyển phiên thi sang trạng thái chờ xử lý. Bạn tạm thời không thể tiếp tục xác minh hay nộp bài cho đến khi giám thị phê duyệt.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sidebar - Proctor status */}
@@ -325,6 +421,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
           <button
             className="btn-toggle-camera"
             onClick={() => setShowCamera(!showCamera)}
+            disabled={awaitingReview}
           >
             {showCamera ? '🔽 Ẩn Camera' : '📷 Xem Camera'}
           </button>
@@ -346,23 +443,24 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
               <button
                 className="btn-manual-verify"
                 onClick={handleManualVerify}
-                disabled={verificationStatus === 'verifying' || !cameraActive}
+                disabled={verificationStatus === 'verifying' || !cameraActive || awaitingReview}
               >
-                Xác Minh Ngay
+                {awaitingReview ? 'Đang chờ duyệt' : 'Xác Minh Ngay'}
               </button>
             </div>
           )}
         </div>
 
         {/* Verification status */}
-        <div className={`status-section status-${verificationStatus}`}>
+        <div className={`status-section status-${displayedStatus}`}>
           <div className="status-icon">{getStatusIcon()}</div>
           <div className="status-text">
-            {verificationStatus === 'idle' && 'Sẵn sàng'}
-            {verificationStatus === 'countdown' && `Chuẩn bị chụp sau ${randomCountdown ?? 0}s...`}
-            {verificationStatus === 'verifying' && 'Đang xác minh...'}
-            {verificationStatus === 'success' && 'Xác minh thành công'}
-            {verificationStatus === 'failed' && 'Xác minh thất bại'}
+            {displayedStatus === 'idle' && 'Sẵn sàng'}
+            {displayedStatus === 'countdown' && `Chuẩn bị chụp sau ${randomCountdown ?? 0}s...`}
+            {displayedStatus === 'verifying' && 'Đang xác minh...'}
+            {displayedStatus === 'success' && 'Xác minh thành công'}
+            {displayedStatus === 'failed' && 'Xác minh thất bại'}
+            {displayedStatus === 'needs_review' && 'Chờ giám thị duyệt'}
           </div>
         </div>
 
@@ -380,18 +478,44 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
           </div>
         )}
 
-        {/* Failure counter */}
-        <div className={`failure-counter ${totalFailures > 0 ? 'warning' : ''}`}>
-          <span className="label">Lỗi:</span>
-          <span className="value">
-            {totalFailures}/{MAX_FAILURES}
-          </span>
+        {/* Failure counter (redesigned) */}
+        <div className={`failure-card ${combinedFailures > 0 ? 'warning' : ''}`}>
+          <div className="failure-header">
+            <div className="failure-title">Kiểm tra ngẫu nhiên</div>
+            <button
+              className="info-btn"
+              title="Số lần thất bại do các kiểm tra ngẫu nhiên của hệ thống."
+            >
+              i
+            </button>
+          </div>
+
+          <div className="failure-rows">
+            <div className="failure-row">
+              <span className="label">Ngẫu nhiên</span>
+              <span className="value">{totalFailures}/{MAX_FAILURES}</span>
+            </div>
+
+            <div className="failure-progress">
+              <div className="progress-bar" aria-hidden>
+                <div
+                  className="progress-fill"
+                  style={{ width: `${(totalFailures / MAX_FAILURES) * 100}%` }}
+                />
+              </div>
+              <div className="progress-label">{totalFailures}/{MAX_FAILURES}</div>
+            </div>
+          </div>
         </div>
 
-        {totalFailures >= MAX_FAILURES && (
+        {(combinedFailures >= MAX_FAILURES || awaitingReview) && (
           <div className="alert-block">
             <span className="alert-icon">⚠️</span>
-            <p>Vượt quá số lần xác minh thất bại. Phiên thi sẽ kết thúc.</p>
+            <p>
+              {awaitingReview
+                ? 'Phiên thi đang chờ giám thị duyệt. Vui lòng đợi.'
+                : 'Vượt quá số lần xác minh thất bại. Phiên thi sẽ kết thúc.'}
+            </p>
           </div>
         )}
 

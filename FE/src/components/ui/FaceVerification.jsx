@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { requestCameraAccess, captureFrame, getDeviceInfo } from '../../utils/faceCapture'
 import { verifyIdentity } from '../../api/verificationApi'
+import { flagExamSession } from '../../api/examSessionApi'
 import './FaceVerification.css'
 
-export default function FaceVerification({ examSessionId, onVerified, onFailed, onPending, onClose }) {
+export default function FaceVerification({ examSessionId, onVerified, onFailed, onPending, onAttempt, onClose }) {
   const videoRef = useRef(null)
   const [cameraActive, setCameraActive] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -50,15 +51,17 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
       return
     }
 
-    if (attempts >= MAX_ATTEMPTS) {
-      setError(`Đã vượt quá ${MAX_ATTEMPTS} lần xác minh — đang chờ giám thị duyệt.`)
-      setMessage('')
+    // Prevent further attempts if we already hit max attempts or waiting for proctor
+    if (attempts >= MAX_ATTEMPTS || awaitingProctorApproval) {
       setAwaitingProctorApproval(true)
-      onPending?.('PENDING_REVIEW')
+      setError('Bạn đã vượt quá số lần xác minh. Phiên đang chờ giám thị duyệt')
       return
     }
 
+    // Do NOT enforce pending/review locally — rely on backend `sessionStatus` and `attempt`.
+
     try {
+      // starting verification attempt
       setLoading(true)
       setError('')
       setMessage('Đang xử lý xác minh khuôn mặt...')
@@ -86,6 +89,7 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
       // Use attempt from backend to keep FE in sync
       if (typeof response.attempt === 'number') {
         setAttempts(response.attempt)
+        onAttempt?.(response.attempt)
       }
 
       // Handle session status from backend
@@ -96,15 +100,17 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
         setMessage('')
         setAwaitingProctorApproval(true)
         setLoading(false)
-        onPending?.('PENDING_DEVICE_APPROVAL')
+        onPending?.('PENDING_DEVICE_APPROVAL', response?.attempt)
+        if (typeof response?.attempt === 'number') onAttempt?.(response.attempt)
         return
       }
 
       if (status === 'PENDING_REVIEW') {
-        setError('Đã vượt quá 3 lần xác minh — đang chờ giám thị duyệt')
+        setError('Phiên đang chờ giám thị duyệt')
         setMessage('')
         setAwaitingProctorApproval(true)
-        onPending?.('PENDING_REVIEW')
+        onPending?.('PENDING_REVIEW', response?.attempt)
+        if (typeof response?.attempt === 'number') onAttempt?.(response.attempt)
         return
       }
 
@@ -126,10 +132,14 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
 
         setTimeout(() => {
           onVerified?.(response)
+          if (typeof response.attempt === 'number') onAttempt?.(response.attempt)
         }, 1500)
       } else {
-        const newAttempts = response.attempt ?? attempts + 1
+        // Use backend attempt if provided, otherwise increment local counter
+        const newAttempts = typeof response.attempt === 'number' ? response.attempt : attempts + 1
+        // verification failed
         setAttempts(newAttempts)
+        onAttempt?.(newAttempts)
         const confidenceText = Number.isFinite(response.confidence)
           ? `${(response.confidence * 100).toFixed(1)}%`
           : '—'
@@ -137,24 +147,27 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
           `✗ Xác minh thất bại (Lần ${newAttempts}/${MAX_ATTEMPTS}). Độ tin cậy: ${confidenceText}. Vui lòng thử lại.`,
         )
 
+        // If we've reached max attempts, inform backend so it can mark session as pending review.
         if (newAttempts >= MAX_ATTEMPTS) {
+          try {
+            // Best-effort notify backend that multiple verify attempts occurred
+            await flagExamSession(examSessionId, 'MULTIPLE_VERIFY_FAILED')
+          } catch (err) {
+            // failed to flag session (suppressed)
+          }
+
+          // Enter awaiting state and notify parent
           setAwaitingProctorApproval(true)
-          setTimeout(() => {
-            onPending?.('PENDING_REVIEW')
-          }, 600)
+          onPending?.('PENDING_REVIEW', newAttempts)
         }
+        // Do not move to pending purely on client-side count — backend will return sessionStatus when appropriate.
       }
     } catch (err) {
       const newAttempts = attempts + 1
       setAttempts(newAttempts)
+      onAttempt?.(newAttempts)
       setError(`✗ Lỗi xác minh (Lần ${newAttempts}/${MAX_ATTEMPTS}): ${err.message}`)
-
-      if (newAttempts >= MAX_ATTEMPTS) {
-        setAwaitingProctorApproval(true)
-        setTimeout(() => {
-          onPending?.('PENDING_REVIEW')
-        }, 600)
-      }
+      // Do not trigger pending/review here; backend determines when session becomes PENDING_REVIEW.
     } finally {
       setLoading(false)
     }
@@ -168,7 +181,7 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
             <p className="verification-eyebrow">Bước xác minh bắt đầu</p>
             <h2>Xác minh khuôn mặt khi vào thi</h2>
           </div>
-          <div className="verification-badge">Lần thử {attempts}/{MAX_ATTEMPTS}</div>
+            <div className="verification-badge">Lần thử {awaitingProctorApproval ? '—' : `${attempts}/${MAX_ATTEMPTS}`}</div>
         </div>
 
         <div className="face-verification-body">
@@ -200,9 +213,9 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
               <div className="verification-tip verification-tip--info">Fail 3 lần sẽ chờ giám thị duyệt</div>
             </div>
 
-            <div className="attempt-counter">
-              Lần thử: <strong>{attempts}</strong>/<strong>{MAX_ATTEMPTS}</strong>
-            </div>
+              <div className="attempt-counter">
+                Lần thử: <strong>{awaitingProctorApproval ? '—' : attempts}</strong>/<strong>{MAX_ATTEMPTS}</strong>
+              </div>
           </div>
         </div>
 
@@ -229,7 +242,7 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
           <button
             className="btn-verify"
             onClick={handleVerify}
-            disabled={loading || !cameraActive || awaitingProctorApproval}
+            disabled={loading || !cameraActive || awaitingProctorApproval || attempts >= MAX_ATTEMPTS}
           >
             {loading ? 'Đang xử lý...' : awaitingProctorApproval ? 'Đang chờ giám thị duyệt' : 'Xác Minh'}
           </button>

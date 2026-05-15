@@ -32,7 +32,7 @@ export const getUserFromToken = () => {
       userId: resolvedId ?? null,
     };
   } catch (error) {
-    console.error("Invalid token:", error);
+    // invalid token during decode (suppressed)
     return null;
   }
 };

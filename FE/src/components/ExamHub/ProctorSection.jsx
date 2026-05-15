@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import VerificationHistory from '../ui/VerificationHistory'
 import { useExcelExport } from '../../hooks/useExcelExport'
 import {
@@ -15,15 +15,7 @@ import {
   TrashIcon,
 } from '../ui/AppIcons'
 
-const PROCTOR_STATUS_LABELS = {
-  INIT: 'Khởi tạo',
-  CHECKED_IN: 'Đã check-in',
-  IN_PROGRESS: 'Đang thi',
-  DONE: 'Đã hoàn thành',
-  BLOCKED: 'Bị khóa',
-  PENDING_REVIEW: 'Chờ giám thị duyệt',
-  PENDING_DEVICE_APPROVAL: 'Chờ duyệt thiết bị',
-}
+import { getSessionStatusLabel, statusToBadgeClass } from '../../utils/examSessionStatus'
 
 const ALERT_TYPE_LABELS = {
   VERIFY_FAIL: 'Xác minh thất bại',
@@ -40,6 +32,42 @@ const ALERT_TYPE_LABELS = {
 }
 
 const formatLabel = (value, mapping) => mapping[String(value || '').toUpperCase()] || value || 'UNKNOWN'
+
+const findAlertSessionMatch = (alert, proctorDashboard, getSessionRecordId) => {
+  const alertSessionId = Number(alert?.sessionId)
+  const alertUserId = Number(alert?.userId)
+  const alertRoomId = Number(alert?.roomId)
+
+  if (Number.isInteger(alertSessionId)) {
+    const bySessionId = proctorDashboard.find((item) => Number(getSessionRecordId(item)) === alertSessionId)
+    if (bySessionId) return bySessionId
+  }
+
+  if (Number.isInteger(alertUserId)) {
+    const byUserId = proctorDashboard.find((item) => Number(item?.userId) === alertUserId)
+    if (byUserId) return byUserId
+  }
+
+  if (Number.isInteger(alertRoomId)) {
+    const byRoomId = proctorDashboard.find((item) => Number(item?.roomId ?? item?.room?.id) === alertRoomId)
+    if (byRoomId) return byRoomId
+  }
+
+  return null
+}
+
+const getAlertSubjectLabel = (alert, matchedSession) => {
+  const studentName = matchedSession?.studentName || alert?.studentName || alert?.fullName || alert?.userName || alert?.username
+  const citizenId = matchedSession?.citizenId || alert?.citizenId
+  const roomCode = matchedSession?.roomCode || alert?.roomCode
+
+  if (studentName) {
+    return `${studentName}${citizenId ? ` • CCCD ${citizenId}` : ''}${roomCode ? ` • Phòng ${roomCode}` : ''}`
+  }
+
+  const sessionLabel = alert?.sessionId ? `Phiên #${alert.sessionId}` : 'Phiên xác minh'
+  return `${sessionLabel}${alert?.userId ? ` • User #${alert.userId}` : ''}${roomCode ? ` • Phòng ${roomCode}` : alert?.roomId ? ` • Room #${alert.roomId}` : ''}`
+}
 
 export default function ProctorSection({
   openProctorRoomModal,
@@ -76,27 +104,38 @@ export default function ProctorSection({
   const [exportErrorMessage, setExportErrorMessage] = useState('')
   const [captureImageBroken, setCaptureImageBroken] = useState(false)
 
+  const enrichedProctorAlerts = useMemo(
+    () =>
+      proctorAlerts.map((alert) => {
+        const matchedSession = findAlertSessionMatch(alert, proctorDashboard, getSessionRecordId)
+
+        return {
+          ...alert,
+          titleLabel: formatLabel(alert.type, ALERT_TYPE_LABELS),
+          subjectLabel: getAlertSubjectLabel(alert, matchedSession),
+        }
+      }),
+    [getSessionRecordId, proctorAlerts, proctorDashboard],
+  )
+
   useEffect(() => {
     setCaptureImageBroken(false)
   }, [selectedProctorSessionId])
 
   const handleExportReport = async () => {
-    console.log('handleExportReport clicked, proctorFilter.roomId:', proctorFilter.roomId)
+    // export report invoked
     
     if (!proctorFilter.roomId) {
-      console.warn('roomId không có, không thể xuất báo cáo')
       setExportErrorMessage('Vui lòng chọn phòng thi trước khi xuất báo cáo.')
       setShowExportError(true)
       return
     }
     
     try {
-      console.log('Gọi exportReport với roomId:', proctorFilter.roomId)
       await exportReport(proctorFilter.roomId)
       setExportErrorMessage('')
       setShowExportError(false)
     } catch (err) {
-      console.error('Export error:', err)
       setExportErrorMessage(err.message || 'Không thể xuất báo cáo')
       setShowExportError(true)
     }
@@ -284,15 +323,15 @@ export default function ProctorSection({
           </div>
         </div>
 
-        {proctorAlerts.length === 0 ? (
+        {enrichedProctorAlerts.length === 0 ? (
           <p>Chưa có cảnh báo mới cho phòng đang giám sát.</p>
         ) : (
           <div className="proctor-alert-list">
-            {proctorAlerts.map((alert, index) => (
+            {enrichedProctorAlerts.map((alert, index) => (
               <article key={`${alert.sessionId || 'session'}-${alert.timestamp}-${index}`} className="proctor-alert-item">
                 <div className="proctor-alert-item-head">
                   <span className="risk-badge risk-info">
-                    {formatLabel(alert.type, ALERT_TYPE_LABELS)}
+                    {alert.titleLabel}
                   </span>
                   <span className={`risk-badge risk-${String(alert.severity || 'LOW').toLowerCase()}`}>
                     {alert.severity || 'LOW'}
@@ -300,9 +339,7 @@ export default function ProctorSection({
                   <small>{formatDateTime(alert.timestamp)}</small>
                 </div>
                 <strong>{alert.message}</strong>
-                <small>
-                  Session #{alert.sessionId || '-'} • User #{alert.userId || '-'} • Room #{alert.roomId || '-'}
-                </small>
+                <small>{alert.subjectLabel}</small>
               </article>
             ))}
           </div>
@@ -346,13 +383,13 @@ export default function ProctorSection({
                         <td>{item?.citizenId ?? '-'}</td>
                         <td>{item?.roomCode ?? item?.roomId ?? item?.room?.id ?? '-'}</td>
                         <td>
-                          <span className={`status-badge badge-${(item?.attendanceStatus || 'UNKNOWN').toLowerCase()}`}>
-                            {formatLabel(item?.attendanceStatus, PROCTOR_STATUS_LABELS)}
+                            <span className={`status-badge badge-${statusToBadgeClass(item?.attendanceStatus || item?.examSessionStatus || 'UNKNOWN')}`}>
+                            {getSessionStatusLabel(item?.attendanceStatus || item?.examSessionStatus) || formatLabel(item?.attendanceStatus, {})}
                           </span>
                         </td>
                         <td>
-                          <span className={`status-badge badge-${(item?.examSessionStatus || 'UNKNOWN').toLowerCase()}`}>
-                            {formatLabel(item?.examSessionStatus, PROCTOR_STATUS_LABELS)}
+                          <span className={`status-badge badge-${statusToBadgeClass(item?.examSessionStatus || 'UNKNOWN')}`}>
+                            {getSessionStatusLabel(item?.examSessionStatus) || formatLabel(item?.examSessionStatus, {})}
                           </span>
                         </td>
                         <td>
@@ -447,11 +484,11 @@ export default function ProctorSection({
                     <div>
                       <h4>{selectedProctorSession?.studentName ?? 'Student'}</h4>
                       <div className="proctor-student-tags">
-                        <span className={`status-badge badge-${(selectedProctorSession?.attendanceStatus || 'pending').toLowerCase()}`}>
-                          {formatLabel(selectedProctorSession?.attendanceStatus, PROCTOR_STATUS_LABELS)}
+                        <span className={`status-badge badge-${statusToBadgeClass(selectedProctorSession?.attendanceStatus || selectedProctorSession?.examSessionStatus || 'UNKNOWN')}`}>
+                          {getSessionStatusLabel(selectedProctorSession?.attendanceStatus || selectedProctorSession?.examSessionStatus) || formatLabel(selectedProctorSession?.attendanceStatus, {})}
                         </span>
-                        <span className={`status-badge badge-${(selectedProctorSession?.examSessionStatus || 'unknown').toLowerCase()}`}>
-                          {formatLabel(selectedProctorSession?.examSessionStatus, PROCTOR_STATUS_LABELS)}
+                        <span className={`status-badge badge-${statusToBadgeClass(selectedProctorSession?.examSessionStatus || 'UNKNOWN')}`}>
+                          {getSessionStatusLabel(selectedProctorSession?.examSessionStatus) || formatLabel(selectedProctorSession?.examSessionStatus, {})}
                         </span>
                         {selectedProctorSession?.flagged && (
                           <span className="flagged-indicator-badge">🚩 Flagged</span>
@@ -468,8 +505,16 @@ export default function ProctorSection({
                     <div><span>Room Code</span><strong>{selectedProctorSession?.roomCode ?? selectedProctorSession?.roomId ?? '-'}</strong></div>
                     <div><span>Device</span><strong className="device-id">{selectedProctorSession?.deviceId ?? '-'}</strong></div>
 
-                    <div><span>Attendance Status</span><strong className={`status-text badge-${(selectedProctorSession?.attendanceStatus || 'unknown').toLowerCase()}`}>{formatLabel(selectedProctorSession?.attendanceStatus, PROCTOR_STATUS_LABELS)}</strong></div>
-                    <div><span>Exam Status</span><strong>{formatLabel(selectedProctorSession?.examSessionStatus, PROCTOR_STATUS_LABELS)}</strong></div>
+                    <div>
+                      <span>Attendance Status</span>
+                      <strong className={`status-text badge-${statusToBadgeClass(selectedProctorSession?.attendanceStatus || selectedProctorSession?.examSessionStatus || 'UNKNOWN')}`}>
+                        {getSessionStatusLabel(selectedProctorSession?.attendanceStatus || selectedProctorSession?.examSessionStatus) || '-'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Exam Status</span>
+                      <strong>{getSessionStatusLabel(selectedProctorSession?.examSessionStatus) || '-'}</strong>
+                    </div>
 
                     <div><span>Attempt</span><strong>{selectedProctorSession?.attemptNo ?? '-'}</strong></div>
                     <div><span>Last Verify ID</span><strong>{selectedProctorSession?.lastVerifyId ?? '-'}</strong></div>

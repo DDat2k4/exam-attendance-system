@@ -107,6 +107,52 @@
   border-top: 1px solid #ddd;
 }
 
+.review-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 1.5rem;
+}
+
+.review-overlay__card {
+  width: min(520px, 100%);
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 1.5rem 1.75rem;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+  border: 1px solid #d8e1ff;
+}
+
+.review-overlay__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 0.75rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 1.75rem;
+  background: #eef2ff;
+  color: #263578;
+}
+
+.review-overlay__card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.35rem;
+  color: #1f2a44;
+}
+
+.review-overlay__card p {
+  margin: 0;
+  color: #58657f;
+  line-height: 1.6;
+}
+
 .btn-submit {
   padding: 0.75rem 2rem;
   background: #28a745;
@@ -123,6 +169,15 @@
   background: #218838;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.btn-submit:disabled,
+.btn-toggle-camera:disabled,
+.btn-manual-verify:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .proctor-sidebar {
@@ -297,6 +352,73 @@
 .failure-counter .value {
   font-weight: bold;
   color: #333;
+}
+
+/* Redesigned failure card */
+.failure-card {
+  padding: 0.75rem;
+  background: #fff8e6;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  border: 1px solid #f1e0b5;
+}
+.failure-card.warning {
+  background: #fff3cd;
+  border-color: #ffe8a8;
+}
+.failure-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.failure-title {
+  font-weight: 700;
+  color: #333;
+}
+.info-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  background: #e8eaf6;
+  color: #2b2f7a;
+  font-weight: 700;
+  cursor: pointer;
+}
+.failure-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.failure-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0.25rem;
+}
+.failure-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 6px;
+}
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #eee;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg,#ffc107,#ff8f00);
+}
+.progress-label {
+  min-width: 40px;
+  text-align: right;
+  font-weight: 700;
 }
 
 .alert-block {

@@ -9,7 +9,8 @@ import {
   getExamSessionVerificationHistory,
   rejectExamSession,
 } from '../api/examSessionApi'
-import { getRoomsByExamPaginated } from '../api/examRoomApi'
+import { getRoomsByExamPaginated, getExamRoomById } from '../api/examRoomApi'
+import { getUserById } from '../api/userApi'
 
 export const PROCTOR_STATUS_OPTIONS = [
   'INIT',
@@ -73,6 +74,8 @@ const parseAlertPayload = (payload, fallbackRoomId) => {
   }
 }
 
+
+
 export default function useProctorSection({
   activeSection,
   setActiveSection,
@@ -108,7 +111,28 @@ export default function useProctorSection({
   const [proctorRoomDraft, setProctorRoomDraft] = useState('')
   const [proctorRoomOptions, setProctorRoomOptions] = useState([])
   const [loadingProctorRooms, setLoadingProctorRooms] = useState(false)
-  const [proctorAlerts, setProctorAlerts] = useState([])
+  const [proctorAlerts, setProctorAlerts] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('proctor_alerts')
+      if (!raw) return []
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  })
+
+  const persistSetProctorAlerts = (valueOrUpdater) => {
+    setProctorAlerts((prev) => {
+      const next = typeof valueOrUpdater === 'function' ? valueOrUpdater(prev) : valueOrUpdater
+      try {
+        sessionStorage.setItem('proctor_alerts', JSON.stringify(next))
+      } catch {
+        // ignore storage errors
+      }
+      return next
+    })
+  }
   const [proctorToasts, setProctorToasts] = useState([])
   const [proctorSocketStatus, setProctorSocketStatus] = useState(SOCKET_STATUS.IDLE)
 
@@ -125,7 +149,7 @@ export default function useProctorSection({
   const setErrorRef = useRef(null)
 
   const clearProctorAlerts = () => {
-    setProctorAlerts([])
+    persistSetProctorAlerts([])
   }
 
   const dismissProctorToast = useMemo(
@@ -148,6 +172,9 @@ export default function useProctorSection({
         id: toastId,
         sessionId: alert?.sessionId ?? null,
         userId: alert?.userId ?? null,
+        userName: null,
+        citizenId: null,
+        roomName: null,
         roomId: alert?.roomId ?? null,
         severity: String(alert?.severity || 'LOW').toUpperCase(),
         message: alert?.message || 'Cảnh báo mới từ hệ thống giám sát.',
@@ -155,6 +182,58 @@ export default function useProctorSection({
       }
 
       setProctorToasts((prev) => [toast, ...prev].slice(0, 4))
+
+      // Resolve userName asynchronously (with simple in-memory cache)
+      try {
+        // user name cache/fetch
+        const userCache = pushProctorToast.userCache ||= new Map()
+        const uidRaw = alert?.userId
+        const uid = Number(uidRaw)
+        if (Number.isInteger(uid) && uid > 0) {
+          const cached = userCache.get(String(uid))
+          if (cached) {
+            if (typeof cached === 'string') {
+              setProctorToasts((prev) => prev.map((t) => (t.id === toastId ? { ...t, userName: cached } : t)))
+            } else {
+              const name = cached.name || `User #${uid}`
+              setProctorToasts((prev) => prev.map((t) => (t.id === toastId ? { ...t, userName: name, citizenId: cached.citizenId || null } : t)))
+            }
+          } else {
+            getUserById(uid)
+              .then((user) => {
+                const resolved = user && (user.data || user)
+                const name = (resolved && (resolved.fullName || resolved.name || resolved.username)) || `User #${uid}`
+                const citizenId = resolved && (resolved.citizenId || resolved.userCitizenId || resolved.identityNumber || (resolved.profile && (resolved.profile.citizenId || resolved.profile.identityNumber)))
+                userCache.set(String(uid), { name, citizenId })
+
+                // update toast with name and separate citizenId
+                setProctorToasts((prev) => prev.map((t) => (t.id === toastId ? { ...t, userName: name, citizenId: citizenId || null } : t)))
+              })
+              .catch(() => {})
+          }
+        }
+
+        // room name cache/fetch
+        const roomCache = pushProctorToast.roomCache ||= new Map()
+        const ridRaw = alert?.roomId
+        const rid = Number(ridRaw)
+        if (Number.isInteger(rid) && rid > 0) {
+          const cachedRoom = roomCache.get(String(rid))
+          if (cachedRoom) {
+            setProctorToasts((prev) => prev.map((t) => (t.id === toastId ? { ...t, roomName: cachedRoom } : t)))
+          } else {
+            getExamRoomById(rid)
+              .then((room) => {
+                const roomLabel = (room && (room.roomCode || room.name || room.title)) || `Room #${rid}`
+                roomCache.set(String(rid), roomLabel)
+                setProctorToasts((prev) => prev.map((t) => (t.id === toastId ? { ...t, roomName: roomLabel } : t)))
+              })
+              .catch(() => {})
+          }
+        }
+      } catch {
+        // ignore cache errors
+      }
 
       const timeoutId = window.setTimeout(() => {
         dismissProctorToast(toastId)
@@ -449,7 +528,7 @@ export default function useProctorSection({
 
     if (activeSection !== hubSections.PROCTOR || !Number.isInteger(roomId) || roomId <= 0) {
       setProctorSocketStatus(SOCKET_STATUS.IDLE)
-      setProctorAlerts([])
+      persistSetProctorAlerts([])
       setProctorToasts([])
       return undefined
     }
@@ -459,7 +538,7 @@ export default function useProctorSection({
     const token = localStorage.getItem('access_token')
 
     setProctorSocketStatus(SOCKET_STATUS.CONNECTING)
-    setProctorAlerts([])
+    persistSetProctorAlerts([])
     setProctorToasts([])
 
     const client = new Client({
@@ -477,7 +556,7 @@ export default function useProctorSection({
       client.subscribe(roomTopic, async (message) => {
         const incomingAlert = parseAlertPayload(message.body, roomId)
 
-        setProctorAlerts((prev) => [incomingAlert, ...prev].slice(0, MAX_PROCTOR_ALERTS))
+        persistSetProctorAlerts((prev) => [incomingAlert, ...prev].slice(0, MAX_PROCTOR_ALERTS))
         pushProctorToast(incomingAlert)
 
         if (dashboardRefreshTimerRef.current) {
