@@ -47,15 +47,30 @@ WHERE es.room.id = :roomId
     long countByExamSessionIdAndType(Long examSessionId, String type);
 
     @Query("""
-        select count(iv)
-        from IdentityVerification iv
-        where iv.examSession.id = :sessionId
-          and iv.type = 'RANDOM'
-          and iv.verified = false
-          and iv.createdAt >= :fromTime
-    """)
+    select count(iv)
+    from IdentityVerification iv
+    where iv.examSession.id = :sessionId
+      and iv.type = 'RANDOM'
+      and iv.verified = false
+      and iv.createdAt >= :fromTime
+""")
     long countRecentRandomFail(
             @Param("sessionId") Long sessionId,
             @Param("fromTime") LocalDateTime fromTime
+    );
+
+    @Query("""
+    select count(iv)
+    from IdentityVerification iv
+    where iv.examSession.id = :sessionId
+      and iv.type = 'RANDOM'
+      and iv.verified = false
+      and iv.createdAt >= :fromTime
+      and iv.createdAt > :resolvedAt
+""")
+    long countRecentRandomFailAfterResolved(
+            @Param("sessionId") Long sessionId,
+            @Param("fromTime") LocalDateTime fromTime,
+            @Param("resolvedAt") LocalDateTime resolvedAt
     );
 }

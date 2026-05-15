@@ -27,7 +27,7 @@ public class UserController extends BaseController {
     private final AccessControlService accessControlService;
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR', 'STUDENT')")
     public ResponseEntity<ApiResponse<UserDetailResponse>> getUser(
             @PathVariable Long id,
             Authentication auth
@@ -35,12 +35,19 @@ public class UserController extends BaseController {
 
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
-        accessControlService.checkPermission(
-                auth,
-                Resource.USER,
-                Action.READ,
-                id,
-                currentUserId);
+        boolean isProctor = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_PROCTOR"));
+
+        // PROCTOR được đọc tất cả user
+        if (!isProctor) {
+            accessControlService.checkPermission(
+                    auth,
+                    Resource.USER,
+                    Action.READ,
+                    id,
+                    currentUserId
+            );
+        }
 
         UserDTO dto = userService.getUserById(id);
 

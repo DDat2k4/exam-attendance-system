@@ -8,13 +8,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> {
     Long countByRoomId(Long roomId);
-
-    Boolean existsByUserIdAndExamIdAndSessionEndIsNull(Long userId, Long roomId);
 
     List<ExamSession> findByUserId(Long userId);
 

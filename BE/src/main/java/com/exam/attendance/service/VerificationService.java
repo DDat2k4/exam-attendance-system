@@ -1169,8 +1169,7 @@ public class VerificationService {
                 == ExamSessionStatus.CHECKED_IN) {
 
             session.setStatus(
-                    ExamSessionStatus
-                            .IN_PROGRESS
+                    ExamSessionStatus.IN_PROGRESS
             );
 
             examSessionRepo.save(session);
@@ -1179,29 +1178,45 @@ public class VerificationService {
         if (passed)
             return;
 
-        long failCount =
-                verificationRepo
-                        .countRecentRandomFail(
-                                session.getId(),
-                                LocalDateTime.now()
-                                        .minusMinutes(10)
-                        );
+        LocalDateTime fromTime =
+                LocalDateTime.now()
+                        .minusMinutes(10);
+
+        long failCount;
+
+        if (session.getReviewResolvedAt() == null) {
+
+            failCount =
+                    verificationRepo
+                            .countRecentRandomFail(
+                                    session.getId(),
+                                    fromTime
+                            );
+
+        } else {
+
+            failCount =
+                    verificationRepo
+                            .countRecentRandomFailAfterResolved(
+                                    session.getId(),
+                                    fromTime,
+                                    session.getReviewResolvedAt()
+                            );
+        }
 
         if (failCount >= MAX_RANDOM_FAIL) {
 
             session.setIsFlagged(true);
 
             session.setStatus(
-                    ExamSessionStatus
-                            .PENDING_REVIEW
+                    ExamSessionStatus.PENDING_REVIEW
             );
 
             examSessionRepo.save(session);
 
             sendAlert(
                     session,
-                    AlertType
-                            .MULTIPLE_VERIFY_FAILED,
+                    AlertType.MULTIPLE_VERIFY_FAILED,
                     "Random verify fail nhiều lần",
                     RiskLevel.HIGH
             );

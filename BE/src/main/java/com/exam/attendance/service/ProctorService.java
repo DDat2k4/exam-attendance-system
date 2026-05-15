@@ -133,23 +133,16 @@ public class ProctorService {
 
         attendanceService.save(attendance);
 
-        // restore correct status
-        if (session.getSessionStart() == null) {
-
-            session.setStatus(
-                    ExamSessionStatus.CHECKED_IN
-            );
-
-        } else {
-
-            session.setStatus(
-                    ExamSessionStatus.IN_PROGRESS
-            );
-        }
+        restoreSessionStatus(session);
 
         session.setIsFlagged(false);
 
         session.setLastSeenAt(
+                LocalDateTime.now()
+        );
+
+        // RESET VERIFY FAIL WINDOW
+        session.setReviewResolvedAt(
                 LocalDateTime.now()
         );
 
@@ -292,19 +285,12 @@ public class ProctorService {
 
         session.setIsFlagged(false);
 
-        // restore trạng thái
-        if (session.getSessionStart() == null) {
+        restoreSessionStatus(session);
 
-            session.setStatus(
-                    ExamSessionStatus.CHECKED_IN
-            );
-
-        } else {
-
-            session.setStatus(
-                    ExamSessionStatus.IN_PROGRESS
-            );
-        }
+        // RESET VERIFY FAIL WINDOW
+        session.setReviewResolvedAt(
+                LocalDateTime.now()
+        );
 
         examSessionService.save(session);
 
@@ -342,21 +328,14 @@ public class ProctorService {
 
         session.setIsFlagged(false);
 
-        // restore status
-        if (session.getSessionStart() == null) {
-
-            session.setStatus(
-                    ExamSessionStatus.CHECKED_IN
-            );
-
-        } else {
-
-            session.setStatus(
-                    ExamSessionStatus.IN_PROGRESS
-            );
-        }
+        restoreSessionStatus(session);
 
         session.setLastSeenAt(
+                LocalDateTime.now()
+        );
+
+        // RESET VERIFY FAIL WINDOW
+        session.setReviewResolvedAt(
                 LocalDateTime.now()
         );
 
@@ -431,5 +410,27 @@ public class ProctorService {
                         .timestamp(System.currentTimeMillis())
                         .build()
         );
+    }
+
+    // =========================================================
+// helper restore status
+// =========================================================
+
+    private void restoreSessionStatus(
+            ExamSession session
+    ) {
+
+        if (session.getSessionStart() == null) {
+
+            session.setStatus(
+                    ExamSessionStatus.CHECKED_IN
+            );
+
+        } else {
+
+            session.setStatus(
+                    ExamSessionStatus.IN_PROGRESS
+            );
+        }
     }
 }

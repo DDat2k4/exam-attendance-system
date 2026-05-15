@@ -45,6 +45,9 @@ public class ExamSession {
     @Column(name = "reconnect_token")
     private String reconnectToken;
 
+    @Column(name = "review_resolved_at")
+    private LocalDateTime reviewResolvedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exam_id")
     private Exam exam;

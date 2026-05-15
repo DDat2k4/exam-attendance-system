@@ -37,7 +37,7 @@ public class AccessControlServiceImpl implements AccessControlService {
 
         // ADMIN bypass owner check
         boolean isAdmin = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ADMIN"));
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
         if (isAdmin) {
             return;
