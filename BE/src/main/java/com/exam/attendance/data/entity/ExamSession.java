@@ -35,6 +35,9 @@ public class ExamSession {
     @Column(name = "device_id")
     private String deviceId;
 
+    @Column(name = "pending_device_id")
+    private String pendingDeviceId;
+
     // reconnect tracking
     @Column(name = "last_seen_at")
     private LocalDateTime lastSeenAt;

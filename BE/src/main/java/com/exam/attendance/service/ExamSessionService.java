@@ -181,7 +181,6 @@ public class ExamSessionService {
     }
 
     // ================= DASHBOARD =================
-
     public Page<ProctorDashboardDTO> getDashboard(ProctorDashboardFilterRequest req) {
 
         Pageable pageable = PageRequest.of(

@@ -111,7 +111,7 @@ public class CccdService {
             );
         }
 
-        // check tên
+        // Check tên
         if (profile.getName() != null &&
                 !normalize(profile.getName())
                         .equals(normalize(cccdInfo.getFullName()))) {
@@ -121,7 +121,7 @@ public class CccdService {
             );
         }
 
-        // check ngày sinh
+        // Check ngày sinh
         if (profile.getBirthDate() != null &&
                 !profile.getBirthDate()
                         .equals(cccdInfo.getBirthDate())) {
@@ -181,7 +181,7 @@ public class CccdService {
                 .findByUserId(user.getId())
                 .orElse(null);
 
-        // lần đầu verify -> skip compare
+        // Lần đầu verify -> skip compare
         if (card == null ||
                 card.getFaceEmbedding() == null) {
 
@@ -301,7 +301,7 @@ public class CccdService {
                     return c;
                 });
 
-        // delete ảnh cũ
+        // Delete ảnh cũ
         if (card.getFaceImagePublicId() != null) {
 
             try {
@@ -316,7 +316,7 @@ public class CccdService {
             }
         }
 
-        // save card
+        // Save card
         card.setCitizenId(cccdInfo.getCitizenId());
         card.setFullName(cccdInfo.getFullName());
         card.setBirthDate(cccdInfo.getBirthDate());
@@ -329,7 +329,7 @@ public class CccdService {
 
         citizenCardRepository.save(card);
 
-        // update profile
+        // Update profile
         UserProfile profile = user.getUserProfile();
 
         if (profile == null) {

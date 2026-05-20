@@ -348,7 +348,6 @@ public class ExamSessionController extends BaseController {
     public ResponseEntity<ApiResponse<Void>>
     approveDevice(
             @PathVariable Long sessionId,
-            @RequestParam String newDeviceId,
             Authentication auth
     ) {
 
@@ -360,7 +359,6 @@ public class ExamSessionController extends BaseController {
 
         proctorService.approveDeviceChange(
                 sessionId,
-                newDeviceId,
                 SecurityUtils.getCurrentUser()
         );
 

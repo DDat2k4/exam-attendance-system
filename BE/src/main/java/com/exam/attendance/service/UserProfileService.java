@@ -31,8 +31,16 @@ public class UserProfileService {
     }
 
     public Page<UserProfileDTO> getAll(String name, Pageable pageable) {
-        return repo.findAll(pageable)
-                .map(UserProfileMapper::toDTO);
+
+        Page<UserProfile> page;
+
+        if (name == null || name.isBlank()) {
+            page = repo.findAll(pageable);
+        } else {
+            page = repo.findByNameContainingIgnoreCase(name, pageable);
+        }
+
+        return page.map(UserProfileMapper::toDTO);
     }
 
     @Transactional

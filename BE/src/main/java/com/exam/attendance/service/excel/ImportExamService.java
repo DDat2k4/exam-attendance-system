@@ -25,6 +25,7 @@ public class ImportExamService {
     private final UserRepository userRepository;
     private final CitizenCardRepository citizenCardRepository;
     private final UserProfileRepository userProfileRepository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
     private final DataFormatter dataFormatter = new DataFormatter();
@@ -260,7 +261,6 @@ public class ImportExamService {
         user.setUsername(cccd);
         user.setEmail(email);
 
-        // password mặc định = CCCD
         user.setPasswordHash(
                 passwordEncoder.encode(cccd)
         );
@@ -268,9 +268,21 @@ public class ImportExamService {
         user.setCreatedAt(LocalDateTime.now());
         user.setActive((short) 1);
 
+        Role studentRole = roleRepository
+                .findByName("STUDENT")
+                .orElseThrow(() ->
+                        new RuntimeException("Role STUDENT not found")
+                );
+
+        UserRole userRole = new UserRole();
+        userRole.setUser(user);
+        userRole.setRole(studentRole);
+
+        user.setRoles(new ArrayList<>());
+        user.getRoles().add(userRole);
+
         userRepository.save(user);
 
-        // lưu 9 số cuối CCCD
         String last9 = getLast9(cccd);
 
         CitizenCard card = new CitizenCard();

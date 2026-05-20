@@ -23,6 +23,7 @@ public class CccdController extends BaseController {
 
     private final ObjectMapper objectMapper;
 
+    // Xác thực CCCD
     @PostMapping("/verify")
     public ResponseEntity<ApiResponse<Void>> verify(
             @RequestBody EncryptedRequest request

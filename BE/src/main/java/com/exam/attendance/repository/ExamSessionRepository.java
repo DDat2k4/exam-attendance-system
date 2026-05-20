@@ -132,4 +132,10 @@ WHERE es.room.id = :roomId
             Long examId,
             List<ExamSessionStatus> statuses
     );
+
+    boolean existsByExamIdAndUserIdAndStatusIn(
+            Long examId,
+            Long userId,
+            List<ExamSessionStatus> statuses
+    );
 }

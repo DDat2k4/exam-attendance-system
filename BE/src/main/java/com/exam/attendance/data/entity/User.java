@@ -47,7 +47,12 @@ public class User {
     @Column(name = "provider_id")
     private String providerId;
 
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    @OneToMany(
+            mappedBy = "user",
+            fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
     @ToString.Exclude
     private List<UserRole> roles;
 

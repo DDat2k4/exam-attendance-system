@@ -8,6 +8,7 @@ import com.exam.attendance.data.mapper.ExamRoomMapper;
 import com.exam.attendance.data.pojo.ExamRoomDTO;
 import com.exam.attendance.data.pojo.RoomStudentDTO;
 import com.exam.attendance.data.pojo.StudentSeatDTO;
+import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
 import com.exam.attendance.data.request.AssignRoomBatchRequest;
 import com.exam.attendance.data.request.ExamRoomRequest;
 import com.exam.attendance.repository.ExamRegistrationRepository;
@@ -231,6 +232,62 @@ public class ExamRoomService {
         for (ExamRegistration reg : registrations) {
             reg.setRoom(room);
             reg.setSeatNumber(seatMap.get(reg.getId()));
+        }
+
+        examRegistrationRepository.saveAll(registrations);
+    }
+
+    @Transactional
+    public void removeStudentFromRoom(Long registrationId) {
+
+        ExamRegistration reg = examRegistrationRepository.findById(registrationId)
+                .orElseThrow(() -> new RuntimeException("Registration not found"));
+
+        if (reg.getRoom() == null) {
+            throw new RuntimeException("Sinh viên chưa được phân phòng");
+        }
+
+        reg.setRoom(null);
+        reg.setSeatNumber(null);
+
+        examRegistrationRepository.save(reg);
+    }
+
+    @Transactional
+    public void removeStudentsFromRoom(List<Long> registrationIds) {
+
+        List<ExamRegistration> registrations =
+                examRegistrationRepository.findAllById(registrationIds);
+
+        if (registrations.size() != registrationIds.size()) {
+            throw new RuntimeException("Có registration không tồn tại");
+        }
+
+        for (ExamRegistration reg : registrations) {
+
+            if (reg.getRoom() == null) {
+                continue;
+            }
+
+            boolean hasActiveSession =
+                    examSessionRepository.existsByExamIdAndUserIdAndStatusIn(
+                            reg.getExam().getId(),
+                            reg.getUser().getId(),
+                            List.of(
+                                    ExamSessionStatus.CHECKED_IN,
+                                    ExamSessionStatus.IN_PROGRESS
+                            )
+                    );
+
+            if (hasActiveSession) {
+                throw new RuntimeException(
+                        "Không thể gỡ sinh viên đang thi: "
+                                + reg.getUser().getId()
+                );
+            }
+
+            reg.setRoom(null);
+            reg.setSeatNumber(null);
         }
 
         examRegistrationRepository.saveAll(registrations);

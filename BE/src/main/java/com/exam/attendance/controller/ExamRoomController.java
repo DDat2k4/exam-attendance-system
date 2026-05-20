@@ -17,6 +17,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/exam-rooms")
 @RequiredArgsConstructor
@@ -90,6 +92,18 @@ public class ExamRoomController extends BaseController {
         return success(examRoomService.getRoomsByExam(examId, page, size));
     }
 
+    // Lấy toàn bộ theo examId
+    @GetMapping("/all")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR', 'STUDENT')")
+    public ResponseEntity<ApiResponse<List<ExamRoomDTO>>> getRoomsByExamId(
+            @RequestParam Long examId,
+            Authentication auth
+    ) {
+        accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.READ);
+
+        return success(examRoomService.getRoomsByExam(examId));
+    }
+
     // Gán student vào room
     @PostMapping("/assign")
     @PreAuthorize("hasRole('ADMIN')")
@@ -116,6 +130,42 @@ public class ExamRoomController extends BaseController {
         accessControlService.checkPermission(auth, Resource.EXAM_ROOM, Action.UPDATE);
 
         examRoomService.assignMultipleStudents(request);
+
+        return updated(null);
+    }
+
+    @DeleteMapping("/unassign-student")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> removeStudentFromRoom(
+            @RequestParam Long registrationId,
+            Authentication auth
+    ) {
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_ROOM,
+                Action.UPDATE
+        );
+
+        examRoomService.removeStudentFromRoom(registrationId);
+
+        return updated(null);
+    }
+
+    @DeleteMapping("/unassign-batch")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> removeStudentsFromRoom(
+            @RequestBody List<Long> registrationIds,
+            Authentication auth
+    ) {
+
+        accessControlService.checkPermission(
+                auth,
+                Resource.EXAM_ROOM,
+                Action.UPDATE
+        );
+
+        examRoomService.removeStudentsFromRoom(registrationIds);
 
         return updated(null);
     }

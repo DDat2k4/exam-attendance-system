@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .securityMatcher("/api/**")
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
-                    config.setAllowedOrigins(List.of("http://localhost:5173","https://exam-attendance-d917b.web.app"));
+                    config.setAllowedOrigins(List.of("http://localhost:5173","https://exam-attendance-d917b.web.app","http://localhost:5174","http://localhost:5175", "http://localhost:5176"));
                     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
                     config.setAllowedHeaders(List.of("*"));
                     config.setAllowCredentials(true);

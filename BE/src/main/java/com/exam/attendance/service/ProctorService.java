@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -317,24 +318,58 @@ public class ProctorService {
     @Transactional
     public void approveDeviceChange(
             Long sessionId,
-            String newDeviceId,
             User proctorUser
     ) {
 
         ExamSession session =
                 examSessionService.getById(sessionId);
 
-        session.setDeviceId(newDeviceId);
+        if (session.getPendingDeviceId() == null) {
+
+            throw new RuntimeException(
+                    "No pending device"
+            );
+        }
+
+        if (session.getStatus()
+                != ExamSessionStatus.PENDING_DEVICE_APPROVAL) {
+
+            throw new RuntimeException(
+                    "Session not pending device approval"
+            );
+        }
+
+        session.setDeviceId(
+                session.getPendingDeviceId()
+        );
+
+        session.setPendingDeviceId(null);
+
+        // reset reconnect token
+        session.setReconnectToken(
+                UUID.randomUUID().toString()
+        );
+
+        // restore status
+        if (session.getSessionStart() == null) {
+
+            session.setStatus(
+                    ExamSessionStatus.CHECKED_IN
+            );
+
+        } else {
+
+            session.setStatus(
+                    ExamSessionStatus.IN_PROGRESS
+            );
+        }
 
         session.setIsFlagged(false);
-
-        restoreSessionStatus(session);
 
         session.setLastSeenAt(
                 LocalDateTime.now()
         );
 
-        // RESET VERIFY FAIL WINDOW
         session.setReviewResolvedAt(
                 LocalDateTime.now()
         );
@@ -413,8 +448,8 @@ public class ProctorService {
     }
 
     // =========================================================
-// helper restore status
-// =========================================================
+    // helper restore status
+    // =========================================================
 
     private void restoreSessionStatus(
             ExamSession session
