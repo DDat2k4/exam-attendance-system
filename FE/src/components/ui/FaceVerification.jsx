@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { requestCameraAccess, captureFrame, getDeviceInfo } from '../../utils/faceCapture'
+import { getExamSessionById } from '../../api/examSessionApi'
 import { verifyIdentity } from '../../api/verificationApi'
 import { flagExamSession } from '../../api/examSessionApi'
 import './FaceVerification.css'
@@ -36,6 +37,47 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
     }
 
     initCamera()
+
+    // Sync session status/attempts and detect device mismatch on mount
+    const syncSession = async () => {
+      if (!examSessionId) return
+      try {
+        const session = await getExamSessionById(examSessionId)
+        const serverAttempt = Number(session?.attemptNo ?? session?.attempt ?? session?.attemptNo)
+        if (Number.isInteger(serverAttempt) && serverAttempt >= 0) {
+          setAttempts(serverAttempt)
+          onAttempt?.(serverAttempt)
+        }
+
+        const sessionStatus = String(session?.examSessionStatus || session?.status || '').toUpperCase()
+        const approvedStates = ['CHECKED_IN', 'IN_PROGRESS', 'APPROVED']
+        if (sessionStatus === 'PENDING_DEVICE_APPROVAL') {
+          setAwaitingProctorApproval(true)
+          setError('Thiết bị đã thay đổi — chờ giám thị xác nhận')
+          onPending?.('PENDING_DEVICE_APPROVAL', serverAttempt)
+        } else if (sessionStatus === 'PENDING_REVIEW') {
+          setAwaitingProctorApproval(true)
+          setError('Phiên đang chờ giám thị duyệt')
+          onPending?.('PENDING_REVIEW', serverAttempt)
+        } else {
+          // detect local device mismatch compared to stored session deviceId
+          try {
+            const localDeviceId = getDeviceInfo().deviceId
+            const serverDeviceId = session?.deviceId || session?.device_id || null
+            // Only consider device mismatch as pending when the session is NOT already approved/checked-in
+            if (!approvedStates.includes(sessionStatus) && localDeviceId && serverDeviceId && String(localDeviceId) !== String(serverDeviceId)) {
+              setAwaitingProctorApproval(true)
+              setError('Phát hiện đổi thiết bị — chờ giám thị duyệt')
+              onPending?.('PENDING_DEVICE_APPROVAL', serverAttempt)
+            }
+          } catch {}
+        }
+      } catch (err) {
+        // ignore sync errors
+      }
+    }
+
+    void syncSession()
 
     return () => {
       if (streamRef.current) {
@@ -181,7 +223,7 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
             <p className="verification-eyebrow">Bước xác minh bắt đầu</p>
             <h2>Xác minh khuôn mặt khi vào thi</h2>
           </div>
-            <div className="verification-badge">Lần thử {awaitingProctorApproval ? '—' : `${attempts}/${MAX_ATTEMPTS}`}</div>
+            <div className="verification-badge">Lần thử {typeof attempts === 'number' ? `${attempts}/${MAX_ATTEMPTS}` : '—'}</div>
         </div>
 
         <div className="face-verification-body">
@@ -214,7 +256,7 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
             </div>
 
               <div className="attempt-counter">
-                Lần thử: <strong>{awaitingProctorApproval ? '—' : attempts}</strong>/<strong>{MAX_ATTEMPTS}</strong>
+                Lần thử: <strong>{typeof attempts === 'number' ? attempts : '—'}</strong>/<strong>{MAX_ATTEMPTS}</strong>
               </div>
           </div>
         </div>

@@ -1,29 +1,38 @@
 .rbac-page {
   display: grid;
-  gap: 20px;
+  gap: var(--space-md);
 }
 
 .rbac-page .rbac-head h2 {
   margin: 0;
-  font-size: 28px;
-  color: #0f172a;
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  color: #2b3f84; /* match Exam Hub heading tone */
   font-weight: 700;
 }
 
 .rbac-page .rbac-head p {
   margin: 8px 0 0;
-  color: #64748b;
+  color: #6372a1; /* match Exam Hub note tone */
   font-size: 14px;
   font-weight: 400;
 }
 
+/* Dark mode: use the same lighter tones as other pages */
+.app-shell.theme-dark .rbac-page .rbac-head h2 {
+  color: #dfe9ff;
+}
+
+.app-shell.theme-dark .rbac-page .rbac-head p {
+  color: #9fb3d9;
+}
+
 .rbac-page .status-line {
   margin: 0;
-  padding: 12px 16px;
+  padding: var(--space-sm) var(--space-md);
   border-radius: 8px;
   background: #f0f9ff;
   color: #0c4a6e;
-  font-size: 14px;
+  font-size: 0.9rem;
   font-weight: 500;
   border-left: 4px solid #0284c7;
 }
@@ -49,6 +58,75 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* Header layout for RBAC list pages (search + create) */
+.rbac-header {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.rbac-header .search-bar {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.rbac-header .search-bar input {
+  flex: 1 1 auto;
+  padding: var(--space-sm) calc(var(--space-sm) + 6px);
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.rbac-header {
+  --rbac-primary: #2563EB; /* Blue gradient start */
+  --rbac-primary-contrast: #ffffff;
+  --rbac-primary-hover: #1e40af; /* darker blue hover */
+}
+
+.rbac-header .btn-search {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--rbac-primary);
+  border: 1px solid rgba(91,96,230,0.14);
+}
+
+.rbac-header .btn-search:hover {
+  background: rgba(91,96,230,0.06);
+}
+
+.rbac-header .btn-new {
+  margin-left: 8px;
+  white-space: nowrap;
+  padding: calc(var(--space-sm) - 2px) var(--space-md);
+  height: 44px;
+  font-size: 0.95rem;
+  border-radius: 10px;
+  min-width: 120px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--rbac-primary), var(--rbac-primary-hover));
+  color: var(--rbac-primary-contrast);
+  border: none;
+  box-shadow: 0 6px 18px rgba(37,99,235,0.12);
+}
+
+.rbac-header .btn-new svg {
+  width: 18px;
+  height: 18px;
+}
+
 .rbac-page .rbac-grid.one-col {
   grid-template-columns: 1fr;
 }
@@ -57,9 +135,9 @@
   background: #fff;
   border: 1px solid #e6ebf0;
   border-radius: 12px;
-  padding: 14px;
+  padding: var(--space-sm);
   display: grid;
-  gap: 12px;
+  gap: var(--space-sm);
 }
 
 .rbac-page .card h3 {
@@ -90,7 +168,7 @@
 .rbac-page .toolbar input,
 .rbac-page .toolbar select {
   width: 100%;
-  padding: 10px 12px;
+  padding: var(--space-sm) calc(var(--space-sm) + 4px);
   border: 1px solid #d5dce5;
   border-radius: 8px;
   outline: none;
@@ -124,8 +202,8 @@
   border-radius: 8px;
   padding: 9px 12px;
   cursor: pointer;
-  background: #0d6efd;
-  color: #fff;
+  background: var(--rbac-primary);
+  color: var(--rbac-primary-contrast);
   font-weight: 600;
 }
 
@@ -159,10 +237,38 @@
 
 .rbac-page th,
 .rbac-page td {
-  padding: 10px;
+  padding: var(--space-sm);
   border-bottom: 1px solid #edf1f6;
   text-align: left;
   vertical-align: top;
+}
+
+/* Dark-mode tweaks for RBAC header/buttons */
+.app-shell.theme-dark .rbac-header {
+  --rbac-primary: #2b6ef6; /* Blue for dark bg */
+  --rbac-primary-contrast: #071025;
+  --rbac-primary-hover: #1e40af;
+}
+
+.app-shell.theme-dark .rbac-header .btn-search {
+  border-color: rgba(124,153,255,0.14);
+  color: var(--rbac-primary);
+  background: transparent;
+}
+
+.app-shell.theme-dark .rbac-header .btn-search:hover {
+  background: rgba(124,153,255,0.06);
+}
+
+.app-shell.theme-dark .rbac-header .btn-new {
+  background: linear-gradient(135deg, var(--rbac-primary-hover), var(--rbac-primary));
+  color: var(--rbac-primary-contrast);
+  box-shadow: 0 6px 18px rgba(40,50,80,0.32);
+}
+
+.app-shell.theme-dark .rbac-page button {
+  background: var(--rbac-primary);
+  color: var(--rbac-primary-contrast);
 }
 
 .rbac-page th {
@@ -234,11 +340,23 @@
   gap: 12px;
 }
 
+@media (max-width: 1024px) {
+  .rbac-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rbac-overview-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .rbac-overview-grid { grid-template-columns: 1fr; }
+  .rbac-overview-links { grid-template-columns: 1fr; }
+  .rbac-header { gap: var(--space-xs); }
+  .rbac-header .btn-new { min-width: 90px; height: 40px }
+}
+
 .rbac-overview-card {
   border: 1px solid #dbe4f0;
   border-radius: 12px;
   background: linear-gradient(180deg, #ffffff 0%, #f9fbfe 100%);
-  padding: 14px;
+  padding: var(--space-sm);
   display: grid;
   gap: 8px;
 }
@@ -266,7 +384,7 @@
   border: 1px solid #dbe4f0;
   border-radius: 12px;
   background: #fff;
-  padding: 12px;
+  padding: var(--space-sm);
   color: #0f172a;
   display: grid;
   gap: 4px;
@@ -699,6 +817,18 @@
   border-color: #0d6efd;
 }
 
+/* Stronger specificity to prevent accidental overrides */
+.rbac-head .btn-nav {
+  background: #fff !important;
+  border: 1px solid #d5dce5 !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #1e293b !important;
+}
+
 .assignments-container {
   display: grid;
   gap: 16px;
@@ -870,6 +1000,14 @@
   cursor: not-allowed;
 }
 
+/* Stronger specificity to avoid unintended overrides */
+.assignment-controls .btn-control {
+  background: #fff !important;
+  border: 1px solid #d5dce5 !important;
+  color: #1e293b !important;
+}
+
+
 .permissions-table-wrap {
   border: 1px solid #e6ebf0;
   border-radius: 6px;
@@ -975,6 +1113,19 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Ensure the primary action in assignments keeps its primary appearance */
+.assignment-actions .btn-primary {
+  background: #0d6efd !important;
+  color: #fff !important;
+  border: none !important;
+  padding: 9px 16px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
 
 @media (max-width: 1100px) {
   .rbac-head {

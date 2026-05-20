@@ -115,30 +115,33 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.25);
+  background: linear-gradient(135deg, var(--rbac-primary, #2563EB) 0%, var(--rbac-primary-hover, #1e40af) 100%);
+  color: var(--rbac-primary-contrast, #fff);
+  box-shadow: 0 2px 8px rgba(37,99,235,0.18);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
-  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.35);
-}
-
-.btn-primary:active {
-  transform: scale(0.98);
-}
-
-.btn-light {
-  background: #e2e8f0;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+  background: linear-gradient(135deg, var(--rbac-primary-hover, #1e40af) 0%, var(--rbac-primary, #2563EB) 100%);
+  box-shadow: 0 4px 12px rgba(37,99,235,0.28);
 }
 
 .btn-light:hover {
   background: #cbd5e1;
   color: #1e293b;
 }
+
+/* Ensure modal footer action buttons keep primary/light styles */
+.modal-footer .btn-primary {
+  background: linear-gradient(135deg, var(--rbac-primary, #2563EB) 0%, var(--rbac-primary-hover, #1e40af) 100%) !important;
+  color: var(--rbac-primary-contrast, #fff) !important;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.18) !important;
+}
+.modal-footer .btn-light {
+  background: #e2e8f0 !important;
+  color: #475569 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
 
 .btn-light:active {
   transform: scale(0.98);

@@ -152,6 +152,42 @@ export const assignExamRoomBatch = async ({ roomId, students }) => {
   }
 }
 
+export const removeStudentFromRoom = async (registrationId) => {
+  const parsedRegistrationId = Number(registrationId)
+
+  if (!Number.isInteger(parsedRegistrationId) || parsedRegistrationId <= 0) {
+    throw new Error('Invalid registration id')
+  }
+
+  try {
+    return await axiosClient.delete(`${API_URL}/exam-rooms/unassign-student`, {
+      params: {
+        registrationId: parsedRegistrationId,
+      },
+    })
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+export const removeStudentsFromRoom = async (registrationIds) => {
+  const normalizedRegistrationIds = Array.isArray(registrationIds)
+    ? [...new Set(registrationIds.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))]
+    : []
+
+  if (normalizedRegistrationIds.length === 0) {
+    throw new Error('Please add at least one student to unassign')
+  }
+
+  try {
+    return await axiosClient.delete(`${API_URL}/exam-rooms/unassign-batch`, {
+      data: normalizedRegistrationIds,
+    })
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
 export const getStudentsInRoom = async ({ roomId, page = 0, size = 20 }) => {
   const parsedRoomId = Number(roomId)
   const parsedPage = Math.max(0, Number(page) || 0)
@@ -190,6 +226,24 @@ export const getRoomsByExamPaginated = async (examId, page = 0, size = 10) => {
       },
     })
     return res || { content: [], totalElements: 0, totalPages: 0, empty: true }
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+export const getRoomsByExamAll = async (examId) => {
+  const parsedExamId = Number(examId)
+
+  if (!Number.isInteger(parsedExamId) || parsedExamId <= 0) return []
+
+  try {
+    const res = await dedupeGet(axiosClient, `${API_URL}/exam-rooms/all`, {
+      params: {
+        examId: parsedExamId,
+      },
+    })
+
+    return Array.isArray(res) ? res : res?.content || res?.data || []
   } catch (err) {
     rethrow(err)
   }

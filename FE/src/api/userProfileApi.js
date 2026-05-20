@@ -2,6 +2,11 @@ import axiosClient from "../services/axiosClient";
 import { dedupeGet } from "./requestCache";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
+const MY_PROFILE_CACHE_TTL_MS = 60 * 1000;
+
+let cachedMyUserProfile = null;
+let cachedMyUserProfileAt = 0;
+let inflightMyUserProfile = null;
 
 const unwrap = (res) => {
   const body = res?.data;
@@ -45,12 +50,37 @@ export const getUserProfile = async (id) => {
 };
 
 // GET /user-profiles/me
-export const getMyUserProfile = async () => {
+export const getMyUserProfile = async ({ force = false } = {}) => {
+  if (!force && cachedMyUserProfile && Date.now() - cachedMyUserProfileAt < MY_PROFILE_CACHE_TTL_MS) {
+    return cachedMyUserProfile;
+  }
+
+  if (!force && inflightMyUserProfile) {
+    return inflightMyUserProfile;
+  }
+
   try {
-    return await dedupeGet(axiosClient, `${API_URL}/user-profiles/me`);
+    const request = dedupeGet(axiosClient, `${API_URL}/user-profiles/me`);
+    inflightMyUserProfile = request;
+
+    const profile = await request;
+    cachedMyUserProfile = profile ?? null;
+    cachedMyUserProfileAt = Date.now();
+
+    return cachedMyUserProfile;
   } catch (err) {
     rethrow(err);
+  } finally {
+    if (inflightMyUserProfile) {
+      inflightMyUserProfile = null;
+    }
   }
+};
+
+export const clearMyUserProfileCache = () => {
+  cachedMyUserProfile = null;
+  cachedMyUserProfileAt = 0;
+  inflightMyUserProfile = null;
 };
 
 // GET /user-profiles/user/{userId}
@@ -114,7 +144,9 @@ export const createUserProfile = async (profile) => {
 // PUT /user-profiles/{id}
 export const updateUserProfile = async (id, profile) => {
   try {
-    return await axiosClient.put(`${API_URL}/user-profiles/${id}`, profile);
+    const res = await axiosClient.put(`${API_URL}/user-profiles/${id}`, profile);
+    clearMyUserProfileCache();
+    return res;
   } catch (err) {
     rethrow(err);
   }
@@ -123,7 +155,9 @@ export const updateUserProfile = async (id, profile) => {
 // DELETE /user-profiles/{id}
 export const deleteUserProfile = async (id) => {
   try {
-    return await axiosClient.delete(`${API_URL}/user-profiles/${id}`);
+    const res = await axiosClient.delete(`${API_URL}/user-profiles/${id}`);
+    clearMyUserProfileCache();
+    return res;
   } catch (err) {
     rethrow(err);
   }

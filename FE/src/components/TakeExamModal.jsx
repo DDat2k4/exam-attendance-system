@@ -39,6 +39,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
   const [examResult, setExamResult] = useState(null)
   const [realtimeNotice, setRealtimeNotice] = useState(null)
   const [verificationWaiting, setVerificationWaiting] = useState(false)
+  const [deviceApprovalWaiting, setDeviceApprovalWaiting] = useState(false)
   const [verificationClearedAt, setVerificationClearedAt] = useState(null)
   const [externalFailures, setExternalFailures] = useState(0)
   const endSessionCalledRef = useRef(false)
@@ -70,6 +71,11 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
         message || 'Phiên thi đã được chuyển sang trạng thái chờ xử lý. Khi giám thị duyệt, hệ thống sẽ tự mở lại phiên thi.',
     }
   }, [])
+
+  const isApprovalBlocked = useCallback(
+    () => verificationWaiting || deviceApprovalWaiting,
+    [verificationWaiting, deviceApprovalWaiting],
+  )
 
   const handleExamEnded = useCallback(
     async (reason) => {
@@ -128,6 +134,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
 
       if (alertType === 'PENDING_REVIEW' || alertType === 'PENDING_DEVICE_APPROVAL') {
         setVerificationWaiting(true)
+        setDeviceApprovalWaiting(alertType === 'PENDING_DEVICE_APPROVAL')
         setRealtimeNotice(getPendingReviewNotice(alertType, message))
 
         // Also check current status in case it was already approved
@@ -140,7 +147,9 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
                 )
                 if (isApprovedSessionStatus(status)) {
                   setVerificationWaiting(false)
+                  setDeviceApprovalWaiting(false)
                   setVerificationClearedAt(Date.now())
+                  setExternalFailures(0)
                   setRealtimeNotice({
                     variant: 'success',
                     title: 'Giám thị đã duyệt',
@@ -179,10 +188,12 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
       }
 
       if (alertType === 'DEVICE_CHANGED') {
+        setVerificationWaiting(true)
+        setDeviceApprovalWaiting(true)
         setRealtimeNotice({
           variant: 'warning',
           title: 'Phát hiện đổi thiết bị',
-          message: message || 'Hệ thống ghi nhận bạn đã đổi thiết bị. Phiên thi đang chờ giám thị xem xét.',
+          message: message || 'Hệ thống ghi nhận bạn đã đổi thiết bị. Phiên thi đang bị khóa cho đến khi giám thị duyệt.',
         })
 
         return
@@ -225,7 +236,9 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
       if (looksApproved) {
         // approval detected
         setVerificationWaiting(false)
+        setDeviceApprovalWaiting(false)
         setVerificationClearedAt(Date.now())
+        setExternalFailures(0)
         setRealtimeNotice({
           variant: 'success',
           title: 'Giám thị đã duyệt',
@@ -297,6 +310,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
   useEffect(() => {}, [socketStatus])
 
   useEffect(() => {}, [verificationWaiting, examId, step])
+  useEffect(() => {}, [deviceApprovalWaiting])
 
   useEffect(() => {}, [externalFailures])
 
@@ -314,6 +328,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
         // If proctor approved (status changed to CHECKED_IN/IN_PROGRESS), auto transition to exam
         if (isApprovedSessionStatus(sessionStatus)) {
           setVerificationWaiting(false)
+          setDeviceApprovalWaiting(false)
           setVerificationClearedAt(Date.now())
           setRealtimeNotice({
             variant: 'success',
@@ -336,11 +351,13 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
   const handleStartVerification = () => {
     setRealtimeNotice(null)
     setVerificationWaiting(false)
+    setDeviceApprovalWaiting(false)
     setStep('verification')
   }
 
   const handleVerificationSuccess = (result) => {
     setVerificationWaiting(false)
+    setDeviceApprovalWaiting(false)
     setExamResult({ status: 'VERIFIED', message: 'Xác minh khuôn mặt thành công', result })
     setStep('exam')
   }
@@ -348,6 +365,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
   const handleVerificationPending = (status, attempt) => {
     const nextStatus = String(status || 'PENDING_REVIEW').toUpperCase()
     setVerificationWaiting(true)
+    setDeviceApprovalWaiting(nextStatus === 'PENDING_DEVICE_APPROVAL')
     setRealtimeNotice(getPendingReviewNotice(nextStatus))
 
     // Sync external failure count from FaceVerification if provided
@@ -488,10 +506,14 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
 
       {step === 'verification' && (
         <>
-          {verificationWaiting && (
+          {isApprovalBlocked() && (
             <div className="realtime-notice realtime-notice--warning" style={{ marginBottom: '12px' }}>
-              <strong>Đang chờ giám thị duyệt</strong>
-              <span>Phiên thi đã tạm dừng để chờ giám thị xác nhận. Khi được duyệt, hệ thống sẽ tự mở lại phiên thi.</span>
+              <strong>{deviceApprovalWaiting ? 'Đang chờ duyệt thiết bị' : 'Đang chờ giám thị duyệt'}</strong>
+              <span>
+                {deviceApprovalWaiting
+                  ? 'Phiên thi đã bị khóa do đổi thiết bị. Khi giám thị duyệt, hệ thống sẽ tự mở lại phiên thi.'
+                  : 'Phiên thi đã tạm dừng để chờ giám thị xác nhận. Khi được duyệt, hệ thống sẽ tự mở lại phiên thi.'}
+              </span>
             </div>
           )}
           <FaceVerification
@@ -523,6 +545,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
             onSessionEnd={handleExamEnded}
             questions={exam?.questions}
             verificationWaiting={verificationWaiting}
+            deviceApprovalWaiting={deviceApprovalWaiting}
             verificationClearedAt={verificationClearedAt}
             externalFailures={externalFailures}
           />

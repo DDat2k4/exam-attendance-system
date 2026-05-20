@@ -97,7 +97,7 @@ export default function StudentExamsPage() {
               ...reg,
               exam: {
                 id: reg.examId,
-                title: `Kỳ thi #${reg.examId}`,
+                title: `Kỳ thi ${reg.examId}`,
               },
               sessionStatus: sessionMap[reg.examId]?.status || null,
               existingSessionId: sessionMap[reg.examId]?.id || null,
@@ -143,13 +143,21 @@ export default function StudentExamsPage() {
 
       setTakingExamId(examId)
 
+      // Prevent duplicate concurrent starts for the same exam (synchronous guard)
+      if (!handleTakeExam.starting) handleTakeExam.starting = new Set()
+      if (handleTakeExam.starting.has(examId)) {
+        // already starting this exam elsewhere
+        return
+      }
+      handleTakeExam.starting.add(examId)
+
       const roomInfo = await loadMyRoomInfo(examId)
       const assignedExamId = Number(roomInfo?.examId)
       if (!roomInfo?.roomId) {
         throw new Error('Bạn chưa được gán phòng thi. Vui lòng liên hệ ADMIN.')
       }
       if (assignedExamId && assignedExamId !== examId) {
-        throw new Error(`Phòng thi được gán không khớp với kỳ thi #${examId}. Vui lòng kiểm tra lại.`)
+        throw new Error(`Phòng thi được gán không khớp với kỳ thi ${examId}. Vui lòng kiểm tra lại.`)
       }
       
       // If session already exists and is still ongoing (STARTED/CHECKED_IN), use existing session
@@ -160,7 +168,7 @@ export default function StudentExamsPage() {
       if (existingSessionId && (sessionStatus === 'IN_PROGRESS' || sessionStatus === 'CHECKED_IN')) {
         // Use existing session, don't start a new one
         sessionId = existingSessionId
-        setSuccess(`Tiếp tục phiên thi #${sessionId}.`)
+        setSuccess(`Tiếp tục phiên thi ${sessionId}.`)
       } else {
         // Start a new session
         const deviceInfo = getDeviceInfo()
@@ -175,21 +183,22 @@ export default function StudentExamsPage() {
         }
         setSuccess(
           roomInfo?.roomCode
-            ? `Đã bắt đầu phiên thi #${sessionId} tại phòng ${roomInfo.roomCode}.`
-            : `Đã bắt đầu phiên thi #${sessionId}.`,
+            ? `Đã bắt đầu phiên thi ${sessionId} tại phòng ${roomInfo.roomCode}.`
+            : `Đã bắt đầu phiên thi ${sessionId}.`,
         )
       }
 
       setActiveTakeExam({
         sessionId: Number(sessionId),
-        exam: registrationRow?.exam ?? { id: examId, title: `Kỳ thi #${examId}` },
+        exam: registrationRow?.exam ?? { id: examId, title: `Kỳ thi ${examId}` },
         roomInfo,
       })
     } catch (err) {
       setError(err.message || 'Không thể bắt đầu vào thi.')
-    } finally {
-      setTakingExamId(null)
-    }
+      } finally {
+        handleTakeExam.starting.delete(examId)
+        setTakingExamId(null)
+      }
   }
 
   const closeTakeExamModal = () => {

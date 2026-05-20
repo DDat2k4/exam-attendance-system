@@ -9,6 +9,46 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Responsive variables (mobile-first) */
+:root {
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 20px;
+  --space-lg: 32px;
+  --container-sm: 640px;
+  --container-md: 880px;
+  --container-lg: 1120px;
+  --bp-sm: 520px; /* small phones */
+  --bp-md: 768px; /* tablets */
+  --bp-lg: 1024px; /* small laptops */
+  --bp-xl: 1200px; /* desktops */
+}
+
+/* Utility layout helpers */
+.container { width:100%; max-width: var(--container-lg); margin: 0 auto; padding: 0 16px }
+.row { display:flex; flex-wrap:wrap; gap: var(--space-md) }
+.col-half { flex: 1 1 50%; min-width: 0 }
+.col-full { flex: 1 1 100% }
+.stack-md { width:100% }
+
+@media (min-width: var(--bp-md)) {
+  .stack-md { display: flex; gap: var(--space-md) }
+  .stack-md > * { flex: 1 }
+}
+
+/* Visibility helpers */
+.hide-mobile { display: none }
+@media (min-width: var(--bp-md)) { .hide-mobile { display: initial } }
+.hide-desktop { display: initial }
+@media (min-width: var(--bp-md)) { .hide-desktop { display: none } }
+
+img { max-width: 100%; height: auto; display: block }
+
+/* Make tables responsive: allow horizontal scroll on small viewports */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch }
+.table-wrap table { width: 100%; min-width: 640px }
+
+
 * {
   box-sizing: border-box;
 }

@@ -3,13 +3,14 @@ import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import {
   approveExamSession,
+  approveDeviceChange,
   flagExamSession,
   unflagExamSession,
   getExamSessionDashboard,
   getExamSessionVerificationHistory,
   rejectExamSession,
 } from '../api/examSessionApi'
-import { getRoomsByExamPaginated, getExamRoomById } from '../api/examRoomApi'
+import { getRoomsByExamAll, getExamRoomById } from '../api/examRoomApi'
 import { getUserById } from '../api/userApi'
 
 export const PROCTOR_STATUS_OPTIONS = [
@@ -74,6 +75,70 @@ const parseAlertPayload = (payload, fallbackRoomId) => {
   }
 }
 
+const firstNonEmpty = (...values) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue
+    const text = String(value).trim()
+    if (text) return text
+  }
+
+  return ''
+}
+
+const formatSessionLabel = (session) => {
+  const studentName = firstNonEmpty(
+    session?.studentName,
+    session?.userFullName,
+    session?.userDisplayName,
+    session?.userName,
+    session?.fullName,
+    session?.username,
+  )
+  const examTitle = firstNonEmpty(
+    session?.examTitle,
+    session?.examName,
+    session?.title,
+  )
+  const roomCode = firstNonEmpty(
+    session?.roomCode,
+    session?.room?.roomCode,
+    session?.room?.code,
+    session?.roomId,
+    session?.room?.id,
+  )
+  const citizenId = firstNonEmpty(session?.citizenId, session?.userCitizenId)
+
+  const labelParts = []
+  if (studentName) labelParts.push(studentName)
+  if (examTitle) labelParts.push(examTitle)
+  if (roomCode) labelParts.push(`Phòng ${roomCode}`)
+  if (citizenId) labelParts.push(`CCCD ${citizenId}`)
+
+  if (labelParts.length > 0) {
+    return labelParts.join(' • ')
+  }
+
+  const sessionId = firstNonEmpty(session?.id, session?.sessionId, session?.examSessionId)
+  return sessionId ? `Phiên ${sessionId}` : 'phiên thi'
+}
+
+export const formatProctorToastMeta = (toast) => {
+  const roomName = firstNonEmpty(toast?.roomName, toast?.roomCode, toast?.roomTitle)
+  const userName = firstNonEmpty(
+    toast?.userName,
+    toast?.userFullName,
+    toast?.userDisplayName,
+    toast?.userUsername,
+  )
+  const citizenId = firstNonEmpty(toast?.citizenId, toast?.userCitizenId)
+
+  return {
+    roomLabel: roomName || (toast?.roomId ? `Phòng ${toast.roomId}` : 'Phòng thi'),
+    userLabel: userName || (toast?.userId ? `Người dùng ${toast.userId}` : 'Người dùng'),
+    citizenLabel: citizenId ? `CCCD ${citizenId}` : '',
+  }
+}
+
 
 
 export default function useProctorSection({
@@ -105,12 +170,16 @@ export default function useProctorSection({
   const [proctorHistory, setProctorHistory] = useState([])
   const [loadingProctorHistory, setLoadingProctorHistory] = useState(false)
   const [proctorReason, setProctorReason] = useState('')
+  const [proctorActionError, setProctorActionError] = useState('')
   const [proctorActionLoading, setProctorActionLoading] = useState(false)
   const [showProctorRoomModal, setShowProctorRoomModal] = useState(false)
   const [proctorExamDraft, setProctorExamDraft] = useState('')
   const [proctorRoomDraft, setProctorRoomDraft] = useState('')
   const [proctorRoomOptions, setProctorRoomOptions] = useState([])
   const [loadingProctorRooms, setLoadingProctorRooms] = useState(false)
+  const [proctorRoomFilterExamId, setProctorRoomFilterExamId] = useState(() => sessionStorage.getItem('proctor_room_examId') || '')
+  const [proctorRoomFilterOptions, setProctorRoomFilterOptions] = useState([])
+  const [loadingProctorRoomFilterOptions, setLoadingProctorRoomFilterOptions] = useState(false)
   const [proctorAlerts, setProctorAlerts] = useState(() => {
     try {
       const raw = sessionStorage.getItem('proctor_alerts')
@@ -195,14 +264,14 @@ export default function useProctorSection({
             if (typeof cached === 'string') {
               setProctorToasts((prev) => prev.map((t) => (t.id === toastId ? { ...t, userName: cached } : t)))
             } else {
-              const name = cached.name || `User #${uid}`
+              const name = cached.name || `User ${uid}`
               setProctorToasts((prev) => prev.map((t) => (t.id === toastId ? { ...t, userName: name, citizenId: cached.citizenId || null } : t)))
             }
           } else {
             getUserById(uid)
               .then((user) => {
                 const resolved = user && (user.data || user)
-                const name = (resolved && (resolved.fullName || resolved.name || resolved.username)) || `User #${uid}`
+                const name = (resolved && (resolved.fullName || resolved.name || resolved.username)) || `User ${uid}`
                 const citizenId = resolved && (resolved.citizenId || resolved.userCitizenId || resolved.identityNumber || (resolved.profile && (resolved.profile.citizenId || resolved.profile.identityNumber)))
                 userCache.set(String(uid), { name, citizenId })
 
@@ -224,7 +293,7 @@ export default function useProctorSection({
           } else {
             getExamRoomById(rid)
               .then((room) => {
-                const roomLabel = (room && (room.roomCode || room.name || room.title)) || `Room #${rid}`
+                const roomLabel = (room && (room.roomCode || room.name || room.title)) || `Room ${rid}`
                 roomCache.set(String(rid), roomLabel)
                 setProctorToasts((prev) => prev.map((t) => (t.id === toastId ? { ...t, roomName: roomLabel } : t)))
               })
@@ -244,31 +313,82 @@ export default function useProctorSection({
     [dismissProctorToast],
   )
 
-  const proctorRoomFilterOptions = useMemo(() => {
-    const usedRoomIds = new Set()
+  const proctorRoomFilterExamOptions = useMemo(
+    () =>
+      exams
+        .map((exam) => ({
+          value: String(exam?.id || ''),
+          label: exam?.title || 'Kỳ thi chưa có tiêu đề',
+        }))
+        .filter((option) => option.value),
+    [exams],
+  )
 
-    return exams
-      .flatMap((exam) =>
-        (Array.isArray(exam.rooms) ? exam.rooms : []).map((room) => {
-          const roomId = Number(room?.id ?? room?.roomId)
-          if (!Number.isInteger(roomId) || roomId <= 0 || usedRoomIds.has(roomId)) {
-            return null
-          }
+  useEffect(() => {
+    let isCancelled = false
 
-          usedRoomIds.add(roomId)
-          const roomCode = room?.roomCode
-          const examTitle = exam?.title || 'Untitled exam'
+    const loadRoomFilterOptions = async () => {
+      const examId = Number(proctorRoomFilterExamId)
+      if (!Number.isInteger(examId) || examId <= 0) {
+        setProctorRoomFilterOptions([])
+        setLoadingProctorRoomFilterOptions(false)
+        return
+      }
 
-          return {
-            value: String(roomId),
-            label: roomCode
-              ? `${roomCode} (ID: ${roomId}) - ${examTitle}`
-              : `Room ${roomId} - ${examTitle}`,
-          }
-        }),
-      )
-      .filter(Boolean)
-  }, [exams])
+      try {
+        setLoadingProctorRoomFilterOptions(true)
+        const rooms = await getRoomsByExamAll(examId)
+        if (isCancelled) return
+
+        const options = (Array.isArray(rooms) ? rooms : [])
+          .map((room) => {
+            const roomId = Number(room?.id ?? room?.roomId)
+            if (!Number.isInteger(roomId) || roomId <= 0) return null
+            return {
+              value: String(roomId),
+              label: room?.roomCode ? room.roomCode : (room?.name || `Room ${roomId}`),
+            }
+          })
+          .filter(Boolean)
+
+        setProctorRoomFilterOptions(options)
+      } catch (err) {
+        if (!isCancelled) {
+          setError(err.message || 'Không thể tải phòng theo kỳ thi đã chọn.')
+          setProctorRoomFilterOptions([])
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingProctorRoomFilterOptions(false)
+        }
+      }
+    }
+
+    const nextExamId = Number(proctorRoomFilterExamId)
+    if (!Number.isInteger(nextExamId) || nextExamId <= 0) {
+      setProctorRoomFilterOptions([])
+      setLoadingProctorRoomFilterOptions(false)
+      sessionStorage.removeItem('proctor_room_examId')
+      return undefined
+    }
+
+    sessionStorage.setItem('proctor_room_examId', String(nextExamId))
+    void loadRoomFilterOptions()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [proctorRoomFilterExamId, setError])
+
+  const selectedProctorExamLabel = useMemo(
+    () => proctorRoomFilterExamOptions.find((option) => String(option.value) === String(proctorRoomFilterExamId))?.label || '-',
+    [proctorRoomFilterExamId, proctorRoomFilterExamOptions],
+  )
+
+  const selectedProctorRoomLabel = useMemo(
+    () => proctorRoomFilterOptions.find((option) => String(option.value) === String(proctorFilter.roomId))?.label || '-',
+    [proctorFilter.roomId, proctorRoomFilterOptions],
+  )
 
   const getSessionRecordId = (item) => item?.id ?? item?.sessionId ?? item?.examSessionId ?? null
 
@@ -358,6 +478,15 @@ export default function useProctorSection({
     await fetchProctorDashboard()
   }
 
+  const handleProctorRoomFilterExamChange = (value) => {
+    setProctorRoomFilterExamId(value)
+    setProctorFilter((prev) => ({ ...prev, roomId: '' }))
+    setSelectedProctorSession(null)
+    setProctorHistory([])
+    setProctorRoomFilterOptions([])
+    setProctorReason('')
+  }
+
   const openProctorRoomModal = () => {
     if (!loading && exams.length === 0) {
       fetchExams()
@@ -380,7 +509,7 @@ export default function useProctorSection({
     const examId = Number(proctorExamDraft)
     const roomId = Number(proctorRoomDraft)
     if (!Number.isInteger(examId) || examId <= 0) {
-      setError('Vui lòng chọn kỳ thi trước khi chọn phòng giám sát.')
+      setError('Vui lòng tìm kỳ thi trước khi chọn phòng giám sát.')
       return
     }
 
@@ -391,6 +520,7 @@ export default function useProctorSection({
 
     setError('')
     setProctorFilter((prev) => ({ ...prev, roomId: String(roomId) }))
+    setProctorRoomFilterExamId(String(examId))
     setSelectedProctorSession(null)
     setProctorHistory([])
     setShowProctorRoomModal(false)
@@ -410,17 +540,16 @@ export default function useProctorSection({
 
     try {
       setLoadingProctorRooms(true)
-      const paginatedData = await getRoomsByExamPaginated(examId, 0, 100)
-      const rooms = paginatedData?.content || []
+      const rooms = await getRoomsByExamAll(examId)
       const options = (Array.isArray(rooms) ? rooms : [])
         .map((room) => {
-          const roomId = Number(room?.id ?? room?.roomId)
-          if (!Number.isInteger(roomId) || roomId <= 0) return null
-          return {
-            id: roomId,
-            label: `#${roomId}${room?.roomCode ? ` - ${room.roomCode}` : ''}`,
-          }
-        })
+            const roomId = Number(room?.id ?? room?.roomId)
+            if (!Number.isInteger(roomId) || roomId <= 0) return null
+            return {
+              id: roomId,
+              label: room?.roomCode ? room.roomCode : (room?.name || `Room ${roomId}`),
+            }
+          })
         .filter(Boolean)
 
       setProctorRoomOptions(options)
@@ -439,9 +568,11 @@ export default function useProctorSection({
       return
     }
 
+    const sessionLabel = formatSessionLabel(selectedProctorSession)
+
     const reason = String(proctorReason || '').trim()
     if ((action === 'flag' || action === 'reject') && !reason) {
-      setError('Vui lòng nhập lý do trước khi flag hoặc reject.')
+      setProctorActionError('Vui lòng nhập lý do trước khi gắn cờ hoặc từ chối.')
       return
     }
 
@@ -449,9 +580,12 @@ export default function useProctorSection({
       setProctorActionLoading(true)
       setError('')
       setSuccess('')
+      setProctorActionError('')
 
       if (action === 'approve') {
         await approveExamSession(sessionId)
+      } else if (action === 'approve-device') {
+        await approveDeviceChange(sessionId)
       } else if (action === 'reject') {
         await rejectExamSession(sessionId, reason)
       } else if (action === 'flag') {
@@ -462,18 +596,23 @@ export default function useProctorSection({
 
       setSuccess(
         action === 'approve'
-          ? `Đã duyệt phiên thi #${sessionId}.`
+          ? `Đã duyệt ${sessionLabel}.`
+          : action === 'approve-device'
+            ? `Đã duyệt thiết bị cho ${sessionLabel}.`
           : action === 'reject'
-            ? `Đã từ chối phiên thi #${sessionId}.`
+            ? `Đã từ chối ${sessionLabel}.`
             : action === 'flag'
-              ? `Đã gắn cờ phiên thi #${sessionId}.`
-              : `Đã bỏ cờ phiên thi #${sessionId}.`,
+              ? `Đã gắn cờ ${sessionLabel}.`
+              : `Đã bỏ cờ ${sessionLabel}.`,
       )
       setProctorReason('')
+      setProctorActionError('')
       await fetchProctorDashboard()
-      await fetchProctorHistory(selectedProctorSession)
+      setShowProctorDetailModal(false)
+      setSelectedProctorSession(null)
+      setProctorHistory([])
     } catch (err) {
-      setError(err.message || 'Không thể thực hiện thao tác proctor.')
+      setError(err.message || `Không thể thực hiện thao tác proctor cho ${sessionLabel}.`)
     } finally {
       setProctorActionLoading(false)
     }
@@ -637,6 +776,8 @@ export default function useProctorSection({
     loadingProctorHistory,
     proctorReason,
     setProctorReason,
+    proctorActionError,
+    setProctorActionError,
     proctorActionLoading,
     showProctorRoomModal,
     proctorExamDraft,
@@ -644,7 +785,13 @@ export default function useProctorSection({
     setProctorRoomDraft,
     proctorRoomOptions,
     loadingProctorRooms,
+    proctorRoomFilterExamOptions,
+    proctorRoomFilterExamId,
+    handleProctorRoomFilterExamChange,
     proctorRoomFilterOptions,
+    loadingProctorRoomFilterOptions,
+    selectedProctorExamLabel,
+    selectedProctorRoomLabel,
     proctorAlerts,
     clearProctorAlerts,
     proctorToasts,

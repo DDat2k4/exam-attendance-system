@@ -17,6 +17,7 @@ export default function ExamsSection({
   submittingExam,
   updatingExam,
   canCreateExams,
+  canManageExams,
   cancelEditExam,
   showExamFormModal,
   closeExamFormModal,
@@ -81,7 +82,7 @@ export default function ExamsSection({
                     <th>Bắt đầu</th>
                     <th>Kết thúc</th>
                     <th>Số phòng</th>
-                    <th>Thao tác</th>
+                    {canManageExams ? <th>Thao tác</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -93,38 +94,40 @@ export default function ExamsSection({
                       <td>{formatDateTime(exam.startTime)}</td>
                       <td>{formatDateTime(exam.endTime)}</td>
                       <td>{Array.isArray(exam.rooms) ? exam.rooms.length : 0}</td>
-                      <td>
-                        <div className="table-actions">
-                          {canCreateExams && (
-                            <>
-                              <button
-                                type="button"
-                                  className="tiny-btn icon-only-btn"
-                                onClick={() => handleOpenImport(exam.id, exam.title)}
-                                disabled={processingExamId === exam.id}
-                                  aria-label={`Import dữ liệu cho kỳ thi #${exam.id}`}
-                                  title="Import dữ liệu"
-                              >
+                        {canManageExams ? (
+                          <td>
+                            <div className="table-actions">
+                              {canCreateExams && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="tiny-btn icon-only-btn"
+                                    onClick={() => handleOpenImport(exam.id, exam.title)}
+                                    disabled={processingExamId === exam.id}
+                                    aria-label={`Import dữ liệu cho kỳ thi ${exam.id}`}
+                                    title="Import dữ liệu"
+                                  >
                                     <ImportIcon />
-                              </button>
+                                  </button>
 
-                                <button type="button" className="tiny-btn icon-only-btn" onClick={() => startEditExam(exam)} aria-label={`Sửa kỳ thi #${exam.id}`} title="Sửa kỳ thi">
-                                  <PencilIcon />
-                              </button>
-                              <button
-                                type="button"
-                                  className="tiny-btn danger icon-only-btn"
-                                onClick={() => handleDeleteExam(exam.id, exam.title)}
-                                disabled={processingExamId === exam.id}
-                                  aria-label={`Xóa kỳ thi #${exam.id}`}
-                                  title="Xóa kỳ thi"
-                              >
-                                  <TrashIcon />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
+                                  <button type="button" className="tiny-btn icon-only-btn" onClick={() => startEditExam(exam)} aria-label={`Sửa kỳ thi ${exam.id}`} title="Sửa kỳ thi">
+                                    <PencilIcon />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="tiny-btn danger icon-only-btn"
+                                    onClick={() => handleDeleteExam(exam.id, exam.title)}
+                                    disabled={processingExamId === exam.id}
+                                    aria-label={`Xóa kỳ thi ${exam.id}`}
+                                    title="Xóa kỳ thi"
+                                  >
+                                    <TrashIcon />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        ) : null}
                     </tr>
                   ))}
                 </tbody>
@@ -163,7 +166,7 @@ export default function ExamsSection({
               <div className="assign-room-modal exam-form-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
                 <div className="assign-room-modal__header">
                   <div>
-                    <h3>{editingExamId ? `Cập nhật kỳ thi #${editingExamId}` : 'Tạo kỳ thi mới'}</h3>
+                    <h3>{editingExamId ? `Cập nhật kỳ thi ${editingExamId}` : 'Tạo kỳ thi mới'}</h3>
                     <p>Nhập thông tin kỳ thi và lưu thay đổi để cập nhật danh sách.</p>
                   </div>
                   <button type="button" className="modal-close-btn" onClick={closeExamFormModal} aria-label="Đóng">

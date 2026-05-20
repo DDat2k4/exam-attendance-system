@@ -8,7 +8,7 @@ import {
 } from '../../api/examApi'
 import ExamsSection from '../../components/ExamHub/ExamsSection'
 import { useAuth } from '../../context/AuthContext'
-import { canAccess } from '../../utils/rbac'
+import { canAccess, hasRole } from '../../utils/rbac'
 import { showConfirmDialog } from '../../utils/confirmDialog'
 import { PlusIcon, RefreshIcon } from '../../components/ui/AppIcons'
 import '../../components/ExamHub/ExamHub.css'
@@ -45,17 +45,14 @@ export default function ExamsPage() {
   const [importError, setImportError] = useState('')
   const keywordInitializedRef = useRef(false)
 
-  const canCreateExams = canAccess(user, {
-    allowRoles: ['ADMIN'],
-    allowPermissions: ['EXAM_CREATE', 'EXAM_MANAGE'],
-    match: 'any',
-  })
+  const canCreateExams = hasRole(user, 'ADMIN')
 
   const canViewExams = canAccess(user, {
     allowRoles: ['ADMIN', 'PROCTOR', 'STUDENT'],
     allowPermissions: ['EXAM_VIEW', 'EXAM_MANAGE'],
     match: 'any',
   })
+  const canManageExams = hasRole(user, 'ADMIN')
 
   async function fetchExams(nextPage = examPage, nextKeyword = examKeyword) {
     try {
@@ -224,7 +221,7 @@ export default function ExamsPage() {
 
     setError('')
     setSuccess('')
-    setImportTarget({ examId: parsedExamId, examTitle: examTitle || `#${parsedExamId}` })
+    setImportTarget({ examId: parsedExamId, examTitle: examTitle || `${parsedExamId}` })
     setImportFile(null)
     setImportError('')
     setShowImportModal(true)
@@ -356,6 +353,7 @@ export default function ExamsPage() {
         submittingExam={submittingExam}
         updatingExam={updatingExam}
         canCreateExams={canCreateExams}
+        canManageExams={canManageExams}
         cancelEditExam={cancelEditExam}
         showExamFormModal={showExamFormModal}
         closeExamFormModal={closeExamFormModal}

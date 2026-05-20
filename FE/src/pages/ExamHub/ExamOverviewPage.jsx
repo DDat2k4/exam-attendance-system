@@ -36,7 +36,7 @@ export default function ExamOverviewPage() {
   })
 
   const canControlSessions = canAccess(user, {
-    allowRoles: ['ADMIN', 'PROCTOR'],
+    allowRoles: ['ADMIN'],
     allowPermissions: ['EXAM_MANAGE', 'EXAM_SESSION_START', 'EXAM_SESSION_END'],
     match: 'any',
   })
@@ -48,6 +48,16 @@ export default function ExamOverviewPage() {
   const canCreateRooms = canAccess(user, {
     allowRoles: ['ADMIN', 'PROCTOR'],
     allowPermissions: ['ROOM_CREATE', 'EXAM_MANAGE'],
+    match: 'any',
+  })
+
+  const canViewRooms = canAccess(user, {
+    allowRoles: ['ADMIN', 'PROCTOR'],
+    match: 'any',
+  })
+
+  const canViewProctor = canAccess(user, {
+    allowRoles: ['ADMIN', 'PROCTOR'],
     match: 'any',
   })
 
@@ -92,6 +102,11 @@ export default function ExamOverviewPage() {
       const items = await getAllExamSessions()
       setSessionActivities(Array.isArray(items) ? items.slice(0, 12) : [])
     } catch (err) {
+      if (err?.response?.status === 403) {
+        setSessionActivities([])
+        return
+      }
+
       setError(err.message || 'Không thể tải danh sách phiên thi.')
     }
   }
@@ -182,19 +197,24 @@ export default function ExamOverviewPage() {
         </div>
 
         <div className="overview-actions">
-          {canCreateExams && (
+          {canViewExams && (
             <a href="/exam-hub/exams" className="tiny-btn">
-              Quản lý kỳ thi
+              Xem kỳ thi
+            </a>
+          )}
+          {canViewRooms && (
+            <a href="/exam-hub/rooms" className="tiny-btn">
+              Xem phòng thi
+            </a>
+          )}
+          {canViewProctor && (
+            <a href="/exam-hub/proctor" className="tiny-btn">
+              Giám sát
             </a>
           )}
           {canManageRegistrations && (
             <a href="/exam-hub/registrations" className="tiny-btn">
               Đăng ký thí sinh
-            </a>
-          )}
-          {canCreateRooms && (
-            <a href="/exam-hub/rooms" className="tiny-btn">
-              Quản lý phòng thi
             </a>
           )}
           {canStudentTakeExam && (

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getAllExams } from '../../api/examApi'
 import ProctorSection from '../../components/ExamHub/ProctorSection'
-import useProctorSection, { PROCTOR_STATUS_OPTIONS } from '../../hooks/useProctorSection'
+import useProctorSection, { PROCTOR_STATUS_OPTIONS, formatProctorToastMeta } from '../../hooks/useProctorSection'
 import { useAuth } from '../../context/AuthContext'
 import { canAccess } from '../../utils/rbac'
 import '../../components/ExamHub/ExamHub.css'
@@ -13,6 +13,10 @@ const HUB_SECTIONS = {
 export default function ProctorPage() {
   const { user } = useAuth()
   const [exams, setExams] = useState([])
+  const [examSearch, setExamSearch] = useState('')
+  const [roomSearch, setRoomSearch] = useState('')
+  const [showExamDropdown, setShowExamDropdown] = useState(false)
+  const [showRoomDropdown, setShowRoomDropdown] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -28,7 +32,7 @@ export default function ProctorPage() {
     try {
       setLoading(true)
       setError('')
-      const items = await getAllExams()
+      const items = await getAllExams({ hydrateRooms: false })
       setExams(Array.isArray(items) ? items : [])
     } catch (err) {
       setError(err.message || 'Cannot load exams.')
@@ -59,7 +63,13 @@ export default function ProctorPage() {
     setProctorRoomDraft,
     proctorRoomOptions,
     loadingProctorRooms,
+    proctorRoomFilterExamOptions,
+    proctorRoomFilterExamId,
+    handleProctorRoomFilterExamChange,
     proctorRoomFilterOptions,
+    loadingProctorRoomFilterOptions,
+    selectedProctorExamLabel,
+    selectedProctorRoomLabel,
     proctorAlerts,
     clearProctorAlerts,
     proctorToasts,
@@ -127,7 +137,6 @@ export default function ProctorPage() {
         refreshProctorDashboard={refreshProctorDashboard}
         proctorFilter={proctorFilter}
         setProctorFilter={setProctorFilter}
-        proctorRoomFilterOptions={proctorRoomFilterOptions}
         proctorStatusOptions={PROCTOR_STATUS_OPTIONS}
         fetchProctorDashboard={fetchProctorDashboard}
         setSelectedProctorSession={setSelectedProctorSession}
@@ -151,10 +160,16 @@ export default function ProctorPage() {
         proctorToasts={proctorToasts}
         dismissProctorToast={dismissProctorToast}
         proctorSocketStatus={proctorSocketStatus}
+        selectedProctorExamLabel={selectedProctorExamLabel}
+        selectedProctorRoomLabel={selectedProctorRoomLabel}
       />
 
       <div className="proctor-toast-stack" aria-live="polite" aria-relevant="additions text">
         {proctorToasts.map((toast) => (
+          (() => {
+            const toastMeta = formatProctorToastMeta(toast)
+
+            return (
           <div
             key={toast.id}
             className={`proctor-toast proctor-toast--${String(toast.severity || 'LOW').toLowerCase()}`}
@@ -168,12 +183,14 @@ export default function ProctorPage() {
             </div>
             <p>{toast.message}</p>
             <small>
-              {toast.roomName ? `${toast.roomName}` : toast.roomId ? `Room #${toast.roomId}` : '-'}
-              {toast.userName ? ` • ${toast.userName}` : ` • User #${toast.userId || '-'}`}
-              {toast.citizenId ? ` • CCCD ${toast.citizenId}` : ''}
+              {toastMeta.roomLabel}
+              {toastMeta.userLabel ? ` • ${toastMeta.userLabel}` : ''}
+              {toastMeta.citizenLabel ? ` • ${toastMeta.citizenLabel}` : ''}
               {` • ${formatDateTime(toast.timestamp)}`}
             </small>
           </div>
+            )
+          })()
         ))}
       </div>
 
@@ -181,36 +198,106 @@ export default function ProctorPage() {
         <div className="proctor-room-modal-overlay" onClick={closeProctorRoomModal}>
           <div className="proctor-room-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Chọn phòng thi để giám sát</h3>
-            <p>Flow chuẩn: Chọn kỳ thi → tải phòng theo kỳ thi → chọn phòng để mở dashboard.</p>
+            <p>Flow chuẩn: Tìm kỳ thi → tải phòng theo kỳ thi → chọn phòng để mở dashboard.</p>
 
             <label htmlFor="proctorExamSelect">Kỳ thi</label>
-            <select
-              id="proctorExamSelect"
-              value={proctorExamDraft}
-              onChange={(e) => handleProctorExamDraftChange(e.target.value)}
-            >
-              <option value="">Chọn kỳ thi</option>
-              {exams.map((exam) => (
-                <option key={exam.id} value={exam.id}>
-                  {exam.title || 'Untitled exam'}
-                </option>
-              ))}
-            </select>
+            <div className="proctor-search-field">
+              <input
+                type="text"
+                placeholder="Tìm kỳ thi..."
+                value={examSearch}
+                onChange={(e) => { setExamSearch(e.target.value); setShowExamDropdown(true) }}
+                onFocus={() => setShowExamDropdown(true)}
+                onBlur={() => setTimeout(() => setShowExamDropdown(false), 150)}
+                aria-haspopup="listbox"
+              />
+
+              {showExamDropdown && (
+                <ul
+                  role="listbox"
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    maxHeight: 200,
+                    overflowY: 'auto',
+                    background: 'white',
+                    border: '1px solid #ddd',
+                    zIndex: 50,
+                    padding: 0,
+                    margin: 0,
+                    listStyle: 'none',
+                  }}
+                >
+                  {exams
+                    .filter((exam) => (exam.title || '').toLowerCase().includes((examSearch || '').toLowerCase()))
+                    .map((exam) => (
+                      <li
+                        key={exam.id}
+                        role="option"
+                        onMouseDown={() => {
+                          handleProctorExamDraftChange(String(exam.id))
+                          setExamSearch(exam.title || '')
+                          setShowExamDropdown(false)
+                        }}
+                        style={{ padding: '8px 12px', cursor: 'pointer' }}
+                      >
+                        {exam.title || 'Untitled exam'}
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
 
             <label htmlFor="proctorRoomSelect">Phòng thi</label>
-            <select
-              id="proctorRoomSelect"
-              value={proctorRoomDraft}
-              onChange={(e) => setProctorRoomDraft(e.target.value)}
-              disabled={!proctorExamDraft || loadingProctorRooms}
-            >
-              <option value="">Chọn roomId</option>
-              {proctorRoomOptions.map((room) => (
-                <option key={room.id} value={room.id}>
-                  {room.label}
-                </option>
-              ))}
-            </select>
+            <div className="proctor-search-field">
+              <input
+                type="text"
+                placeholder="Tìm phòng..."
+                value={roomSearch}
+                onChange={(e) => { setRoomSearch(e.target.value); setShowRoomDropdown(true) }}
+                onFocus={() => setShowRoomDropdown(true)}
+                onBlur={() => setTimeout(() => setShowRoomDropdown(false), 150)}
+                disabled={!proctorExamDraft}
+                aria-haspopup="listbox"
+              />
+
+              {showRoomDropdown && proctorRoomOptions && (
+                <ul
+                  role="listbox"
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    maxHeight: 200,
+                    overflowY: 'auto',
+                    background: 'white',
+                    border: '1px solid #ddd',
+                    zIndex: 50,
+                    padding: 0,
+                    margin: 0,
+                    listStyle: 'none',
+                  }}
+                >
+                  {proctorRoomOptions
+                    .filter((room) => (room.label || '').toLowerCase().includes((roomSearch || '').toLowerCase()))
+                    .map((room) => (
+                      <li
+                        key={room.id}
+                        role="option"
+                        onMouseDown={() => {
+                          setProctorRoomDraft(String(room.id))
+                          setRoomSearch(room.label || '')
+                          setShowRoomDropdown(false)
+                        }}
+                        style={{ padding: '8px 12px', cursor: 'pointer' }}
+                      >
+                        {room.label}
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
 
             {loadingProctorRooms ? <p>Đang tải danh sách phòng...</p> : null}
             {!loadingProctorRooms && proctorExamDraft && proctorRoomOptions.length === 0 ? (

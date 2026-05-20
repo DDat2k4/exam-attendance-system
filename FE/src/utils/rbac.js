@@ -1,4 +1,4 @@
-const normalizeCode = (value) => String(value || '').trim().toUpperCase()
+const normalizeCode = (value) => String(value || '').trim().toUpperCase().replace(/^ROLE_/, '')
 
 const toCodeList = (items) => {
   if (!Array.isArray(items)) return []

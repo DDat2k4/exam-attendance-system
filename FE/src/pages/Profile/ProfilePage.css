@@ -1,0 +1,206 @@
+/* Simple styles for profile pages */
+.profile-page, .change-password-page {
+  padding: 12px 0;
+}
+
+.page-card {
+  background: rgba(255,255,255,0.995);
+  border-radius: 14px;
+  padding: 36px 40px;
+  border: 1px solid rgba(46,66,144,0.06);
+  box-shadow: 0 28px 48px rgba(12,22,48,0.06);
+}
+
+/* Extra top spacing for change-password card to avoid title being too close to the top */
+.change-password-page .page-card { padding-top: 28px }
+
+/* Layout inside profile and change-password cards */
+.profile-page .page-card,
+.change-password-page .page-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* allow inner content to use constrained max-width */
+  gap: 12px;
+}
+
+/* Constrain inner content and center within card */
+.profile-page .page-card > .profile-grid,
+.profile-page .page-card > .personal-profile,
+.change-password-page .page-card > .change-password-form {
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.profile-page .page-card > .profile-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 36px; row-gap: 20px; align-items: start }
+
+.profile-page .page-card h2,
+.change-password-page .page-card h2 {
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto 8px auto;
+  text-align: left;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px 40px;
+  row-gap: 18px;
+  margin-top: 18px;
+}
+
+.profile-grid > div { display: flex; flex-direction: column; justify-content: center; padding: 14px 18px; background: linear-gradient(180deg, #fbfdff, #ffffff); border-radius: 10px; border: 1px solid rgba(46,66,144,0.04); box-shadow: 0 8px 18px rgba(12,22,48,0.03); min-height: 72px }
+.profile-grid > div:last-child { grid-column: 1 / -1 }
+.profile-grid .label { font-size: 13px; color: #5a6ecd; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px }
+.profile-grid .value { font-weight: 800; color: #0f1d3a; font-size: 20px }
+
+.profile-actions { margin-top: 28px; width:100%; display:flex; justify-content:center; position: relative; padding-bottom: 12px }
+
+.change-password-form { display: grid; gap: 8px; max-width: 720px; width: 100%; margin: 0 auto; justify-items: center; align-items: center; position: relative; padding-bottom: 48px }
+
+.change-password-form .form-header {
+  display: none;
+}
+.change-password-form .form-body { width: 80%; margin: 0 auto; position: relative; padding-bottom: 24px; display: flex; flex-direction: column; align-items: flex-start; row-gap: 8px }
+.change-password-form .form-body h2 { margin: 8px 0 16px 0; font-size: 25px; line-height: 1.05 }
+
+@media (max-width: 880px) {
+  .change-password-form .form-body h2 { margin: 0 0 12px 0; font-size: 18px }
+}
+.change-password-form input {
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(99,115,255,0.14);
+  background: #ffffff;
+  color: #0b1220;
+  box-shadow: 0 6px 18px rgba(31,41,86,0.06);
+  transition: box-shadow 0.14s ease, border-color 0.14s ease;
+}
+.input-with-icon {
+  position: relative;
+  display: block;
+  width: 100%; /* fill the form-body so title and inputs align */
+  max-width: none;
+  margin: 0 0 8px 0;
+}
+.input-with-icon input { padding-right: 48px; width: 100% !important; max-width: none !important; margin: 0 !important; box-sizing: border-box }
+
+@media (max-width: 880px) {
+  .input-with-icon { width: 92% }
+  .change-password-form .form-header { width: 92% }
+}
+
+/* Stronger selectors for change-password form: ensure toggle sits inside each input container */
+.change-password-form .input-with-icon { position: relative !important; display: block !important; width: 100% !important; margin: 0 0 8px 0 !important }
+.change-password-form .input-with-icon .toggle-visibility { position: absolute !important; right: 12px !important; top: 50% !important; transform: translateY(-50%) !important; z-index: 20 !important }
+.change-password-form .input-with-icon input { padding-right: 56px !important }
+.toggle-visibility {
+  position: absolute;
+  right: 12px; /* sit inside input */
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent; /* visually inside the field */
+  border: 0;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  box-shadow: none;
+}
+.toggle-visibility svg { width:18px; height:18px; display:block }
+.toggle-visibility:focus { outline: 2px solid rgba(37,99,235,0.18); border-radius: 8px }
+.change-password-form input::placeholder { color: #94a3b8 }
+.change-password-form input:focus {
+  border-color: #2563EB;
+  box-shadow: 0 10px 30px rgba(37,99,235,0.12);
+  outline: none;
+}
+.actions { display:flex; gap:8px }
+
+.error { color: #9b2c2c }
+.success { color: #1d6b3b }
+.btn.primary { background: linear-gradient(130deg,#2563EB,#1E40AF); color:#fff; padding:10px 16px; border-radius:12px; border:0; box-shadow: 0 8px 20px rgba(37,99,235,0.18); font-weight:700 }
+
+.floating-submit {
+  position: absolute;
+  right: 12px;
+  bottom: -14px; /* move the button lower */
+  z-index: 40;
+  box-shadow: 0 8px 18px rgba(37,99,235,0.12);
+  transform: translateY(0);
+}
+
+.floating-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 8px; /* inside card */
+  z-index: 40;
+  box-shadow: 0 16px 36px rgba(37,99,235,0.12);
+}
+
+@media (max-width: 520px) {
+  .floating-center { left: 50%; bottom: 12px; transform: translateX(-50%); }
+}
+
+.btn.primary.floating-center { transition: transform 0.18s cubic-bezier(.2,.9,.2,1), box-shadow 0.18s ease }
+.btn.primary.floating-center:hover { transform: translateX(-50%) translateY(-2px) scale(1.03); box-shadow: 0 20px 44px rgba(37,99,235,0.17) }
+
+@media (max-width: 880px) {
+  .profile-grid { grid-template-columns: 1fr; gap: 12px; row-gap: 12px }
+  .page-card { padding: 20px }
+  .profile-page .page-card h2 { text-align: center }
+}
+
+@media (max-width: 520px) {
+  .floating-submit { right: 12px; bottom: 12px; }
+}
+
+/* Modal specific tweaks to match app modal style */
+.profile-modal .assign-room-form {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-modal .profile-popover__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: center;
+}
+
+.profile-modal label {
+  color: #2f3f82;
+  font-size: 13px;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.profile-modal input,
+.profile-modal select {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  border: 1px solid #c8d2fa;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: #fff;
+  outline: none;
+}
+
+.profile-modal input:focus,
+.profile-modal select:focus {
+  border-color: #4f67d6;
+  box-shadow: 0 0 0 6px rgba(79,103,214,0.06);
+}
+
+.profile-modal .assign-room-actions {
+  justify-content: flex-end;
+}

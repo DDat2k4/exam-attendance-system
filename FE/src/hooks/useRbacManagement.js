@@ -71,7 +71,7 @@ export default function useRbacManagement(options = {}) {
   const [assignmentRoleSearch, setAssignmentRoleSearch] = useState('')
 
   const availableRoleOptions = useMemo(
-    () => allRoles.map((role) => ({ id: Number(role.id), label: role.name || role.code || `Role #${role.id}` })),
+    () => allRoles.map((role) => ({ id: Number(role.id), label: role.name || role.code || `Role ${role.id}` })),
     [allRoles],
   )
 
@@ -83,7 +83,7 @@ export default function useRbacManagement(options = {}) {
   const userSelectorOptions = useMemo(
     () =>
       users.map((user) => {
-        const label = user.username || user.email || `User #${user.id}`
+        const label = user.username || user.email || `User ${user.id}`
         return {
           id: Number(user.id),
           label,
@@ -621,7 +621,7 @@ export default function useRbacManagement(options = {}) {
 
   const handleRemovePermissionFromRole = async (permissionId) => {
     if (!selectedRoleId) return
-    const ok = await showConfirmDialog(`Bạn chắc chắn muốn gỡ quyền #${permissionId} khỏi vai trò đã chọn?`, {
+    const ok = await showConfirmDialog(`Bạn chắc chắn muốn gỡ quyền ${permissionId} khỏi vai trò đã chọn?`, {
       title: 'Xác nhận gỡ quyền',
       confirmText: 'Gỡ quyền',
       cancelText: 'Hủy',

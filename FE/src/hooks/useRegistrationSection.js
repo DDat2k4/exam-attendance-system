@@ -4,6 +4,7 @@ import {
   getExamRegistrationsByExam,
   removeUserFromExam,
 } from '../api/examRegistrationApi'
+import { getExamById } from '../api/examApi'
 import { getUsers } from '../api/userApi'
 import { showConfirmDialog } from '../utils/confirmDialog'
 
@@ -94,7 +95,9 @@ export default function useRegistrationSection({
     const { name, value } = e.target
 
     if (name === 'examId') {
-      setRegistrationForm((prev) => ({ ...prev, examId: value }))
+      // If the input carries an exam title (e.g. from a selection), prefer it
+      const examTitleCandidate = e.target?.dataset?.examTitle || (String(value).trim() && Number.isNaN(Number(String(value).trim())) ? String(value).trim() : undefined)
+      setRegistrationForm((prev) => ({ ...prev, examId: value, ...(examTitleCandidate ? { examTitle: examTitleCandidate } : {}) }))
       fetchRegistrations(value, 1)
       return
     }
@@ -139,7 +142,7 @@ export default function useRegistrationSection({
     const userIds = selectedRegistrationUserIds
 
     if (!examId) {
-      setError('Vui lòng chọn kỳ thi để đăng ký danh sách.')
+      setError('Vui lòng tìm kỳ thi để đăng ký danh sách.')
       return
     }
 
@@ -151,7 +154,23 @@ export default function useRegistrationSection({
     try {
       setSubmittingRegistration(true)
       await addUsersToExam({ examId, userIds })
-      setSuccess(`Đã đăng ký ${userIds.length} user vào kỳ thi #${examId}.`)
+      // prefer explicit examTitle from form; otherwise fetch exam title by id
+      let examTitle = registrationForm.examTitle || registrationForm.examId || examId
+      if (!registrationForm.examTitle) {
+        try {
+          const examRes = await getExamById(examId)
+          // examRes may be a response or the resource; try common locations
+          const resolved = examRes?.data ?? examRes
+          examTitle = resolved?.title || resolved?.name || examTitle
+        } catch {
+          // ignore fetch error and fall back to examId
+        }
+      }
+      setSuccess(`Đã đăng ký ${userIds.length} user vào kỳ thi ${examTitle}.`)
+      // persist title in form so subsequent actions don't need to fetch
+      if (!registrationForm.examTitle && examTitle) {
+        setRegistrationForm((prev) => ({ ...prev, examTitle }))
+      }
       setSelectedRegistrationUserIds([])
       await fetchRegistrations(examId, 1)
     } catch (err) {
@@ -174,7 +193,7 @@ export default function useRegistrationSection({
       return
     }
 
-    const ok = await showConfirmDialog(`Bạn chắc chắn muốn gỡ user #${userId} khỏi kỳ thi #${examId}?`, {
+    const ok = await showConfirmDialog(`Bạn chắc chắn muốn gỡ user ${userId} khỏi kỳ thi ${examId}?`, {
       title: 'Xác nhận gỡ đăng ký',
       confirmText: 'Gỡ',
       cancelText: 'Hủy',
@@ -187,7 +206,7 @@ export default function useRegistrationSection({
     try {
       setProcessingRegistrationId(registrationId ?? `${examId}-${userId}`)
       await removeUserFromExam({ examId, userId })
-      setSuccess(`Đã gỡ user #${userId} khỏi kỳ thi #${examId}.`)
+      setSuccess(`Đã gỡ user ${userId} khỏi kỳ thi ${examId}.`)
       const hasPreviousPageData = registrationRows.length === 1 && registrationPage > 1
       const nextPage = hasPreviousPageData ? registrationPage - 1 : registrationPage
       await fetchRegistrations(registrationForm.examId, nextPage)

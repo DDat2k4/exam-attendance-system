@@ -209,3 +209,12 @@ export function CloseIcon(props) {
     </AppIcon>
   )
 }
+
+export function DeviceIcon(props) {
+  return (
+    <AppIcon {...props}>
+      <rect x="7.2" y="4.4" width="9.6" height="15.2" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M10.2 7.1h3.6M11.2 17h1.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </AppIcon>
+  )
+}

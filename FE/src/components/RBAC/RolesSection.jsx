@@ -118,10 +118,10 @@ export default function RolesSection({
                   <td>{role.description || '-'}</td>
                   <td>
                     <div className="action-buttons">
-                      <button type="button" className="btn-edit icon-only-btn" onClick={() => handleEditClick(role)} aria-label={`Sửa vai trò #${role.id}`} title="Sửa">
+                      <button type="button" className="btn-edit icon-only-btn" onClick={() => handleEditClick(role)} aria-label={`Sửa vai trò ${role.id}`} title="Sửa">
                         <PencilIcon />
                       </button>
-                      <button type="button" className="btn-delete icon-only-btn" onClick={() => handleDeleteRole(role.id)} aria-label={`Xóa vai trò #${role.id}`} title="Xóa">
+                      <button type="button" className="btn-delete icon-only-btn" onClick={() => handleDeleteRole(role.id)} aria-label={`Xóa vai trò ${role.id}`} title="Xóa">
                         <TrashIcon />
                       </button>
                     </div>

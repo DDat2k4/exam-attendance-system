@@ -43,11 +43,11 @@ const DASHBOARD_BY_ROLE = {
   },
   STUDENT: {
     heading: 'Lịch thi của bạn',
-    lead: 'Xem đăng ký, phiên thi và trạng thái hồ sơ của bạn.',
+    lead: 'Xem đăng ký, phiên thi và trạng thái xác minh của bạn.',
     kpis: [
       { key: 'registrationsTotal', label: 'Kỳ thi đã đăng ký' },
       { key: 'mySessionsTotal', label: 'Phiên thi của tôi' },
-      { key: 'verification', label: 'Trạng thái hồ sơ' },
+      { key: 'verification', label: 'Trạng thái xác minh' },
       { key: 'readiness', label: 'Sẵn sàng vào phòng' },
     ],
     timeline: [
@@ -68,12 +68,6 @@ const HOME_ACTIONS = [
     allowRoles: ['ADMIN', 'PROCTOR'],
     allowPermissions: ['EXAM_VIEW', 'EXAM_MANAGE', 'ROOM_CREATE', 'EXAM_CREATE'],
     match: 'any',
-  },
-  {
-    key: 'profile',
-    label: 'Thông tin cá nhân',
-    to: '/profiles',
-    allowRoles: ['ADMIN', 'PROCTOR', 'STUDENT'],
   },
 ]
 
@@ -152,7 +146,7 @@ export default function Home() {
           const profileId = Number(profileIdRaw)
 
           if (!profileId) {
-            setVerificationKpi({ value: '-', label: 'Chưa có hồ sơ' })
+            setVerificationKpi({ value: '-', label: 'Chưa có dữ liệu xác minh' })
             return
           }
 
@@ -174,7 +168,7 @@ export default function Home() {
             return
           } catch (legacyErr) {
             if (legacyErr?.response?.status === 404) {
-              setVerificationKpi({ value: '-', label: 'Chưa có hồ sơ' })
+              setVerificationKpi({ value: '-', label: 'Chưa có dữ liệu xác minh' })
               return
             }
             throw legacyErr

@@ -186,6 +186,14 @@ export const approveExamSession = async (sessionId) => {
   }
 }
 
+export const approveDeviceChange = async (sessionId) => {
+  try {
+    return await axiosClient.post(`${API_URL}/exam-sessions/${sessionId}/approve-device`, null)
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
 export const rejectExamSession = async (sessionId, reason) => {
   try {
     return await axiosClient.post(`${API_URL}/exam-sessions/${sessionId}/reject`, null, {

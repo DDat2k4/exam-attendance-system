@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 export default function RoomsSection({
   roomForm,
@@ -10,8 +10,10 @@ export default function RoomsSection({
   roomRows,
   handleCreateRoom,
   handleSelectEditRoom,
-  handleCancelEditRoom,
   handleDeleteRoom,
+  handleOpenAssignRoom,
+  handleCloseAssignRoom,
+  handleAssignRoom,
   processingExamId,
   roomFilterCode,
   setRoomFilterCode,
@@ -41,25 +43,57 @@ export default function RoomsSection({
   roomStudents,
   loadingRoomStudents,
   roomStudentsError,
-  handleOpenAssignRoom,
-  handleCloseAssignRoom,
-  handleAssignRoom,
+  canManageRoomStudents,
+  selectedRoomStudentIds,
+  handleToggleRoomStudentSelection,
+  handleSelectAllRoomStudents,
+  handleClearRoomStudentSelection,
+  handleUnassignRoomStudent,
+  handleUnassignSelectedRoomStudents,
+  processingRoomStudentId,
+  processingRoomStudentBatch,
   handleOpenRoomStudents,
   handleCloseRoomStudents,
   showRoomFormModal,
   closeRoomFormModal,
 }) {
-  const [showExamDropdown, setShowExamDropdown] = useState(false)
-  const [examFilterText, setExamFilterText] = useState('')
+  const [showRoomExamSearchDropdown, setShowRoomExamSearchDropdown] = useState(false)
+  const [roomExamSearchText, setRoomExamSearchText] = useState('')
+  const [showRoomFilterExamDropdown, setShowRoomFilterExamDropdown] = useState(false)
+  const [roomFilterExamText, setRoomFilterExamText] = useState('')
   const [showRegistrationDropdown, setShowRegistrationDropdown] = useState(false)
 
-  const filteredExamOptions = useMemo(() => {
-    if (!examFilterText.trim()) return examOptions
-    const keyword = examFilterText.toLowerCase()
+  useEffect(() => {
+    if (!showRoomFormModal) {
+      setShowRoomExamSearchDropdown(false)
+      return
+    }
+
+    const selectedExam = examOptions.find((opt) => String(opt.id) === String(roomForm.examId))
+    setRoomExamSearchText(selectedExam?.label || '')
+  }, [examOptions, roomForm.examId, showRoomFormModal])
+
+  useEffect(() => {
+    if (!roomFilterExamId) {
+      setRoomFilterExamText('')
+    }
+  }, [roomFilterExamId])
+
+  const filteredRoomExamOptions = useMemo(() => {
+    if (!roomExamSearchText.trim()) return examOptions
+    const keyword = roomExamSearchText.toLowerCase()
     return examOptions.filter(
       (opt) => opt.label.toLowerCase().includes(keyword) || String(opt.id).includes(keyword)
     )
-  }, [examFilterText, examOptions])
+  }, [roomExamSearchText, examOptions])
+
+  const filteredRoomFilterExamOptions = useMemo(() => {
+    if (!roomFilterExamText.trim()) return examOptions
+    const keyword = roomFilterExamText.toLowerCase()
+    return examOptions.filter(
+      (opt) => opt.label.toLowerCase().includes(keyword) || String(opt.id).includes(keyword)
+    )
+  }, [roomFilterExamText, examOptions])
 
   const filteredAssignableRegistrations = useMemo(() => {
     const keyword = String(assignRegistrationQuery || '').trim().toLowerCase()
@@ -110,6 +144,49 @@ export default function RoomsSection({
     </ActionIcon>
   )
 
+  const PencilIcon = () => (
+    <ActionIcon>
+      <path
+        d="M4.5 15.5 15.8 4.2c.5-.5 1.2-.5 1.7 0l2.3 2.3c.5.5.5 1.2 0 1.7L8.5 19.5l-4.7.9.7-4.9Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path d="M13.7 6.3 17.8 10.4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </ActionIcon>
+  )
+
+  const TrashIcon = () => (
+    <ActionIcon>
+      <path d="M4.5 7h15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M9 7V5.8c0-.7.6-1.3 1.3-1.3h3.4c.7 0 1.3.6 1.3 1.3V7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.8 7.5l.5 11.2c0 .8.6 1.3 1.3 1.3h4.8c.7 0 1.3-.5 1.3-1.3l.5-11.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M10.2 10.2v5.6M13.8 10.2v5.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </ActionIcon>
+  )
+
+  const AssignIcon = () => (
+    <ActionIcon>
+      <path d="M7.5 10.2a3.2 3.2 0 1 0 0-6.4a3.2 3.2 0 0 0 0 6.4Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M2.8 18.2c0-2.6 2.2-4.6 4.7-4.6h.9c1.3 0 2.5.4 3.4 1.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16.2 12.2v5M13.7 14.7h5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </ActionIcon>
+  )
+
   return (
     <>
       {canCreateRooms && showRoomFormModal && (
@@ -117,7 +194,7 @@ export default function RoomsSection({
           <div className="assign-room-modal exam-form-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="assign-room-modal__header">
               <div>
-                <h3>{editingRoomId ? `Cập nhật phòng thi #${editingRoomId}` : 'Tạo phòng thi mới'}</h3>
+                <h3>{editingRoomId ? `Cập nhật phòng thi ${editingRoomId}` : 'Tạo phòng thi mới'}</h3>
                 <p>Nhập thông tin phòng thi và lưu thay đổi để cập nhật danh sách.</p>
               </div>
               <button type="button" className="modal-close-btn" onClick={closeRoomFormModal} aria-label="Đóng">
@@ -126,16 +203,44 @@ export default function RoomsSection({
             </div>
 
             <form className="grid-form exam-form-grid room-form-grid" onSubmit={handleCreateRoom}>
-              <div className="exam-field exam-field--full">
+              <div className="exam-field exam-field--full" style={{ position: 'relative' }}>
                 <label htmlFor="examId">Kỳ thi</label>
-                <select id="examId" name="examId" value={roomForm.examId} onChange={onRoomChange}>
-                  <option value="">Chọn kỳ thi</option>
-                  {examOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  id="examId"
+                  type="text"
+                  placeholder="Tìm kỳ thi..."
+                    value={roomExamSearchText}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setRoomExamSearchText(value)
+                    if (!value) {
+                      onRoomChange({ target: { name: 'examId', value: '' } })
+                    }
+                    setShowRoomExamSearchDropdown(true)
+                  }}
+                  onFocus={() => setShowRoomExamSearchDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowRoomExamSearchDropdown(false), 150)}
+                  autoComplete="off"
+                />
+
+                {showRoomExamSearchDropdown && filteredRoomExamOptions.length > 0 && (
+                  <div className="rooms-exam-dropdown" role="listbox">
+                    {filteredRoomExamOptions.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        className="rooms-exam-dropdown__item"
+                        onMouseDown={() => {
+                          onRoomChange({ target: { name: 'examId', value: String(opt.id) } })
+                          setRoomExamSearchText(opt.label)
+                          setShowRoomExamSearchDropdown(false)
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="exam-field-row">
@@ -205,28 +310,28 @@ export default function RoomsSection({
                 id="roomFilterExamId"
                 type="text"
                 placeholder="Gõ để tìm kỳ thi..."
-                value={examFilterText}
+                value={roomFilterExamText}
                 onChange={(e) => {
                   const value = e.target.value
-                  setExamFilterText(value)
+                  setRoomFilterExamText(value)
                   setRoomFilterExamId(value)
                 }}
-                onFocus={() => setShowExamDropdown(true)}
-                onBlur={() => setTimeout(() => setShowExamDropdown(false), 150)}
+                onFocus={() => setShowRoomFilterExamDropdown(true)}
+                onBlur={() => setTimeout(() => setShowRoomFilterExamDropdown(false), 150)}
                 className="rooms-filter-input"
               />
 
-              {showExamDropdown && filteredExamOptions.length > 0 && (
+              {showRoomFilterExamDropdown && filteredRoomFilterExamOptions.length > 0 && (
                 <div className="rooms-exam-dropdown" role="listbox">
-                  {filteredExamOptions.map((opt) => (
+                  {filteredRoomFilterExamOptions.map((opt) => (
                     <button
                       key={opt.id}
                       type="button"
                       className="rooms-exam-dropdown__item"
                       onMouseDown={() => {
                         setRoomFilterExamId(String(opt.id))
-                        setExamFilterText(opt.label)
-                        setShowExamDropdown(false)
+                        setRoomFilterExamText(opt.label)
+                        setShowRoomFilterExamDropdown(false)
                       }}
                     >
                       {opt.label}
@@ -240,8 +345,8 @@ export default function RoomsSection({
                       aria-label="Xóa lọc kỳ thi"
                       onMouseDown={() => {
                         setRoomFilterExamId('')
-                        setExamFilterText('')
-                        setShowExamDropdown(false)
+                        setRoomFilterExamText('')
+                        setShowRoomFilterExamDropdown(false)
                       }}
                     >
                       <CloseIcon />
@@ -295,7 +400,7 @@ export default function RoomsSection({
             <table className="rooms-table">
               <thead>
                 <tr>
-                  <th>Room ID</th>
+                  <th>ID phòng</th>
                   <th>Mã phòng</th>
                   <th>Kỳ thi</th>
                   <th>Số lượng tối đa</th>
@@ -307,32 +412,11 @@ export default function RoomsSection({
                   <tr key={`${examId}-${roomId ?? 'room'}`}>
                     <td>{roomId ?? '-'}</td>
                     <td>{room.roomCode || room.code || '-'}</td>
-                    <td>{examTitle || `#${examId}`}</td>
+                    <td>{examTitle || `${examId}`}</td>
                     <td>{room.maxStudents ?? '-'}</td>
                     <td>
                       <div className="room-action-grid">
                         <div className="room-action-row room-action-row--all">
-                          <button
-                            type="button"
-                            className="tiny-btn tiny-btn--primary room-icon-btn"
-                            title="Gán sinh viên"
-                            aria-label="Gán sinh viên"
-                            onClick={() =>
-                              handleOpenAssignRoom({
-                                roomId,
-                                examId,
-                                roomCode: room.roomCode || room.code,
-                                examTitle,
-                              })
-                            }
-                            disabled={processingExamId === roomId}
-                          >
-                            <ActionIcon>
-                              <path d="M8.5 11.2a3.2 3.2 0 1 0 0-6.4a3.2 3.2 0 0 0 0 6.4Zm7 1a2.5 2.5 0 1 0 0-5a2.5 2.5 0 0 0 0 5ZM3.8 20c.5-3.3 2.8-5 4.7-5s4.2 1.7 4.7 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M14.5 20c.2-2.2 1.6-3.8 3.6-4.5c1.2-.4 2.4-.3 3.2.1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                            </ActionIcon>
-                          </button>
-
                           <button
                             type="button"
                             className="tiny-btn tiny-btn--primary room-icon-btn"
@@ -352,44 +436,55 @@ export default function RoomsSection({
                               <circle cx="12" cy="12" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
                             </ActionIcon>
                           </button>
-
-                          <button
-                            type="button"
-                            className="tiny-btn room-icon-btn"
-                            title="Sửa phòng"
-                            aria-label="Sửa phòng"
-                            onClick={() =>
-                              handleSelectEditRoom({
-                                roomId,
-                                examId,
-                                roomCode: room.roomCode || room.code,
-                                maxStudents: room.maxStudents,
-                              })
-                            }
-                            disabled={processingExamId === roomId}
-                          >
-                            <ActionIcon>
-                              <path d="M4.5 15.5 15.8 4.2c.5-.5 1.2-.5 1.7 0l2.3 2.3c.5.5.5 1.2 0 1.7L8.5 19.5l-4.7.9.7-4.9Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-                              <path d="M13.7 6.3 17.8 10.4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-                            </ActionIcon>
-                          </button>
-
-                          <button
-                            type="button"
-                            className="tiny-btn danger room-icon-btn"
-                            title="Xóa phòng"
-                            aria-label="Xóa phòng"
-                            onClick={() => handleDeleteRoom(roomId)}
-                            disabled={processingExamId === roomId}
-                          >
-                            <ActionIcon>
-                              <path d="M4.5 7h15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                              <path d="M9 7V5.8c0-.7.6-1.3 1.3-1.3h3.4c.7 0 1.3.6 1.3 1.3V7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M7.8 7.5l.5 11.2c0 .8.6 1.3 1.3 1.3h4.8c.7 0 1.3-.5 1.3-1.3l.5-11.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                              <path d="M10.2 10.2v5.6M13.8 10.2v5.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                            </ActionIcon>
-                          </button>
                         </div>
+
+                        {canCreateRooms ? (
+                          <div className="room-action-row room-action-row--admin">
+                            <button
+                              type="button"
+                              className="tiny-btn tiny-btn--primary room-icon-btn"
+                              onClick={() =>
+                                handleOpenAssignRoom({
+                                  roomId,
+                                  examId,
+                                  roomCode: room.roomCode || room.code,
+                                  examTitle,
+                                })
+                              }
+                              title="Gán sinh viên"
+                              aria-label="Gán sinh viên"
+                              disabled={processingExamId === roomId}
+                            >
+                              <AssignIcon />
+                            </button>
+                            <button
+                              type="button"
+                              className="tiny-btn tiny-btn--primary room-icon-btn"
+                              onClick={() =>
+                                handleSelectEditRoom({
+                                  roomId,
+                                  examId,
+                                  roomCode: room.roomCode || room.code,
+                                  maxStudents: room.maxStudents,
+                                })
+                              }
+                              title="Sửa phòng"
+                              aria-label="Sửa phòng"
+                            >
+                              <PencilIcon />
+                            </button>
+                            <button
+                              type="button"
+                              className="tiny-btn danger room-icon-btn"
+                              onClick={() => handleDeleteRoom(roomId)}
+                              disabled={processingExamId === roomId}
+                              title="Xóa phòng"
+                              aria-label="Xóa phòng"
+                            >
+                              <TrashIcon />
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -417,8 +512,8 @@ export default function RoomsSection({
               </div>
 
               <div className="assign-room-modal__summary">
-                <span className="assign-room-chip">Phòng #{assignRoomTarget.roomId}{assignRoomTarget.roomCode ? ` - ${assignRoomTarget.roomCode}` : ''}</span>
-                <span className="assign-room-chip">Kỳ thi: {assignRoomTarget.examTitle || `#${assignRoomTarget.examId}`}</span>
+                <span className="assign-room-chip">Phòng {assignRoomTarget.roomId}{assignRoomTarget.roomCode ? ` - ${assignRoomTarget.roomCode}` : ''}</span>
+                <span className="assign-room-chip">Kỳ thi: {assignRoomTarget.examTitle || `${assignRoomTarget.examId}`}</span>
               </div>
 
               <form className="assign-room-form" onSubmit={handleAssignRoom}>
@@ -433,7 +528,7 @@ export default function RoomsSection({
                     onChange={(e) => handleRegistrationQueryChange(e.target.value)}
                     onFocus={() => setShowRegistrationDropdown(true)}
                     onBlur={() => setTimeout(() => setShowRegistrationDropdown(false), 150)}
-                    placeholder="Tìm theo registration, userId, username, họ tên, CCCD"
+                    placeholder="Tìm theo ID đăng ký, ID người dùng, tên đăng nhập, họ tên, CCCD"
                     disabled={loadingAssignableRegistrations}
                     autoComplete="off"
                   />
@@ -444,7 +539,7 @@ export default function RoomsSection({
                         <div className="assign-room-combobox__empty">Không tìm thấy sinh viên phù hợp.</div>
                       ) : (
                         filteredAssignableRegistrations.map((row) => {
-                          const userLabel = row?.userDisplayName || row?.userFullName || row?.userUsername || `User #${row?.userId}`
+                          const userLabel = row?.userDisplayName || row?.userFullName || row?.userUsername || `User ${row?.userId}`
                           const metaParts = [
                             row?.userUsername ? `@${row.userUsername}` : '',
                             row?.userEmail || '',
@@ -508,13 +603,13 @@ export default function RoomsSection({
 
                 <div className="assign-room-modal__hint">
                   {loadingAssignableRegistrations ? (
-                    <span>Đang tải danh sách registration...</span>
+                    <span>Đang tải danh sách đăng ký...</span>
                   ) : filteredAssignableRegistrations.length === 0 ? (
-                    <span>Không có registration nào cho kỳ thi này.</span>
+                    <span>Không có đăng ký nào cho kỳ thi này.</span>
                   ) : String(assignRegistrationQuery || '').trim() ? (
-                    <span>Đang lọc còn {filteredAssignableRegistrations.length} registration. Bấm vào item để thêm.</span>
+                    <span>Đang lọc còn {filteredAssignableRegistrations.length} đăng ký. Bấm vào item để thêm.</span>
                   ) : (
-                    <span>Có {filteredAssignableRegistrations.length} registration khả dụng.</span>
+                    <span>Có {filteredAssignableRegistrations.length} đăng ký khả dụng.</span>
                   )}
                 </div>
 
@@ -542,7 +637,7 @@ export default function RoomsSection({
                 <div>
                   <h3>Sinh viên trong phòng thi</h3>
                   <p>
-                    Phòng #{roomStudentsTarget.roomId}
+                    Phòng {roomStudentsTarget.roomId}
                     {roomStudentsTarget.roomCode ? ` - ${roomStudentsTarget.roomCode}` : ''}
                     {roomStudentsTarget.examTitle ? ` | ${roomStudentsTarget.examTitle}` : ''}
                   </p>
@@ -560,32 +655,111 @@ export default function RoomsSection({
                 ) : roomStudents.length === 0 ? (
                   <p>Chưa có sinh viên nào trong phòng này.</p>
                 ) : (
-                  <div className="table-wrap">
-                    <table>
+                  <>
+                    {canManageRoomStudents ? (
+                      <div className="room-students-toolbar">
+                        <div className="room-students-toolbar__summary">
+                          <strong>{selectedRoomStudentIds.length > 0 ? `${selectedRoomStudentIds.length} sinh viên đã chọn` : 'Chưa chọn sinh viên nào'}</strong>
+                          <span>{roomStudents.length} sinh viên trong phòng</span>
+                        </div>
+                        <div className="room-students-toolbar__actions">
+                          <button type="button" className="tiny-btn" onClick={handleSelectAllRoomStudents} disabled={loadingRoomStudents || roomStudents.length === 0}>
+                            Chọn tất cả
+                          </button>
+                          <button type="button" className="tiny-btn" onClick={handleClearRoomStudentSelection} disabled={selectedRoomStudentIds.length === 0}>
+                            Bỏ chọn
+                          </button>
+                          <button
+                            type="button"
+                            className="tiny-btn danger"
+                            onClick={handleUnassignSelectedRoomStudents}
+                            disabled={selectedRoomStudentIds.length === 0 || processingRoomStudentBatch}
+                          >
+                            {processingRoomStudentBatch ? 'Đang bỏ gán...' : 'Bỏ gán đã chọn'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="room-students-toolbar room-students-toolbar--readonly">
+                        <div className="room-students-toolbar__summary">
+                          <strong>Chế độ xem</strong>
+                          <span>{roomStudents.length} sinh viên trong phòng</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="table-wrap">
+                    <table className="room-students-table">
                       <thead>
                         <tr>
-                          <th>Registration ID</th>
-                          <th>User ID</th>
-                          <th>Username</th>
+                          {canManageRoomStudents ? (
+                            <th className="room-students-select-col">
+                              <input
+                                type="checkbox"
+                                checked={roomStudents.length > 0 && selectedRoomStudentIds.length === roomStudents.length}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    handleSelectAllRoomStudents()
+                                    return
+                                  }
+
+                                  handleClearRoomStudentSelection()
+                                }}
+                                disabled={loadingRoomStudents || roomStudents.length === 0}
+                                aria-label="Chọn tất cả sinh viên"
+                              />
+                            </th>
+                          ) : null}
+                          <th>ID</th>
+                          <th>Tên đăng nhập</th>
                           <th>Họ tên</th>
                           <th>CCCD</th>
                           <th>Số ghế</th>
+                          {canManageRoomStudents ? <th className="room-students-action-col">Thao tác</th> : null}
                         </tr>
                       </thead>
                       <tbody>
                         {roomStudents.map((student) => (
-                          <tr key={student.registrationId ?? `${student.userId}-${student.seatNumber}`}>
+                          <tr
+                            key={student.registrationId ?? `${student.userId}-${student.seatNumber}`}
+                            className={selectedRoomStudentIds.includes(Number(student.registrationId)) ? 'is-selected' : ''}
+                          >
+                            {canManageRoomStudents ? (
+                              <td className="room-students-select-col">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRoomStudentIds.includes(Number(student.registrationId))}
+                                  onChange={() => handleToggleRoomStudentSelection(student.registrationId)}
+                                  disabled={processingRoomStudentBatch || processingRoomStudentId === Number(student.registrationId)}
+                                  aria-label={`Chọn sinh viên ${student.username || student.fullName || student.registrationId}`}
+                                />
+                              </td>
+                            ) : null}
                             <td>{student.registrationId ?? '-'}</td>
-                            <td>{student.userId ?? '-'}</td>
                             <td>{student.username || '-'}</td>
                             <td>{student.fullName || '-'}</td>
                             <td>{student.citizenId || '-'}</td>
                             <td>{student.seatNumber ?? '-'}</td>
+                            {canManageRoomStudents ? (
+                              <td className="room-students-action-col">
+                                <div className="room-students-row-actions">
+                                  <button
+                                    type="button"
+                                    className="tiny-btn danger"
+                                    onClick={() => handleUnassignRoomStudent(student)}
+                                    disabled={processingRoomStudentBatch || processingRoomStudentId === Number(student.registrationId)}
+                                  >
+                                    {processingRoomStudentId === Number(student.registrationId) ? 'Đang bỏ gán...' : 'Bỏ gán'}
+                                  </button>
+                                </div>
+                              </td>
+                            ) : null}
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                    </div>
+                  </>
                 )}
               </div>
 

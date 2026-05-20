@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { ChevronLeftIcon, ChevronRightIcon, RefreshIcon, TrashIcon } from '../ui/AppIcons'
 
 export default function RegistrationsSection({
@@ -26,6 +27,14 @@ export default function RegistrationsSection({
   processingRegistrationId,
   registrationTotalPages,
 }) {
+  const [examSearch, setExamSearch] = useState('')
+  const [showExamDropdown, setShowExamDropdown] = useState(false)
+
+  useEffect(() => {
+    const selectedLabel = examOptions.find((opt) => String(opt.id) === String(registrationForm.examId))?.label || ''
+    setExamSearch(selectedLabel)
+  }, [examOptions, registrationForm.examId])
+
   const findExamLabel = (examId) => {
     try {
       const found = examOptions.find((o) => Number(o.id) === Number(examId))
@@ -61,19 +70,43 @@ export default function RegistrationsSection({
       <h2>Đăng ký danh sách thí sinh</h2>
       <form className="grid-form" onSubmit={handleBatchRegister}>
         <label htmlFor="registrationExamId">Kỳ thi</label>
-        <select
-          id="registrationExamId"
-          name="examId"
-          value={registrationForm.examId}
-          onChange={onRegistrationChange}
-        >
-          <option value="">Chọn kỳ thi</option>
-          {examOptions.map((opt) => (
-            <option key={opt.id} value={opt.id}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+        <div className="registration-exam-combobox">
+          <input
+            id="registrationExamId"
+            type="text"
+            value={examSearch}
+            placeholder="Tìm kỳ thi..."
+            onChange={(e) => {
+              setExamSearch(e.target.value)
+              setShowExamDropdown(true)
+              if (!e.target.value) {
+                onRegistrationChange({ target: { name: 'examId', value: '' } })
+              }
+            }}
+            onFocus={() => setShowExamDropdown(true)}
+            onBlur={() => setTimeout(() => setShowExamDropdown(false), 150)}
+            autoComplete="off"
+          />
+          {showExamDropdown && (
+            <ul className="registration-exam-dropdown" role="listbox">
+              {examOptions
+                .filter((opt) => (opt.label || '').toLowerCase().includes((examSearch || '').toLowerCase()))
+                .map((opt) => (
+                  <li
+                    key={opt.id}
+                    role="option"
+                    onMouseDown={() => {
+                      onRegistrationChange({ target: { name: 'examId', value: String(opt.id) } })
+                      setExamSearch(opt.label || '')
+                      setShowExamDropdown(false)
+                    }}
+                  >
+                    {opt.label}
+                  </li>
+                ))}
+            </ul>
+          )}
+        </div>
 
         <label htmlFor="registrationUserSearch">Danh sách sinh viên</label>
         <div className="registration-user-picker">
@@ -163,7 +196,7 @@ export default function RegistrationsSection({
         </div>
 
         {!registrationForm.examId ? (
-          <p>Chọn kỳ thi để xem danh sách đã đăng ký.</p>
+          <p>Tìm kỳ thi để xem danh sách đã đăng ký.</p>
         ) : loadingRegistrations ? (
           <p>Đang tải danh sách đã đăng ký...</p>
         ) : registrationRows.length === 0 ? (

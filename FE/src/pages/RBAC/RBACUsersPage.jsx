@@ -15,7 +15,7 @@ const emptyUserForm = {
 }
 
 const DEFAULT_PAGE_SIZE = 10
-const ROLE_LOOKUP_SIZE = 50
+const ROLE_LOOKUP_SIZE = 10
 
 export default function RBACUsersPage() {
   const [loading, setLoading] = useState(false)
@@ -43,13 +43,14 @@ export default function RBACUsersPage() {
     setMessage('')
   }
 
-  const fetchUsers = useCallback(async (nextPage = page, nextRoleFilter = roleFilter, nextPageSize = pageSize) => {
+  const fetchUsers = useCallback(async (nextPage = page, nextRoleFilter = roleFilter, nextPageSize = pageSize, nextKeyword = keyword) => {
     setLoading(true)
     try {
       const result = await getUsers({
         page: nextPage,
         limit: nextPageSize,
         role: nextRoleFilter || undefined,
+        keyword: nextKeyword || undefined,
       })
 
       const safePage = Number(result.page || nextPage || 1)
@@ -68,7 +69,7 @@ export default function RBACUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, roleFilter, pageSize])
+  }, [])
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -122,7 +123,7 @@ export default function RBACUsersPage() {
       setUserForm(emptyUserForm)
       setEditingUserId(null)
       setSelectedRoleIds([])
-      await fetchUsers(page, roleFilter, pageSize)
+      await fetchUsers(page, roleFilter, pageSize, keyword)
       return true
     } catch (err) {
       setError(err.message || 'Không thể lưu user')
@@ -146,7 +147,7 @@ export default function RBACUsersPage() {
     try {
       await deleteUser(userId)
       setMessage('Đã xóa user')
-      await fetchUsers(page, roleFilter, pageSize)
+      await fetchUsers(page, roleFilter, pageSize, keyword)
     } catch (err) {
       setError(err.message || 'Không thể xóa user')
     } finally {

@@ -47,9 +47,8 @@ export default function StudentSection({
             <table>
               <thead>
                 <tr>
-                  <th>Registration ID</th>
-                  <th>Exam ID</th>
-                  <th>Tiêu đề</th>
+                  <th>ID</th>
+                  <th>Kỳ thi</th>
                   <th>Phòng thi</th>
                   <th>Đăng ký lúc</th>
                   <th>Bắt đầu</th>
@@ -80,7 +79,6 @@ export default function StudentSection({
                   return (
                     <tr key={item.id ?? `${item.examId}-${item.userId}`}>
                       <td>{item.id ?? '-'}</td>
-                      <td>{item.examId ?? item.exam?.id ?? '-'}</td>
                       <td>{item.exam?.title || '-'}</td>
                       <td>
                         {item.roomInfo?.roomId

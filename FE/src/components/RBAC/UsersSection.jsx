@@ -96,7 +96,7 @@ export default function UsersSection({
   const handleRoleFilterChange = (e) => {
     const nextRole = e.target.value
     setRoleFilter(nextRole)
-    fetchUsers(1, nextRole)
+    fetchUsers(1, nextRole, pageSize, keyword)
   }
 
   const toggleSelectedRole = (roleId) => {
@@ -162,14 +162,26 @@ export default function UsersSection({
           <input
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const term = String(e.target.value || '')
+                fetchUsers(1, roleFilter, pageSize, term)
+              }
+            }}
             placeholder="Tìm theo ID, email, phone hoặc tài khoản..."
           />
-          <button type="button" onClick={() => fetchUsers(1, roleFilter)} className="btn-search icon-only-btn" aria-label="Tìm kiếm" title="Tìm kiếm">
+          <button
+            type="button"
+            onClick={() => fetchUsers(1, roleFilter, pageSize, keyword)}
+            className="btn-search icon-only-btn"
+            aria-label="Tìm kiếm"
+            title="Tìm kiếm"
+          >
             <SearchIcon />
           </button>
         </div>
 
-        <button type="button" className="btn-new" onClick={openCreateModal}>
+        <button type="button" className="btn-new" onClick={openCreateModal} disabled={loading}>
           <PlusIcon size={16} />
           TẠO USER
         </button>
@@ -195,7 +207,7 @@ export default function UsersSection({
             onChange={(e) => {
               const nextSize = Number(e.target.value) || 10
               setPageSize(nextSize)
-              fetchUsers(1, roleFilter, nextSize)
+              fetchUsers(1, roleFilter, nextSize, keyword)
             }}
           >
             <option value={5}>5</option>
@@ -221,6 +233,7 @@ export default function UsersSection({
               placeholder="VD: admin"
               required
               disabled={Boolean(editingUserId)}
+              autoFocus={!editingUserId}
             />
           </div>
 
@@ -287,7 +300,7 @@ export default function UsersSection({
                       checked={checked}
                       onChange={() => toggleSelectedRole(roleId)}
                     />
-                    <span>{role.name || `Vai trò #${roleId}`}</span>
+                    <span>{role.name || `Vai trò ${roleId}`}</span>
                   </label>
                 )
               })
@@ -340,10 +353,10 @@ export default function UsersSection({
                     </td>
                     <td>
                       <div className="action-buttons">
-                        <button type="button" className="btn-edit icon-only-btn" onClick={() => openEditModal(user)} aria-label={`Sửa user #${user.id}`} title="Sửa">
+                        <button type="button" className="btn-edit icon-only-btn" onClick={() => openEditModal(user)} aria-label={`Sửa user ${user.id}`} title="Sửa">
                           <PencilIcon />
                         </button>
-                        <button type="button" className="btn-delete icon-only-btn" onClick={() => handleDeleteUser(user.id)} aria-label={`Xóa user #${user.id}`} title="Xóa">
+                        <button type="button" className="btn-delete icon-only-btn" onClick={() => handleDeleteUser(user.id)} aria-label={`Xóa user ${user.id}`} title="Xóa">
                           <TrashIcon />
                         </button>
                       </div>
@@ -357,19 +370,19 @@ export default function UsersSection({
       </div>
 
       <div className="pagination">
-        <button type="button" disabled={isFirst} onClick={() => fetchUsers(1, roleFilter)} className="icon-only-btn" aria-label="Trang đầu" title="Trang đầu">
+        <button type="button" disabled={isFirst} onClick={() => fetchUsers(1, roleFilter, pageSize, keyword)} className="icon-only-btn" aria-label="Trang đầu" title="Trang đầu">
           <ChevronsLeftIcon />
         </button>
-        <button type="button" disabled={isFirst} onClick={() => fetchUsers(page - 1, roleFilter)} className="icon-only-btn" aria-label="Trang trước" title="Trang trước">
+        <button type="button" disabled={isFirst} onClick={() => fetchUsers(page - 1, roleFilter, pageSize, keyword)} className="icon-only-btn" aria-label="Trang trước" title="Trang trước">
           <ChevronLeftIcon />
         </button>
         <span className="page-info">
           {page}/{Math.max(totalPages, 1)}
         </span>
-        <button type="button" disabled={isLast || totalPages === 0} onClick={() => fetchUsers(page + 1, roleFilter)} className="icon-only-btn" aria-label="Trang sau" title="Trang sau">
+        <button type="button" disabled={isLast || totalPages === 0} onClick={() => fetchUsers(page + 1, roleFilter, pageSize, keyword)} className="icon-only-btn" aria-label="Trang sau" title="Trang sau">
           <ChevronRightIcon />
         </button>
-        <button type="button" disabled={isLast || totalPages === 0} onClick={() => fetchUsers(totalPages, roleFilter)} className="icon-only-btn" aria-label="Trang cuối" title="Trang cuối">
+        <button type="button" disabled={isLast || totalPages === 0} onClick={() => fetchUsers(totalPages, roleFilter, pageSize, keyword)} className="icon-only-btn" aria-label="Trang cuối" title="Trang cuối">
           <ChevronsRightIcon />
         </button>
       </div>

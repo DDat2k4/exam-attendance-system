@@ -15,6 +15,15 @@ const isTokenExpired = (user) => {
   return user.exp * 1000 <= Date.now()
 }
 
+const stableUserKey = (value) => {
+  if (!value || typeof value !== 'object') return ''
+
+  return Object.keys(value)
+    .sort()
+    .map((key) => `${key}:${Array.isArray(value[key]) ? `[${value[key].join(',')}]` : String(value[key] ?? '')}`)
+    .join('|')
+}
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const current = getUserFromToken()
@@ -24,9 +33,13 @@ export const AuthProvider = ({ children }) => {
 
   const refreshUser = useCallback(async () => {
     const current = getUserFromToken()
+    const currentKey = stableUserKey(current)
+    const existingKey = stableUserKey(user)
 
     if (current && !isTokenExpired(current)) {
-      setUser(current)
+      if (currentKey !== existingKey) {
+        setUser(current)
+      }
       return current
     }
 
@@ -40,13 +53,18 @@ export const AuthProvider = ({ children }) => {
       await refreshAccessToken()
       const refreshed = getUserFromToken()
       const safeUser = isTokenExpired(refreshed) ? null : refreshed
-      setUser(safeUser)
+      const safeKey = stableUserKey(safeUser)
+      if (safeKey !== existingKey) {
+        setUser(safeUser)
+      }
       return safeUser
     } catch {
-      setUser(null)
+      if (user !== null) {
+        setUser(null)
+      }
       return null
     }
-  }, [])
+  }, [user])
 
   useEffect(() => {
     let active = true

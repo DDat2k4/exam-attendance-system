@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   getAllExams,
 } from '../../api/examApi'
-import { createExamRoom, deleteExamRoom, updateExamRoom, getRoomsByExamPaginated, assignExamRoomBatch, getStudentsInRoom } from '../../api/examRoomApi'
+import { createExamRoom, deleteExamRoom, updateExamRoom, getRoomsByExamAll, assignExamRoomBatch, getStudentsInRoom, removeStudentFromRoom, removeStudentsFromRoom } from '../../api/examRoomApi'
 import { getExamRegistrationsByExam } from '../../api/examRegistrationApi'
 import { getUserProfiles } from '../../api/userProfileApi'
 import RoomsSection from '../../components/ExamHub/RoomsSection'
 import { useAuth } from '../../context/AuthContext'
-import { canAccess } from '../../utils/rbac'
+import { hasRole } from '../../utils/rbac'
 import { showConfirmDialog } from '../../utils/confirmDialog'
 import '../../components/ExamHub/ExamHub.css'
 
@@ -22,7 +22,7 @@ const ASSIGNMENT_REGISTRATION_PAGE_SIZE = 100
 const ROOM_STUDENTS_PAGE_SIZE = 100
 const PROFILE_LOOKUP_PAGE_SIZE = 100
 
-const getProfileDisplayName = (profile, fallbackUserId) => profile?.name || profile?.fullName || `User #${fallbackUserId}`
+const getProfileDisplayName = (profile, fallbackUserId) => profile?.name || profile?.fullName || `User ${fallbackUserId}`
 
 const loadProfilesByUserIds = async (userIds = []) => {
   const uniqueUserIds = [...new Set(userIds.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))]
@@ -79,6 +79,9 @@ export default function RoomsPage() {
   const [roomStudents, setRoomStudents] = useState([])
   const [loadingRoomStudents, setLoadingRoomStudents] = useState(false)
   const [roomStudentsError, setRoomStudentsError] = useState('')
+  const [selectedRoomStudentIds, setSelectedRoomStudentIds] = useState([])
+  const [processingRoomStudentId, setProcessingRoomStudentId] = useState(null)
+  const [processingRoomStudentBatch, setProcessingRoomStudentBatch] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -132,11 +135,35 @@ export default function RoomsPage() {
     return filteredRoomRows.slice(start, start + ROOM_PAGE_SIZE)
   }, [filteredRoomRows, roomPage, roomTotalPages])
 
-  const canCreateRooms = canAccess(user, {
-    allowRoles: ['ADMIN', 'PROCTOR'],
-    allowPermissions: ['ROOM_CREATE', 'EXAM_MANAGE'],
-    match: 'any',
-  })
+  const canCreateRooms = hasRole(user, 'ADMIN')
+  const canManageRoomStudents = hasRole(user, 'ADMIN')
+
+  const loadRoomsForExam = async (examId) => {
+    const parsedExamId = Number(examId)
+
+    if (!Number.isInteger(parsedExamId) || parsedExamId <= 0) {
+      setRoomRows([])
+      setRoomPage(1)
+      return []
+    }
+
+    setRoomRows([])
+    setRoomPage(1)
+
+    const rooms = await getRoomsByExamAll(parsedExamId)
+    const matchedExam = exams.find((exam) => Number(exam.id) === parsedExamId)
+
+    const nextRows = (Array.isArray(rooms) ? rooms : []).map((room) => ({
+      examId: parsedExamId,
+      examTitle: matchedExam?.title || `${parsedExamId}`,
+      room,
+      roomId: room.id ?? room.roomId,
+    }))
+
+    setRoomRows(nextRows)
+    setRoomPage(1)
+    return nextRows
+  }
 
   async function fetchExams() {
     try {
@@ -149,8 +176,7 @@ export default function RoomsPage() {
       const rowsByExam = await Promise.all(
         examList.map(async (exam) => {
           try {
-            const paginatedData = await getRoomsByExamPaginated(exam.id, 0, 10)
-            const rooms = paginatedData?.content || []
+            const rooms = await getRoomsByExamAll(exam.id)
 
             return (Array.isArray(rooms) ? rooms : []).map((room) => ({
               examId: exam.id,
@@ -274,7 +300,7 @@ export default function RoomsPage() {
 
     setError('')
     setSuccess('')
-    setAssignRoomTarget({ roomId: parsedRoomId, examId: parsedExamId, roomCode: roomCode || '', examTitle: examTitle || `#${parsedExamId}` })
+    setAssignRoomTarget({ roomId: parsedRoomId, examId: parsedExamId, roomCode: roomCode || '', examTitle: examTitle || `${parsedExamId}` })
     setAssignRegistrationQuery('')
     setPendingRoomAssignments([])
     setAssignRoomError('')
@@ -339,7 +365,7 @@ export default function RoomsPage() {
         {
           registrationId,
           seatNumber: '',
-          label: row?.userDisplayName || row?.userFullName || row?.userUsername || `User #${row?.userId}`,
+          label: row?.userDisplayName || row?.userFullName || row?.userUsername || `User ${row?.userId}`,
           meta: [
             row?.userUsername ? `@${row.userUsername}` : '',
             row?.userEmail || '',
@@ -377,6 +403,7 @@ export default function RoomsPage() {
     setRoomStudentsTarget({ roomId: parsedRoomId, roomCode: roomCode || '', examTitle: examTitle || '' })
     setRoomStudents([])
     setRoomStudentsError('')
+    setSelectedRoomStudentIds([])
     setShowRoomStudentsModal(true)
 
     try {
@@ -397,6 +424,130 @@ export default function RoomsPage() {
     setRoomStudents([])
     setLoadingRoomStudents(false)
     setRoomStudentsError('')
+    setSelectedRoomStudentIds([])
+    setProcessingRoomStudentId(null)
+    setProcessingRoomStudentBatch(false)
+  }
+
+  const refreshRoomStudents = async (roomId) => {
+    const parsedRoomId = Number(roomId)
+
+    if (!Number.isInteger(parsedRoomId) || parsedRoomId <= 0) {
+      return []
+    }
+
+    setLoadingRoomStudents(true)
+    setRoomStudentsError('')
+
+    try {
+      const result = await getStudentsInRoom({ roomId: parsedRoomId, page: 0, size: ROOM_STUDENTS_PAGE_SIZE })
+      const students = Array.isArray(result?.content) ? result.content : []
+      setRoomStudents(students)
+      setSelectedRoomStudentIds([])
+      return students
+    } catch (err) {
+      setRoomStudentsError(err.message || 'Không thể tải danh sách sinh viên trong phòng.')
+      setRoomStudents([])
+      return []
+    } finally {
+      setLoadingRoomStudents(false)
+    }
+  }
+
+  const handleToggleRoomStudentSelection = (registrationId) => {
+    const parsedRegistrationId = Number(registrationId)
+
+    if (!Number.isInteger(parsedRegistrationId) || parsedRegistrationId <= 0) {
+      return
+    }
+
+    setSelectedRoomStudentIds((prev) => (
+      prev.includes(parsedRegistrationId)
+        ? prev.filter((item) => item !== parsedRegistrationId)
+        : [...prev, parsedRegistrationId]
+    ))
+  }
+
+  const handleSelectAllRoomStudents = () => {
+    setSelectedRoomStudentIds(
+      roomStudents
+        .map((student) => Number(student?.registrationId))
+        .filter((registrationId) => Number.isInteger(registrationId) && registrationId > 0),
+    )
+  }
+
+  const handleClearRoomStudentSelection = () => {
+    setSelectedRoomStudentIds([])
+  }
+
+  const handleUnassignRoomStudent = async (student) => {
+    const registrationId = Number(student?.registrationId)
+
+    if (!Number.isInteger(registrationId) || registrationId <= 0) {
+      setRoomStudentsError('Không tìm thấy registrationId hợp lệ để bỏ gán.')
+      return
+    }
+
+    const studentLabel = student?.fullName || student?.username || `#${registrationId}`
+    const ok = await showConfirmDialog(`Bỏ gán sinh viên ${studentLabel} khỏi phòng này?`, {
+      title: 'Xác nhận bỏ gán sinh viên',
+      confirmText: 'Bỏ gán',
+      cancelText: 'Hủy',
+      danger: true,
+    })
+
+    if (!ok) {
+      return
+    }
+
+    try {
+      setProcessingRoomStudentId(registrationId)
+      setRoomStudentsError('')
+      await removeStudentFromRoom(registrationId)
+      setSuccess(`Đã bỏ gán sinh viên #${registrationId}.`)
+      await refreshRoomStudents(roomStudentsTarget?.roomId)
+    } catch (err) {
+      setRoomStudentsError(err.message || 'Không thể bỏ gán sinh viên.')
+    } finally {
+      setProcessingRoomStudentId(null)
+    }
+  }
+
+  const handleUnassignSelectedRoomStudents = async () => {
+    const roomId = Number(roomStudentsTarget?.roomId)
+
+    if (!Number.isInteger(roomId) || roomId <= 0) {
+      setRoomStudentsError('Không tìm thấy roomId hợp lệ để bỏ gán.')
+      return
+    }
+
+    if (selectedRoomStudentIds.length === 0) {
+      setRoomStudentsError('Vui lòng chọn ít nhất một sinh viên để bỏ gán.')
+      return
+    }
+
+    const ok = await showConfirmDialog(`Bỏ gán ${selectedRoomStudentIds.length} sinh viên đã chọn khỏi phòng này?`, {
+      title: 'Xác nhận bỏ gán nhiều sinh viên',
+      confirmText: 'Bỏ gán',
+      cancelText: 'Hủy',
+      danger: true,
+    })
+
+    if (!ok) {
+      return
+    }
+
+    try {
+      setProcessingRoomStudentBatch(true)
+      setRoomStudentsError('')
+      await removeStudentsFromRoom(selectedRoomStudentIds)
+      setSuccess(`Đã bỏ gán ${selectedRoomStudentIds.length} sinh viên.`)
+      await refreshRoomStudents(roomId)
+    } catch (err) {
+      setRoomStudentsError(err.message || 'Không thể bỏ gán danh sách sinh viên.')
+    } finally {
+      setProcessingRoomStudentBatch(false)
+    }
   }
 
   const handleAssignRoom = async (e) => {
@@ -431,7 +582,7 @@ export default function RoomsPage() {
       setSuccess('')
       await assignExamRoomBatch({ roomId, students })
       await fetchExams()
-      setSuccess(`Đã gán ${students.length} sinh viên vào phòng #${roomId}.`)
+      setSuccess(`Đã gán ${students.length} sinh viên vào phòng ${roomId}.`)
       handleCloseAssignRoom()
     } catch (err) {
       setAssignRoomError(err.message || 'Không thể gán phòng thi.')
@@ -448,7 +599,7 @@ export default function RoomsPage() {
       return
     }
 
-    const ok = await showConfirmDialog(`Bạn chắc chắn muốn xóa phòng thi #${roomId}?`, {
+    const ok = await showConfirmDialog(`Bạn chắc chắn muốn xóa phòng thi ${roomId}?`, {
       title: 'Xác nhận xóa phòng thi',
       confirmText: 'Xóa',
       cancelText: 'Hủy',
@@ -471,10 +622,8 @@ export default function RoomsPage() {
   }
 
   useEffect(() => {
-    if (canCreateRooms) {
-      fetchExams()
-    }
-  }, [canCreateRooms])
+    fetchExams()
+  }, [])
 
   useEffect(() => {
     setRoomPage(1)
@@ -543,6 +692,15 @@ export default function RoomsPage() {
         roomStudents={roomStudents}
         loadingRoomStudents={loadingRoomStudents}
         roomStudentsError={roomStudentsError}
+        canManageRoomStudents={canManageRoomStudents}
+        selectedRoomStudentIds={selectedRoomStudentIds}
+        handleToggleRoomStudentSelection={handleToggleRoomStudentSelection}
+        handleSelectAllRoomStudents={handleSelectAllRoomStudents}
+        handleClearRoomStudentSelection={handleClearRoomStudentSelection}
+        handleUnassignRoomStudent={handleUnassignRoomStudent}
+        handleUnassignSelectedRoomStudents={handleUnassignSelectedRoomStudents}
+        processingRoomStudentId={processingRoomStudentId}
+        processingRoomStudentBatch={processingRoomStudentBatch}
         handleOpenAssignRoom={handleOpenAssignRoom}
         handleCloseAssignRoom={handleCloseAssignRoom}
         handleAssignRoom={handleAssignRoom}

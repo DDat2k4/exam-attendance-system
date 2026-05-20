@@ -5,7 +5,6 @@ import { useAuth } from './context/AuthContext'
 import Forbidden from './pages/Forbidden/Forbidden'
 import Home from './pages/Home/Home'
 import Login from './pages/Login/Login'
-import Profile from './pages/Profile/Profile'
 import ExamOverviewPage from './pages/ExamHub/ExamOverviewPage'
 import ExamsPage from './pages/ExamHub/ExamsPage'
 import RegistrationsPage from './pages/ExamHub/RegistrationsPage'
@@ -17,6 +16,8 @@ import RBACRolesPage from './pages/RBAC/RBACRolesPage'
 import RBACPermissionsPage from './pages/RBAC/RBACPermissionsPage'
 import RBACAssignmentsPage from './pages/RBAC/RBACAssignmentsPage'
 import RBACUsersPage from './pages/RBAC/RBACUsersPage'
+import ProfilePage from './pages/Profile/ProfilePage'
+import ChangePasswordPage from './pages/Profile/ChangePasswordPage'
 
 function RootRedirect() {
   const { isAuthenticated, authLoading } = useAuth()
@@ -102,14 +103,6 @@ function App() {
         />
         {/* Verification handled in mobile app — route removed */}
         <Route
-          path="/profiles"
-          element={
-            <ProtectedRoute allowRoles={['ADMIN', 'PROCTOR', 'STUDENT']}>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/rbac"
           element={
             <ProtectedRoute allowRoles={['ADMIN']}>
@@ -146,6 +139,22 @@ function App() {
           element={
             <ProtectedRoute allowRoles={['ADMIN']}>
               <RBACUsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute>
+              <ChangePasswordPage />
             </ProtectedRoute>
           }
         />
