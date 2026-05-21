@@ -126,6 +126,7 @@ public class ExamRegistrationController extends BaseController {
     public ResponseEntity<ApiResponse<Page<ExamRegistrationResponse>>> getMyExams(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Long examId,
             Authentication auth
     ) {
 
@@ -136,7 +137,7 @@ public class ExamRegistrationController extends BaseController {
         Pageable pageable = PageRequest.of(page - 1, size);
 
         var result = service
-                .getByUserId(userId, pageable)
+                .getByUserId(userId, examId, pageable)
                 .map(ExamRegistrationMapper::toResponse);
 
         return success(result);

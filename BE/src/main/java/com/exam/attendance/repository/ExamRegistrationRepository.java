@@ -33,6 +33,8 @@ public interface ExamRegistrationRepository extends JpaRepository<ExamRegistrati
 
     Optional<ExamRegistration> findByUserIdAndExam_Id(Long userId, Long examId);
 
+    Page<ExamRegistration> findByUserIdAndExam_Id(Long userId, Long examId, Pageable pageable);
+
     @Query("""
     SELECT new com.exam.attendance.data.pojo.RoomStudentDTO(
         r.id,

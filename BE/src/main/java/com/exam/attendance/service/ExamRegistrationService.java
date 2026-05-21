@@ -106,7 +106,16 @@ public class ExamRegistrationService {
         return examregistrationRepository.existsByUserIdAndExamId(userId, examId);
     };
 
-    public Page<ExamRegistration> getByUserId(Long userId, Pageable pageable) {
+    public Page<ExamRegistration> getByUserId(
+            Long userId,
+            Long examId,
+            Pageable pageable
+    ) {
+
+        if (examId != null) {
+            return examregistrationRepository.findByUserIdAndExam_Id(userId, examId, pageable);
+        }
+
         return examregistrationRepository.findByUserId(userId, pageable);
     }
 }

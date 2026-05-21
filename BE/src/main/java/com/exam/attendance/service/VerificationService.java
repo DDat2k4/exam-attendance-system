@@ -306,7 +306,7 @@ public class VerificationService {
                     != ExamSessionStatus.PENDING_REVIEW) {
 
                 throw new RuntimeException(
-                        "Session not in INIT"
+                        "Session đã hết thời gian thi"
                 );
             }
 
