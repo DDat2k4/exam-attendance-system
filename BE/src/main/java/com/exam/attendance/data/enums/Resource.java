@@ -1,4 +1,4 @@
-package com.exam.attendance.data.pojo.enums;
+package com.exam.attendance.data.enums;
 
 public enum Resource {
     USER,

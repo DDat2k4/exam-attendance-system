@@ -1,18 +1,18 @@
 package com.exam.attendance.repository;
 
 import com.exam.attendance.data.entity.ExamSession;
-import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
-import com.exam.attendance.data.pojo.ProctorDashboardDTO;
-import com.exam.attendance.data.pojo.report.SummaryDTO;
+import com.exam.attendance.data.enums.ExamSessionStatus;
+import com.exam.attendance.data.pojo.ProctorDashboard;
+import com.exam.attendance.data.pojo.report.Summary;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> {
+
     Long countByRoomId(Long roomId);
 
     List<ExamSession> findByUserId(Long userId);
@@ -32,7 +32,7 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, Long> 
     List<ExamSession> findFlaggedSessions();
 
     @Query("""
-SELECT new com.exam.attendance.data.pojo.ProctorDashboardDTO(
+SELECT new com.exam.attendance.data.pojo.ProctorDashboard(
     es.id,
     u.id,
     up.name,
@@ -82,7 +82,7 @@ AND (
         LIKE CONCAT('%', LOWER(:keyword), '%')
 )
 """)
-    List<ProctorDashboardDTO> findDashboard(
+    List<ProctorDashboard> findDashboard(
             @Param("roomId") Long roomId,
             @Param("status") ExamSessionStatus status,
             @Param("flagged") Boolean flagged,
@@ -107,12 +107,12 @@ AND (
     boolean existsByRoomId(Long roomId);
 
     @Query("""
-SELECT new com.exam.attendance.data.pojo.report.SummaryDTO(
+SELECT new com.exam.attendance.data.pojo.report.Summary(
     COUNT(DISTINCT es.id),
-    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.enums.AttendanceStatus.VERIFIED THEN 1L ELSE 0L END), 0L),
-    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.enums.AttendanceStatus.FAILED THEN 1L ELSE 0L END), 0L),
-    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.enums.AttendanceStatus.BLOCKED THEN 1L ELSE 0L END), 0L),
-    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.pojo.enums.AttendanceStatus.PENDING THEN 1L ELSE 0L END), 0L)
+    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.enums.AttendanceStatus.VERIFIED THEN 1L ELSE 0L END), 0L),
+    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.enums.AttendanceStatus.FAILED THEN 1L ELSE 0L END), 0L),
+    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.enums.AttendanceStatus.BLOCKED THEN 1L ELSE 0L END), 0L),
+    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.enums.AttendanceStatus.PENDING THEN 1L ELSE 0L END), 0L)
 
 )
 FROM ExamSession es
@@ -125,7 +125,7 @@ LEFT JOIN AttendanceSession a
     )
 WHERE es.room.id = :roomId
 """)
-    SummaryDTO getSummary(Long roomId);
+    Summary getSummary(Long roomId);
 
     Optional<ExamSession> findFirstByUserIdAndExamIdAndStatusInOrderBySessionStartDesc(
             Long userId,
@@ -137,5 +137,29 @@ WHERE es.room.id = :roomId
             Long examId,
             Long userId,
             List<ExamSessionStatus> statuses
+    );
+
+    @Query("""
+SELECT es
+FROM ExamSession es
+JOIN es.exam e
+JOIN es.room r
+JOIN es.user u
+JOIN u.userProfile up
+WHERE e.semester = :semester
+AND e.examCode = :examCode
+AND r.roomCode = :roomCode
+AND up.citizenId = :citizenId
+""")
+    Optional<ExamSession> findByCheckinInfo(
+            @Param("semester") String semester,
+            @Param("examCode") String examCode,
+            @Param("roomCode") String roomCode,
+            @Param("citizenId") String citizenId
+    );
+
+    Optional<ExamSession> findFirstByUserIdAndExamIdOrderByIdDesc(
+            Long userId,
+            Long examId
     );
 }

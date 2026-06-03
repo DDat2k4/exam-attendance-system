@@ -1,9 +1,9 @@
-package com.exam.attendance.service.security;
+package com.exam.attendance.security.service;
 
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.entity.UserToken;
-import com.exam.attendance.data.pojo.UserDTO;
-import com.exam.attendance.data.request.AuthProperties;
+import com.exam.attendance.data.dto.UserDTO;
+import com.exam.attendance.config.properties.AuthProperties;
 import com.exam.attendance.data.request.RegisterRequest;
 import com.exam.attendance.data.response.AuthResponse;
 import com.exam.attendance.data.response.UserDetailResponse;
@@ -16,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -31,23 +33,49 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthProperties authProperties;
     private final UserService userService;
+    private final LoginAttemptService loginAttemptService;
 
     // Login
     public AuthResponse login(String usernameOrEmail, String rawPassword) {
 
         User user = userRepository
                 .findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
-                .orElseThrow(() -> new AuthException("User not found"));
+                .orElseThrow(() ->
+                        new AuthException("Tài khoản hoặc mật khẩu không chính xác"));
 
         // Check locked
-        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
-            throw new AuthException("Account is locked until " + user.getLockedUntil());
+        if (user.getLockedUntil() != null &&
+                user.getLockedUntil().isAfter(LocalDateTime.now())) {
+
+            long remainingMinutes = Math.max(
+                    1,
+                    ChronoUnit.MINUTES.between(
+                            LocalDateTime.now(),
+                            user.getLockedUntil()
+                    )
+            );
+
+            throw new AuthException("Tài khoản đang bị khóa. Vui lòng thử lại sau " + remainingMinutes + " phút");
+        }
+
+        if (user.getActive() == 0) {
+            throw new AuthException("Tài khoản bạn đang bị khóa!");
         }
 
         // Check password
         if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
-            handleFailedAttempt(user, usernameOrEmail);
-            throw new AuthException("Invalid credentials");
+
+            boolean locked = loginAttemptService.handleFailedAttempt(user, usernameOrEmail);
+
+            if (locked) {
+                throw new AuthException(
+                        "Tài khoản đang bị khóa. Vui lòng thử lại sau "
+                                + authProperties.getLockDurationMinutes()
+                                + " phút"
+                );
+            }
+
+            throw new AuthException("Tài khoản hoặc mật khẩu không chính xác");
         }
 
         // Success
@@ -94,6 +122,7 @@ public class AuthService {
     }
 
     // Logout (1 device)
+    @Transactional
     public void logout(String refreshToken) {
         UserToken token = userTokenRepository.findByRefreshTokenAndRevokedFalse(refreshToken)
                 .orElseThrow(() -> new AuthException("Refresh token not found or already revoked"));
@@ -103,16 +132,14 @@ public class AuthService {
     }
 
     // Logout (All device)
+    @Transactional
     public void logoutAll(Long userId) {
-        userTokenRepository.findActiveTokensByUserId(userId)
-                .forEach(token -> {
-                    token.setRevoked(true);
-                    userTokenRepository.save(token);
-                });
+        userTokenRepository.revokeAllTokensByUserId(userId);
         log.info("All refresh tokens revoked for userId={}", userId);
     }
 
     // Đổi mật khẩu
+    @Transactional
     public void changePassword(String username, String oldPassword, String newPassword) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new AuthException("User not found"));
@@ -121,27 +148,24 @@ public class AuthService {
             throw new AuthException("Old password is incorrect");
         }
 
+        if (newPassword.equals(oldPassword)) {
+            throw new AuthException(
+                    "New password must be different from old password"
+            );
+        }
+
+        if (newPassword.length() < 8) {
+            throw new AuthException(
+                    "Password must contain at least 8 characters"
+            );
+        }
+
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
         // revoke all tokens
         logoutAll(user.getId());
         log.info("Password changed and tokens revoked for user {}", username);
-    }
-
-
-    private void handleFailedAttempt(User user, String username) {
-        user.setFailedAttempts(user.getFailedAttempts() + 1);
-
-        if (user.getFailedAttempts() >= authProperties.getMaxFailedAttempts()) {
-            user.setLockedUntil(LocalDateTime.now()
-                    .plus(authProperties.getLockDurationMinutes(), ChronoUnit.MINUTES));
-            user.setFailedAttempts(0);
-            log.warn("User {} locked until {}", username, user.getLockedUntil());
-        }
-
-        userRepository.save(user);
-        log.warn("Login failed for user {}, attempts={}", username, user.getFailedAttempts());
     }
 
     private void resetLoginAttempts(User user) {
@@ -153,11 +177,7 @@ public class AuthService {
 
     private AuthResponse generateTokens(User user) {
         // revoke old tokens
-        userTokenRepository.findActiveTokensByUserId(user.getId())
-                .forEach(token -> {
-                    token.setRevoked(true);
-                    userTokenRepository.save(token);
-                });
+        userTokenRepository.revokeAllTokensByUserId(user.getId());
 
         // Lấy roles + permissions từ UserService
         UserDTO dto = userService.getUserById(user.getId());
@@ -191,6 +211,7 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional
     public void register(RegisterRequest request) {
 
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {

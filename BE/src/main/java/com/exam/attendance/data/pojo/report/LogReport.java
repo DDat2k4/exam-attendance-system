@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class LogReportDTO {
+public class LogReport {
 
     private String action;
     private String type;

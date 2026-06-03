@@ -1,7 +1,8 @@
 package com.exam.attendance.repository;
 
 import com.exam.attendance.data.entity.AttendanceSession;
-import com.exam.attendance.data.pojo.report.AttendanceReportDTO;
+import com.exam.attendance.data.enums.AttendanceStatus;
+import com.exam.attendance.data.pojo.report.AttendanceReport;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -13,7 +14,7 @@ public interface AttendanceSessionRepository extends JpaRepository<AttendanceSes
     Optional<AttendanceSession> findByExamSessionId(Long examSessionId);
 
     @Query("""
-SELECT new com.exam.attendance.data.pojo.report.AttendanceReportDTO(
+SELECT new com.exam.attendance.data.pojo.report.AttendanceReport(
     cc.citizenId,
     up.name,
     a.status,
@@ -30,5 +31,9 @@ LEFT JOIN a.verifiedBy v
 LEFT JOIN es.room r
 WHERE es.room.id = :roomId
 """)
-    List<AttendanceReportDTO> getAttendanceReport(Long roomId);
+    List<AttendanceReport> getAttendanceReport(Long roomId);
+
+    List<AttendanceSession> findByStatus(
+            AttendanceStatus status
+    );
 }

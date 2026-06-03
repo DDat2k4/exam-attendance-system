@@ -2,7 +2,7 @@ package com.exam.attendance.data.mapper;
 
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.entity.UserProfile;
-import com.exam.attendance.data.pojo.UserProfileDTO;
+import com.exam.attendance.data.dto.UserProfileDTO;
 import com.exam.attendance.data.request.UserProfileRequest;
 import com.exam.attendance.data.response.UserProfileResponse;
 

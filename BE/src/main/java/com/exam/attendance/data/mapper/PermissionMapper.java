@@ -1,7 +1,7 @@
 package com.exam.attendance.data.mapper;
 
 import com.exam.attendance.data.entity.Permission;
-import com.exam.attendance.data.pojo.PermissionDTO;
+import com.exam.attendance.data.dto.PermissionDTO;
 import com.exam.attendance.data.request.PermissionRequest;
 import com.exam.attendance.data.response.PermissionResponse;
 

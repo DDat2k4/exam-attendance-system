@@ -1,4 +1,4 @@
-package com.exam.attendance.service.security;
+package com.exam.attendance.security.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

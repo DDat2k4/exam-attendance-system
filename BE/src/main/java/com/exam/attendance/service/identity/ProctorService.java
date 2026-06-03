@@ -1,24 +1,24 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.identity;
 
 import com.exam.attendance.data.entity.*;
 import com.exam.attendance.data.mapper.AttendanceSessionMapper;
 import com.exam.attendance.data.mapper.ProctorMapper;
 import com.exam.attendance.data.pojo.AlertMessage;
-import com.exam.attendance.data.pojo.ProctorDashboardDTO;
-import com.exam.attendance.data.pojo.enums.AlertType;
-import com.exam.attendance.data.pojo.enums.AttendanceStatus;
-import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
-import com.exam.attendance.data.pojo.enums.RiskLevel;
+import com.exam.attendance.data.pojo.ProctorDashboard;
+import com.exam.attendance.data.enums.AlertType;
+import com.exam.attendance.data.enums.AttendanceStatus;
+import com.exam.attendance.data.enums.ExamSessionStatus;
+import com.exam.attendance.data.enums.RiskLevel;
 import com.exam.attendance.data.request.ProctorDashboardFilterRequest;
 import com.exam.attendance.data.response.AttendanceSessionResponse;
 import com.exam.attendance.data.response.UploadResponse;
 import com.exam.attendance.repository.AttendanceSessionRepository;
 import com.exam.attendance.repository.CitizenCardRepository;
+import com.exam.attendance.service.exam.ExamSessionStateService;
 import com.exam.attendance.service.ai.AiClientService;
 import com.exam.attendance.service.attendance.AttendanceLogService;
 import com.exam.attendance.service.attendance.AttendanceSessionService;
 import com.exam.attendance.service.exam.ExamSessionService;
-import com.exam.attendance.service.identity.VerificationService;
 import com.exam.attendance.service.socket.AlertService;
 import com.exam.attendance.service.uploads.FileUploadService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,21 +47,21 @@ public class ProctorService {
     private final AttendanceSessionRepository attendanceRepo;
     private final CitizenCardRepository citizenCardRepo;
     private final FileUploadService fileUploadService;
-    private final SessionStateService sessionStateService;
+    private final ExamSessionStateService examSessionStateService;
     private final AiClientService aiClientService;
     private final ObjectMapper objectMapper;
 
     // =========================================================
     // DASHBOARD
     // =========================================================
-    public Page<ProctorDashboardDTO> getDashboard(
+    public Page<ProctorDashboard> getDashboard(
             ProctorDashboardFilterRequest req
     ) {
 
         return examSessionService.getDashboard(req);
     }
 
-    public List<ProctorDashboardDTO> getDashboardFast(
+    public List<ProctorDashboard> getDashboardFast(
             Long roomId
     ) {
 
@@ -121,7 +121,7 @@ public class ProctorService {
         if (currentStatus == ExamSessionStatus.PENDING_VERIFY_REVIEW) {
 
             // INITIAL VERIFY FAIL
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.IN_PROGRESS,
                     "Được giám thị xác minh thủ công"
@@ -134,7 +134,7 @@ public class ProctorService {
         } else if (currentStatus == ExamSessionStatus.PENDING_REVIEW) {
 
             // RANDOM VERIFY FAIL
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.IN_PROGRESS,
                     "Tiếp tục làm bài"
@@ -187,7 +187,7 @@ public class ProctorService {
         attendance.setVerifiedAt(LocalDateTime.now());
         attendance.setVerifiedBy(proctorUser);
         attendanceService.save(attendance);
-        sessionStateService.updateStatus(
+        examSessionStateService.updateStatus(
                 session,
                 ExamSessionStatus.BLOCKED,
                 "Phiên thi đã bị khóa bởi giám thị"
@@ -235,7 +235,7 @@ public class ProctorService {
 
         session.setIsFlagged(true);
         // không block ngay
-        sessionStateService.updateStatus(
+        examSessionStateService.updateStatus(
                 session,
                 ExamSessionStatus.PENDING_REVIEW,
                 "Đang chờ giám thị xác minh"
@@ -318,14 +318,14 @@ public class ProctorService {
         session.setReconnectToken(UUID.randomUUID().toString());
         // restore status
         if (session.getSessionStart() == null) {
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.CHECKED_IN,
                     "Điểm danh thành công, vui lòng xác minh khuôn mặt"
             );
         } else {
 
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.IN_PROGRESS,
                     "Đã được phép vào thi"
@@ -505,7 +505,7 @@ public class ProctorService {
                 throw new RuntimeException("Đang thi không thể duyệt lại checkin");
             }
 
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.CHECKED_IN,
                     "Điểm danh thành công, vui lòng xác minh khuôn mặt"
@@ -572,7 +572,7 @@ public class ProctorService {
         attendance.setReviewNote(reason);
         attendanceRepo.save(attendance);
         // block session
-        sessionStateService.updateStatus(
+        examSessionStateService.updateStatus(
                 session,
                 ExamSessionStatus.BLOCKED,
                 "Phiên thi đã bị khóa bởi giám thị"
@@ -631,7 +631,7 @@ public class ProctorService {
 
         if (session.getSessionStart() == null) {
 
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.CHECKED_IN,
                     "Điểm danh thành công, vui lòng xác minh khuôn mặt"
@@ -639,7 +639,7 @@ public class ProctorService {
 
         } else {
 
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.IN_PROGRESS,
                     "Đã được phép vào thi"

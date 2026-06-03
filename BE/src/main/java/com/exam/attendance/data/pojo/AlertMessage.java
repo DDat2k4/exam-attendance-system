@@ -1,7 +1,7 @@
 package com.exam.attendance.data.pojo;
 
-import com.exam.attendance.data.pojo.enums.AlertType;
-import com.exam.attendance.data.pojo.enums.RiskLevel;
+import com.exam.attendance.data.enums.AlertType;
+import com.exam.attendance.data.enums.RiskLevel;
 import lombok.*;
 
 @Getter

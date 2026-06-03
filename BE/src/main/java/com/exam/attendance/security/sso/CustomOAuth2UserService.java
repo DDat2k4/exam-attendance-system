@@ -1,8 +1,8 @@
-package com.exam.attendance.security.service.sso;
+package com.exam.attendance.security.sso;
 
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.entity.UserToken;
-import com.exam.attendance.data.pojo.UserDTO;
+import com.exam.attendance.data.dto.UserDTO;
 import com.exam.attendance.data.response.UserDetailResponse;
 import com.exam.attendance.data.mapper.UserMapper;
 import com.exam.attendance.repository.UserRepository;

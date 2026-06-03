@@ -1,19 +1,15 @@
 package com.exam.attendance.repository;
 
 import com.exam.attendance.data.entity.IdentityVerification;
-import com.exam.attendance.data.pojo.report.VerificationReportDTO;
+import com.exam.attendance.data.pojo.report.VerificationReport;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 public interface IdentityVerificationRepository extends JpaRepository<IdentityVerification, Long> {
-    long countByExamSessionId(Long examSessionId);
-
-    long countByExamSessionIdAndTypeAndVerifiedFalse(Long examSessionId, String type);
 
     @Query("""
 SELECT iv
@@ -25,10 +21,8 @@ ORDER BY iv.createdAt DESC
 """)
     List<IdentityVerification> findHistory(@Param("sessionId") Long sessionId);
 
-    Optional<IdentityVerification> findTopByExamSessionIdOrderByCreatedAtDesc(Long examSessionId);
-
     @Query("""
-SELECT new com.exam.attendance.data.pojo.report.VerificationReportDTO(
+SELECT new com.exam.attendance.data.pojo.report.VerificationReport(
     cc.citizenId,
     iv.attemptNo,
     iv.verified,
@@ -42,35 +36,24 @@ JOIN iv.user u
 LEFT JOIN u.citizenCard cc
 WHERE es.room.id = :roomId
 """)
-    List<VerificationReportDTO> getVerificationReport(Long roomId);
-
-    long countByExamSessionIdAndType(Long examSessionId, String type);
+    List<VerificationReport> getVerificationReport(Long roomId);
 
     @Query("""
-    select count(iv)
-    from IdentityVerification iv
-    where iv.examSession.id = :sessionId
-      and iv.type = 'RANDOM'
-      and iv.verified = false
-      and iv.createdAt >= :fromTime
-""")
-    long countRecentRandomFail(
+        select count(iv) > 0
+        from IdentityVerification iv
+        where iv.examSession.id = :sessionId
+        and iv.type = 'INITIAL'
+        and iv.verified = true
+        and iv.createdAt >= :fromTime
+    """)
+    boolean existsInitialVerified(
             @Param("sessionId") Long sessionId,
             @Param("fromTime") LocalDateTime fromTime
     );
 
-    @Query("""
-    select count(iv)
-    from IdentityVerification iv
-    where iv.examSession.id = :sessionId
-      and iv.type = 'RANDOM'
-      and iv.verified = false
-      and iv.createdAt >= :fromTime
-      and iv.createdAt > :resolvedAt
-""")
-    long countRecentRandomFailAfterResolved(
-            @Param("sessionId") Long sessionId,
-            @Param("fromTime") LocalDateTime fromTime,
-            @Param("resolvedAt") LocalDateTime resolvedAt
+    List<IdentityVerification>
+    findTop20ByExamSessionIdAndTypeOrderByCreatedAtDesc(
+            Long sessionId,
+            String type
     );
 }

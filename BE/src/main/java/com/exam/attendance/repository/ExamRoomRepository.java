@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ExamRoomRepository extends JpaRepository<ExamRoom, Long> {
+
     List<ExamRoom> findByExamId(Long examId);
 
     Page<ExamRoom> findByExamId(Long examId, Pageable pageable);

@@ -1,10 +1,10 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.authorization;
 
 import com.exam.attendance.data.entity.Permission;
 import com.exam.attendance.data.mapper.PermissionMapper;
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.PermissionDTO;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.data.enums.Action;
+import com.exam.attendance.data.dto.PermissionDTO;
+import com.exam.attendance.data.enums.Resource;
 import com.exam.attendance.data.request.PermissionRequest;
 import com.exam.attendance.data.response.PermissionGroupResponse;
 import com.exam.attendance.data.response.PermissionItem;

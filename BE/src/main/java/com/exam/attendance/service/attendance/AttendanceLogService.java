@@ -1,4 +1,4 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.attendance;
 
 import com.exam.attendance.data.entity.AttendanceLog;
 import com.exam.attendance.data.entity.ExamSession;

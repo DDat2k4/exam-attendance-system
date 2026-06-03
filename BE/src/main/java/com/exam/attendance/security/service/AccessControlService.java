@@ -1,7 +1,7 @@
-package com.exam.attendance.service.security;
+package com.exam.attendance.security.service;
 
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.data.enums.Action;
+import com.exam.attendance.data.enums.Resource;
 import org.springframework.security.core.Authentication;
 
 public interface AccessControlService {

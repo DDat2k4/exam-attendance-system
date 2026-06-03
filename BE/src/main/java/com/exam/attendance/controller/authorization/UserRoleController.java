@@ -1,14 +1,15 @@
-package com.exam.attendance.controller;
+package com.exam.attendance.controller.authorization;
 
+import com.exam.attendance.controller.BaseController;
 import com.exam.attendance.data.mapper.RoleMapper;
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.data.enums.Action;
+import com.exam.attendance.data.enums.Resource;
 import com.exam.attendance.data.request.UserRoleRequest;
 import com.exam.attendance.data.response.ApiResponse;
 import com.exam.attendance.data.response.RoleResponse;
 import com.exam.attendance.service.authorization.UserRoleService;
-import com.exam.attendance.service.security.AccessControlService;
-import com.exam.attendance.util.SecurityUtils;
+import com.exam.attendance.security.service.AccessControlService;
+import com.exam.attendance.security.SecurityContextUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,7 +34,7 @@ public class UserRoleController extends BaseController {
             Authentication auth
     ) {
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long currentUserId = SecurityContextUtils.getCurrentUserId();
 
         accessControlService.checkPermission(
                 auth,

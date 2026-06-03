@@ -105,4 +105,11 @@ public class FileUploadService {
                 Long.valueOf(uploadResult.get("bytes").toString())
         );
     }
+
+    // Download ảnh từ url
+    public byte[] downloadFile(
+            String url
+    ) {
+        return getImageBytes(url);
+    }
 }

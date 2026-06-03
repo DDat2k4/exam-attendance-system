@@ -1,14 +1,15 @@
-package com.exam.attendance.controller;
+package com.exam.attendance.controller.authorization;
 
+import com.exam.attendance.controller.BaseController;
 import com.exam.attendance.data.mapper.PermissionMapper;
-import com.exam.attendance.data.pojo.PermissionDTO;
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.data.dto.PermissionDTO;
+import com.exam.attendance.data.enums.Action;
+import com.exam.attendance.data.enums.Resource;
 import com.exam.attendance.data.request.PermissionRequest;
 import com.exam.attendance.data.response.*;
 import com.exam.attendance.service.authorization.PermissionService;
 
-import com.exam.attendance.service.security.AccessControlService;
+import com.exam.attendance.security.service.AccessControlService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.*;

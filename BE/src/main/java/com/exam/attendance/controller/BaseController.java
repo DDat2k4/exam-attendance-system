@@ -1,6 +1,6 @@
 package com.exam.attendance.controller;
 
-import com.exam.attendance.data.pojo.enums.ApiMessage;
+import com.exam.attendance.data.enums.ApiMessage;
 import com.exam.attendance.data.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

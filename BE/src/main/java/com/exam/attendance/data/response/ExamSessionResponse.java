@@ -1,6 +1,6 @@
 package com.exam.attendance.data.response;
 
-import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
+import com.exam.attendance.data.enums.ExamSessionStatus;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -13,9 +13,7 @@ public class ExamSessionResponse {
     private LocalDateTime sessionEnd;
     private ExamSessionStatus status;
     private Boolean isFlagged;
-
     private String deviceId;
-
     private Long examId;
     private Long userId;
     private Long roomId;

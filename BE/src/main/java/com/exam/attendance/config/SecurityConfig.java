@@ -1,10 +1,10 @@
 package com.exam.attendance.config;
 
-import com.exam.attendance.service.security.sso.CustomOidcUserService;
-import com.exam.attendance.service.security.sso.CustomOAuth2UserService;
-import com.exam.attendance.service.security.sso.OAuth2FailureHandler;
-import com.exam.attendance.service.security.sso.OAuth2SuccessHandler;
-import jakarta.servlet.http.HttpServletResponse;
+import com.exam.attendance.security.filter.JwtAuthenticationFilter;
+import com.exam.attendance.security.sso.CustomOidcUserService;
+import com.exam.attendance.security.sso.CustomOAuth2UserService;
+import com.exam.attendance.security.sso.OAuth2FailureHandler;
+import com.exam.attendance.security.sso.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,8 +16,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
-
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -31,6 +29,25 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final CorsProperties corsProperties;
+
+    @Bean
+    @Order(0)
+    public SecurityFilterChain swaggerFilterChain(HttpSecurity http) throws Exception {
+
+        http
+                .securityMatcher(
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**"
+                )
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().permitAll()
+                );
+
+        return http.build();
+    }
 
     // API JWT CHAIN
     @Bean
@@ -41,34 +58,38 @@ public class SecurityConfig {
                 .securityMatcher("/api/**")
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
-                    config.setAllowedOrigins(List.of("http://localhost:5173","https://exam-attendance-d917b.web.app","http://localhost:5174","http://localhost:5175", "http://localhost:5176"));
-                    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                    config.setAllowedHeaders(List.of("*"));
-                    config.setAllowCredentials(true);
+                    config.setAllowedOrigins(
+                            corsProperties.getAllowedOrigins()
+                    );
+                    config.setAllowedMethods(
+                            corsProperties.getAllowedMethods()
+                    );
+                    config.setAllowedHeaders(
+                            corsProperties.getAllowedHeaders()
+                    );
+                    config.setAllowCredentials(
+                            corsProperties.getAllowCredentials()
+                    );
                     return config;
                 }))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
                 )
-
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((req, res, authException) -> {
-                            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            res.setContentType("application/json");
-                            res.getWriter().write("{\"error\":\"Unauthorized\"}");
-                        })
-                )
-
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**",
-                                         "/api/cccd/verify"
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/api/cccd/verify",
+                                "/api/attendance/nfc-checkin"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
-
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-
+                .addFilterBefore(
+                        jwtAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
         return http.build();
     }
 

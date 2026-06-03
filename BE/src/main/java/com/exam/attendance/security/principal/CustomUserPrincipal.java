@@ -1,4 +1,4 @@
-package com.exam.attendance.security;
+package com.exam.attendance.security.principal;
 
 import com.exam.attendance.data.entity.User;
 import lombok.Getter;

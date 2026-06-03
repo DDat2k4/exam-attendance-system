@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class VerificationReportDTO {
+public class VerificationReport {
 
     private String citizenId;
     private Integer attemptNo;

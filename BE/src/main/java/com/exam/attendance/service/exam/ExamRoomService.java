@@ -1,14 +1,13 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.exam;
 
 import com.exam.attendance.data.entity.Exam;
 import com.exam.attendance.data.entity.ExamRegistration;
 import com.exam.attendance.data.entity.ExamRoom;
-import com.exam.attendance.data.mapper.ExamMapper;
 import com.exam.attendance.data.mapper.ExamRoomMapper;
-import com.exam.attendance.data.pojo.ExamRoomDTO;
-import com.exam.attendance.data.pojo.RoomStudentDTO;
-import com.exam.attendance.data.pojo.StudentSeatDTO;
-import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
+import com.exam.attendance.data.dto.ExamRoomDTO;
+import com.exam.attendance.data.dto.RoomStudentDTO;
+import com.exam.attendance.data.dto.StudentSeatDTO;
+import com.exam.attendance.data.enums.ExamSessionStatus;
 import com.exam.attendance.data.request.AssignRoomBatchRequest;
 import com.exam.attendance.data.request.ExamRoomRequest;
 import com.exam.attendance.repository.ExamRegistrationRepository;

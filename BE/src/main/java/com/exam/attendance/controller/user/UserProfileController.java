@@ -1,15 +1,16 @@
-package com.exam.attendance.controller;
+package com.exam.attendance.controller.user;
 
+import com.exam.attendance.controller.BaseController;
 import com.exam.attendance.data.mapper.UserProfileMapper;
-import com.exam.attendance.data.pojo.UserProfileDTO;
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.data.dto.UserProfileDTO;
+import com.exam.attendance.data.enums.Action;
+import com.exam.attendance.data.enums.Resource;
 import com.exam.attendance.data.request.UserProfileRequest;
 import com.exam.attendance.data.response.ApiResponse;
 import com.exam.attendance.data.response.UserProfileResponse;
 import com.exam.attendance.service.user.UserProfileService;
-import com.exam.attendance.service.security.AccessControlService;
-import com.exam.attendance.util.SecurityUtils;
+import com.exam.attendance.security.service.AccessControlService;
+import com.exam.attendance.security.SecurityContextUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -39,7 +40,7 @@ public class UserProfileController extends BaseController {
 
         UserProfileDTO dto = service.getById(id);
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long currentUserId = SecurityContextUtils.getCurrentUserId();
 
         accessControlService.checkPermission(
                 auth,
@@ -57,7 +58,7 @@ public class UserProfileController extends BaseController {
     public ResponseEntity<ApiResponse<UserProfileResponse>> me(
             Authentication auth
     ) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long currentUserId = SecurityContextUtils.getCurrentUserId();
 
         UserProfileDTO dto = service.getByUserId(currentUserId);
 
@@ -104,7 +105,7 @@ public class UserProfileController extends BaseController {
             Authentication auth
     ) {
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long currentUserId = SecurityContextUtils.getCurrentUserId();
 
         accessControlService.checkPermission(
                 auth,
@@ -129,7 +130,7 @@ public class UserProfileController extends BaseController {
     ) {
 
         UserProfileDTO dto = service.getById(id);
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long currentUserId = SecurityContextUtils.getCurrentUserId();
         accessControlService.checkPermission(
                 auth,
                 Resource.USER_PROFILE,

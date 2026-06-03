@@ -1,9 +1,9 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.authorization;
 
 import com.exam.attendance.data.entity.Role;
 import com.exam.attendance.data.entity.RolePermission;
 import com.exam.attendance.data.mapper.RoleMapper;
-import com.exam.attendance.data.pojo.RoleDTO;
+import com.exam.attendance.data.dto.RoleDTO;
 import com.exam.attendance.data.request.RoleRequest;
 import com.exam.attendance.repository.RolePermissionRepository;
 import com.exam.attendance.repository.RoleRepository;

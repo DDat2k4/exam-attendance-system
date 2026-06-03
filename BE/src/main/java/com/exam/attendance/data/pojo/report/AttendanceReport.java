@@ -1,6 +1,6 @@
 package com.exam.attendance.data.pojo.report;
 
-import com.exam.attendance.data.pojo.enums.AttendanceStatus;
+import com.exam.attendance.data.enums.AttendanceStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AttendanceReportDTO {
+public class AttendanceReport {
     private String citizenId;
     private String name;
     private AttendanceStatus status;

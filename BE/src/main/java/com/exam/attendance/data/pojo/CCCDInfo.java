@@ -6,9 +6,13 @@ import java.time.LocalDate;
 
 @Data
 public class CCCDInfo {
+
     private String citizenId;
     private String fullName;
     private LocalDate birthDate;
     private LocalDate expiry;
-    private String FaceImage;
+    // ảnh cccd
+    private String faceImage;
+    // ảnh webcam realtime
+    private String webcamImage;
 }

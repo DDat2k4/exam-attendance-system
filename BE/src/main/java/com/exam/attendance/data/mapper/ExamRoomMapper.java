@@ -2,7 +2,7 @@ package com.exam.attendance.data.mapper;
 
 import com.exam.attendance.data.entity.Exam;
 import com.exam.attendance.data.entity.ExamRoom;
-import com.exam.attendance.data.pojo.ExamRoomDTO;
+import com.exam.attendance.data.dto.ExamRoomDTO;
 import com.exam.attendance.data.request.ExamRoomRequest;
 
 public class ExamRoomMapper {

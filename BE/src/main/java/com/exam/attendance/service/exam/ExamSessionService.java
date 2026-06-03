@@ -1,17 +1,17 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.exam;
 
 import com.exam.attendance.data.entity.*;
 import com.exam.attendance.data.mapper.ExamSessionMapper;
-import com.exam.attendance.data.pojo.MyRoomInfoDTO;
-import com.exam.attendance.data.pojo.ProctorDashboardDTO;
-import com.exam.attendance.data.pojo.enums.AttendanceStatus;
-import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
-import com.exam.attendance.data.pojo.enums.RiskLevel;
+import com.exam.attendance.data.dto.MyRoomInfoDTO;
+import com.exam.attendance.data.pojo.ProctorDashboard;
+import com.exam.attendance.data.enums.AttendanceStatus;
+import com.exam.attendance.data.enums.ExamSessionStatus;
+import com.exam.attendance.data.enums.RiskLevel;
 import com.exam.attendance.data.request.ProctorDashboardFilterRequest;
 import com.exam.attendance.data.response.ExamSessionResponse;
 import com.exam.attendance.data.response.ExamSessionStateResponse;
 import com.exam.attendance.repository.*;
-import com.exam.attendance.util.SecurityUtils;
+import com.exam.attendance.security.SecurityContextUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
@@ -32,7 +32,7 @@ public class ExamSessionService {
     private final ExamRegistrationRepository registrationRepo;
     private final AttendanceSessionRepository attendanceSessionRepo;
     private final IdentityVerificationRepository verificationRepo;
-    private final SessionStateService sessionStateService;
+    private final ExamSessionStateService examSessionStateService;
 
     // =========================================================
     // START EXAM
@@ -45,7 +45,7 @@ public class ExamSessionService {
     ) {
 
         Long currentUser =
-                SecurityUtils.getCurrentUserId();
+                SecurityContextUtils.getCurrentUserId();
 
         if (!currentUser.equals(userId)) {
 
@@ -164,7 +164,7 @@ public class ExamSessionService {
                         .orElseThrow(() ->
                                 new RuntimeException("Session not found"));
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long currentUserId = SecurityContextUtils.getCurrentUserId();
 
         if (!session.getUser()
                 .getId()
@@ -190,7 +190,7 @@ public class ExamSessionService {
             throw new RuntimeException("Đang chờ duyệt đổi thiết bị");
         }
 
-        sessionStateService.updateStatus(
+        examSessionStateService.updateStatus(
                 session,
                 ExamSessionStatus.IN_PROGRESS,
                 "Đã được phép vào thi"
@@ -280,7 +280,7 @@ public class ExamSessionService {
                                 )
                         );
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long currentUserId = SecurityContextUtils.getCurrentUserId();
 
         if (!session.getUser()
                 .getId()
@@ -298,7 +298,7 @@ public class ExamSessionService {
         }
 
         session.setSessionEnd(LocalDateTime.now());
-        sessionStateService.updateStatus(
+        examSessionStateService.updateStatus(
                 session,
                 ExamSessionStatus.DONE,
                 "Bài thi đã kết thúc"
@@ -363,7 +363,7 @@ public class ExamSessionService {
     // =========================================================
     // DASHBOARD
     // =========================================================
-    public Page<ProctorDashboardDTO> getDashboard(
+    public Page<ProctorDashboard> getDashboard(
             ProctorDashboardFilterRequest req
     ) {
 
@@ -389,7 +389,7 @@ public class ExamSessionService {
                         ? ""
                         : req.getKeyword();
 
-        List<ProctorDashboardDTO> data =
+        List<ProctorDashboard> data =
                 examSessionRepo.findDashboard(
                         req.getRoomId(),
                         req.getStatus(),
@@ -402,7 +402,7 @@ public class ExamSessionService {
             return Page.empty(pageable);
         }
 
-        List<ProctorDashboardDTO> result =
+        List<ProctorDashboard> result =
                 data.stream()
                         .peek(dto ->
                                 dto.setRiskLevel(
@@ -422,7 +422,7 @@ public class ExamSessionService {
                         result.size()
                 );
 
-        List<ProctorDashboardDTO> pageContent = start >= result.size()
+        List<ProctorDashboard> pageContent = start >= result.size()
                         ? List.of()
                         : result.subList(start, end);
 
@@ -543,7 +543,7 @@ public class ExamSessionService {
                                 )
                         );
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long currentUserId = SecurityContextUtils.getCurrentUserId();
         if (!session.getUser()
                 .getId()
                 .equals(currentUserId)) {
@@ -648,7 +648,7 @@ public class ExamSessionService {
             String deviceId
     ) {
 
-        Long currentUser = SecurityUtils.getCurrentUserId();
+        Long currentUser = SecurityContextUtils.getCurrentUserId();
         if (!currentUser.equals(userId)) {
             throw new RuntimeException("Không có quyền");
         }
@@ -712,7 +712,7 @@ public class ExamSessionService {
         session.setExam(exam);
         session.setRoom(room);
         session.setDeviceId(deviceId);
-        sessionStateService.updateStatus(
+        examSessionStateService.updateStatus(
                 session,
                 ExamSessionStatus.INIT,
                 "Phiên thi đã được khởi tạo"

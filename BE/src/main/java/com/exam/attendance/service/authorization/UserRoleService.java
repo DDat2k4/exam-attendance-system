@@ -1,10 +1,10 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.authorization;
 
 import com.exam.attendance.data.entity.Role;
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.entity.UserRole;
 import com.exam.attendance.data.mapper.RoleMapper;
-import com.exam.attendance.data.pojo.RoleDTO;
+import com.exam.attendance.data.dto.RoleDTO;
 import com.exam.attendance.repository.RoleRepository;
 import com.exam.attendance.repository.UserRepository;
 import com.exam.attendance.repository.UserRoleRepository;

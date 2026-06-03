@@ -1,4 +1,4 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.identity;
 
 import com.exam.attendance.data.entity.CitizenCard;
 import com.exam.attendance.data.entity.User;

@@ -1,6 +1,6 @@
 package com.exam.attendance.data.entity;
 
-import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
+import com.exam.attendance.data.enums.ExamSessionStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,6 +17,10 @@ public class ExamSession {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // thời điểm tạo session
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
     @Column(name = "session_start")
     private LocalDateTime sessionStart;

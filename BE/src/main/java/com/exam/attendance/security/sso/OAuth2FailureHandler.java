@@ -1,4 +1,4 @@
-package com.exam.attendance.security.service.sso;
+package com.exam.attendance.security.sso;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;

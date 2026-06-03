@@ -55,3 +55,38 @@ app:
   crypto:
     aes-key: ${AES_KEY:12345678901234567890123456789012}
     hmac-key: ${HMAC_KEY:DEV_HMAC_SECRET_KEY}
+
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://localhost:5174
+      - http://localhost:5175
+      - http://localhost:5176
+      - https://exam-attendance-d917b.web.app
+
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+      - OPTIONS
+
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - Accept
+      - Origin
+      - X-Requested-With
+
+    allow-credentials: true
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui
+
+auth:
+  max-failed-attempts: 5
+  lock-duration-minutes: 15

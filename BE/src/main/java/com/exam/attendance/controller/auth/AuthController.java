@@ -1,11 +1,12 @@
-package com.exam.attendance.controller;
+package com.exam.attendance.controller.auth;
 
+import com.exam.attendance.controller.BaseController;
 import com.exam.attendance.data.request.AuthRequest;
 import com.exam.attendance.data.request.RegisterRequest;
 import com.exam.attendance.data.request.RefreshRequest;
 import com.exam.attendance.data.response.ApiResponse;
 import com.exam.attendance.data.response.AuthResponse;
-import com.exam.attendance.service.security.AuthService;
+import com.exam.attendance.security.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;

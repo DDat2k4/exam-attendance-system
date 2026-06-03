@@ -1,4 +1,4 @@
-package com.exam.attendance.security.sso;
+package com.exam.attendance.config.properties;
 
 
 import lombok.Data;

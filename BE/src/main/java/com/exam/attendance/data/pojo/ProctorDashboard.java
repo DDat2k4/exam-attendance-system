@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Data
 @Builder
 @NoArgsConstructor
-public class ProctorDashboardDTO {
+public class ProctorDashboard {
 
     private Long sessionId;
     private Long userId;
@@ -29,7 +29,7 @@ public class ProctorDashboardDTO {
     private String captureImageUrl;
     private ExamSessionStatus examSessionStatus;
 
-    public ProctorDashboardDTO(
+    public ProctorDashboard(
             Long sessionId,
             Long userId,
             String studentName,

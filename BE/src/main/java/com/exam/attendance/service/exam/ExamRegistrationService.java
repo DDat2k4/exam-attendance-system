@@ -1,4 +1,4 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.exam;
 
 import com.exam.attendance.data.entity.Exam;
 import com.exam.attendance.data.entity.ExamRegistration;

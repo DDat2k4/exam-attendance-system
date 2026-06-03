@@ -3,9 +3,9 @@ package com.exam.attendance.data.mapper;
 import com.exam.attendance.data.entity.AttendanceSession;
 import com.exam.attendance.data.entity.ExamSession;
 import com.exam.attendance.data.entity.IdentityVerification;
-import com.exam.attendance.data.pojo.enums.AttendanceStatus;
-import com.exam.attendance.data.pojo.ProctorDashboardDTO;
-import com.exam.attendance.data.pojo.enums.RiskLevel;
+import com.exam.attendance.data.enums.AttendanceStatus;
+import com.exam.attendance.data.pojo.ProctorDashboard;
+import com.exam.attendance.data.enums.RiskLevel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -13,13 +13,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class ProctorMapper {
 
-    public ProctorDashboardDTO toDTO(
+    public ProctorDashboard toDTO(
             ExamSession session,
             AttendanceSession attendance,
             IdentityVerification iv
     ) {
 
-        return ProctorDashboardDTO.builder()
+        return ProctorDashboard.builder()
                 .sessionId(session.getId())
                 .userId(session.getUser() != null ? session.getUser().getId() : null)
                 .studentName(

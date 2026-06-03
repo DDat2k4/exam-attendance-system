@@ -6,6 +6,7 @@ import java.util.List;
 
 @Data
 public class ExamRegistrationRequest {
+
     private Long examId;
     private List<Long> userIds;
 }

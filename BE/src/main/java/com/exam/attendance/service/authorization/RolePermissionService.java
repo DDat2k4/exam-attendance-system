@@ -1,16 +1,15 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.authorization;
 
 import com.exam.attendance.data.entity.Permission;
 import com.exam.attendance.data.entity.Role;
 import com.exam.attendance.data.entity.RolePermission;
 import com.exam.attendance.data.mapper.PermissionMapper;
-import com.exam.attendance.data.pojo.PermissionDTO;
+import com.exam.attendance.data.dto.PermissionDTO;
 import com.exam.attendance.repository.PermissionRepository;
 import com.exam.attendance.repository.RolePermissionRepository;
 import com.exam.attendance.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 

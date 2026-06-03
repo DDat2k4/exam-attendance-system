@@ -1,4 +1,4 @@
-package com.exam.attendance.service.security;
+package com.exam.attendance.security.service;
 
 import com.exam.attendance.data.entity.Permission;
 import com.exam.attendance.data.entity.User;

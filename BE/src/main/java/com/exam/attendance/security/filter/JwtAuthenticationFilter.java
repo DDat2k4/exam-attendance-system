@@ -1,8 +1,9 @@
-package com.exam.attendance.security;
+package com.exam.attendance.security.filter;
 
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.repository.UserRepository;
-import com.exam.attendance.service.security.JwtService;
+import com.exam.attendance.security.principal.CustomUserPrincipal;
+import com.exam.attendance.security.service.JwtService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

@@ -14,9 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AlertService {
 
     private final SimpMessagingTemplate messagingTemplate;
-
     private final ConcurrentHashMap<String, Long> lastSent = new ConcurrentHashMap<>();
-
     private static final long DEBOUNCE_MS = 5000;
 
     public void sendAlert(AlertMessage alert) {

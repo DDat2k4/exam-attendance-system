@@ -1,10 +1,11 @@
-package com.exam.attendance.controller;
+package com.exam.attendance.controller.attendance;
 
+import com.exam.attendance.controller.BaseController;
 import com.exam.attendance.data.entity.AttendanceSession;
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.mapper.AttendanceSessionMapper;
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.data.enums.Action;
+import com.exam.attendance.data.enums.Resource;
 import com.exam.attendance.data.request.CheckinRequest;
 import com.exam.attendance.data.request.EncryptedRequest;
 import com.exam.attendance.data.request.ManualCheckinRequest;
@@ -13,9 +14,9 @@ import com.exam.attendance.data.response.AttendanceSessionResponse;
 import com.exam.attendance.service.attendance.AttendanceCheckinService;
 import com.exam.attendance.service.identity.ProctorService;
 import com.exam.attendance.service.user.UserService;
-import com.exam.attendance.service.security.AccessControlService;
-import com.exam.attendance.service.security.CryptoService;
-import com.exam.attendance.util.SecurityUtils;
+import com.exam.attendance.security.service.AccessControlService;
+import com.exam.attendance.security.service.CryptoService;
+import com.exam.attendance.security.SecurityContextUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -183,7 +184,7 @@ public class AttendanceCheckinController extends BaseController {
         proctorService.manualRejectCheckin(
                 attendanceId,
                 reason,
-                SecurityUtils.getCurrentUser()
+                SecurityContextUtils.getCurrentUser()
         );
 
         return success(null);

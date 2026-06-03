@@ -4,6 +4,7 @@ import lombok.Data;
 
 @Data
 public class VerifyRequest {
+
     private Long userId;
     private Long examSessionId;
     private String status; // VERIFIED / FAILED

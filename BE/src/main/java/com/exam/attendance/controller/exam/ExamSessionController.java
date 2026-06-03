@@ -1,11 +1,12 @@
-package com.exam.attendance.controller;
+package com.exam.attendance.controller.exam;
 
+import com.exam.attendance.controller.BaseController;
 import com.exam.attendance.data.entity.IdentityVerification;
 import com.exam.attendance.data.mapper.ExamSessionMapper;
-import com.exam.attendance.data.pojo.MyRoomInfoDTO;
-import com.exam.attendance.data.pojo.ProctorDashboardDTO;
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.data.dto.MyRoomInfoDTO;
+import com.exam.attendance.data.pojo.ProctorDashboard;
+import com.exam.attendance.data.enums.Action;
+import com.exam.attendance.data.enums.Resource;
 import com.exam.attendance.data.request.ExamSessionInitRequest;
 import com.exam.attendance.data.request.ProctorDashboardFilterRequest;
 import com.exam.attendance.data.response.ApiResponse;
@@ -13,8 +14,8 @@ import com.exam.attendance.data.response.ExamSessionResponse;
 import com.exam.attendance.data.response.ExamSessionStateResponse;
 import com.exam.attendance.service.exam.ExamSessionService;
 import com.exam.attendance.service.identity.ProctorService;
-import com.exam.attendance.service.security.AccessControlService;
-import com.exam.attendance.util.SecurityUtils;
+import com.exam.attendance.security.service.AccessControlService;
+import com.exam.attendance.security.SecurityContextUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -53,7 +54,7 @@ public class ExamSessionController extends BaseController {
         );
 
         Long userId =
-                SecurityUtils.getCurrentUserId();
+                SecurityContextUtils.getCurrentUserId();
 
         ExamSessionResponse response =
                 sessionService.initSession(
@@ -91,7 +92,7 @@ public class ExamSessionController extends BaseController {
                 Resource.EXAM_SESSION,
                 Action.UPDATE,
                 session.getUserId(),
-                SecurityUtils.getCurrentUserId()
+                SecurityContextUtils.getCurrentUserId()
         );
 
         sessionService.endExam(sessionId);
@@ -122,7 +123,7 @@ public class ExamSessionController extends BaseController {
                 sessionService.getEntity(id);
 
         Long currentUserId =
-                SecurityUtils.getCurrentUserId();
+                SecurityContextUtils.getCurrentUserId();
 
         boolean isOwner =
                 session.getUserId()
@@ -182,7 +183,7 @@ public class ExamSessionController extends BaseController {
         );
 
         Long userId =
-                SecurityUtils.getCurrentUserId();
+                SecurityContextUtils.getCurrentUserId();
 
         return success(
                 sessionService.getByUser(userId)
@@ -194,7 +195,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
     @GetMapping("/dashboard")
     @PreAuthorize("hasRole('PROCTOR')")
-    public ResponseEntity<ApiResponse<Page<ProctorDashboardDTO>>>
+    public ResponseEntity<ApiResponse<Page<ProctorDashboard>>>
     dashboard(
             @ModelAttribute
             ProctorDashboardFilterRequest req,
@@ -217,7 +218,7 @@ public class ExamSessionController extends BaseController {
     // =========================================================
     @GetMapping("/dashboard-fast")
     @PreAuthorize("hasRole('PROCTOR')")
-    public ResponseEntity<ApiResponse<List<ProctorDashboardDTO>>>
+    public ResponseEntity<ApiResponse<List<ProctorDashboard>>>
     dashboardFast(
             @RequestParam Long roomId,
             Authentication auth
@@ -299,7 +300,7 @@ public class ExamSessionController extends BaseController {
 
         proctorService.approve(
                 sessionId,
-                SecurityUtils.getCurrentUser()
+                SecurityContextUtils.getCurrentUser()
         );
 
         return updated(null);
@@ -325,7 +326,7 @@ public class ExamSessionController extends BaseController {
         proctorService.reject(
                 sessionId,
                 reason,
-                SecurityUtils.getCurrentUser()
+                SecurityContextUtils.getCurrentUser()
         );
 
         return updated(null);
@@ -350,7 +351,7 @@ public class ExamSessionController extends BaseController {
 
         proctorService.approveDeviceChange(
                 sessionId,
-                SecurityUtils.getCurrentUser()
+                SecurityContextUtils.getCurrentUser()
         );
 
         return updated(null);
@@ -416,7 +417,7 @@ public class ExamSessionController extends BaseController {
     ) {
 
         Long userId =
-                SecurityUtils.getCurrentUserId();
+                SecurityContextUtils.getCurrentUserId();
 
         MyRoomInfoDTO data =
                 sessionService.getMyRoomInfo(
@@ -452,7 +453,7 @@ public class ExamSessionController extends BaseController {
                 Resource.EXAM_SESSION,
                 Action.UPDATE,
                 session.getUser().getId(),
-                SecurityUtils.getCurrentUserId()
+                SecurityContextUtils.getCurrentUserId()
         );
 
         sessionService.enterExam(sessionId);

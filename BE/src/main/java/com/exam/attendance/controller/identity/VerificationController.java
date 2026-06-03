@@ -1,13 +1,14 @@
-package com.exam.attendance.controller;
+package com.exam.attendance.controller.identity;
 
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.controller.BaseController;
+import com.exam.attendance.data.enums.Action;
+import com.exam.attendance.data.enums.Resource;
 import com.exam.attendance.data.request.VerifyRequest;
 import com.exam.attendance.data.response.ApiResponse;
 import com.exam.attendance.data.response.VerifyResponse;
 import com.exam.attendance.service.identity.VerificationService;
-import com.exam.attendance.service.security.AccessControlService;
-import com.exam.attendance.util.SecurityUtils;
+import com.exam.attendance.security.service.AccessControlService;
+import com.exam.attendance.security.SecurityContextUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -33,7 +34,7 @@ public class VerificationController extends BaseController {
                 Action.CREATE
         );
 
-        request.setUserId(SecurityUtils.getCurrentUserId());
+        request.setUserId(SecurityContextUtils.getCurrentUserId());
 
         var result = verificationService.handleVerify(request);
 

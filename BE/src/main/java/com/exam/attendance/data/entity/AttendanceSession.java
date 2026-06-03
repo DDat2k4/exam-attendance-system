@@ -1,6 +1,6 @@
 package com.exam.attendance.data.entity;
 
-import com.exam.attendance.data.pojo.enums.AttendanceStatus;
+import com.exam.attendance.data.enums.AttendanceStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,6 +22,15 @@ public class AttendanceSession {
 
     @Column(name = "attendance_photo")
     private String attendancePhoto;
+
+    @Column(name = "cccd_photo")
+    private String cccdPhoto;
+
+    @Column(name = "confidence")
+    private Double confidence;
+
+    @Column(name = "review_note")
+    private String reviewNote;
 
     @Enumerated(EnumType.STRING)
     private AttendanceStatus status;

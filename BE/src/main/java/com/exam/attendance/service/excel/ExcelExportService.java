@@ -30,10 +30,10 @@ public class ExcelExportService {
 
     public byte[] exportFullReport(Long roomId) {
 
-        List<AttendanceReportDTO> attendance = attendanceSessionRepository.getAttendanceReport(roomId);
-        List<VerificationReportDTO> verification = identityVerificationRepository.getVerificationReport(roomId);
-        List<LogReportDTO> logs = attendanceLogRepository.getLogReport(roomId);
-        SummaryDTO summary = examSessionRepository.getSummary(roomId);
+        List<AttendanceReport> attendance = attendanceSessionRepository.getAttendanceReport(roomId);
+        List<VerificationReport> verification = identityVerificationRepository.getVerificationReport(roomId);
+        List<LogReport> logs = attendanceLogRepository.getLogReport(roomId);
+        Summary summary = examSessionRepository.getSummary(roomId);
 
         try (Workbook workbook = new SXSSFWorkbook()) {
 
@@ -78,7 +78,7 @@ public class ExcelExportService {
     }
 
     // Attendance
-    private void createAttendanceSheet(Workbook wb, List<AttendanceReportDTO> data) {
+    private void createAttendanceSheet(Workbook wb, List<AttendanceReport> data) {
 
         Sheet sheet = createSheetSafe(wb, "Attendance");
 
@@ -87,7 +87,7 @@ public class ExcelExportService {
 
         int rowIdx = 1, index = 1;
 
-        for (AttendanceReportDTO dto : data) {
+        for (AttendanceReport dto : data) {
             Row row = sheet.createRow(rowIdx++);
 
             row.createCell(0).setCellValue(index++);
@@ -116,7 +116,7 @@ public class ExcelExportService {
     }
 
     // Verification
-    private void createVerificationSheet(Workbook wb, List<VerificationReportDTO> data) {
+    private void createVerificationSheet(Workbook wb, List<VerificationReport> data) {
 
         Sheet sheet = createSheetSafe(wb, "Verification");
 
@@ -125,7 +125,7 @@ public class ExcelExportService {
 
         int rowIdx = 1;
 
-        for (VerificationReportDTO dto : data) {
+        for (VerificationReport dto : data) {
             Row row = sheet.createRow(rowIdx++);
 
             row.createCell(0).setCellValue(nvl(dto.getCitizenId()));
@@ -150,7 +150,7 @@ public class ExcelExportService {
     }
 
     // Log
-    private void createLogSheet(Workbook wb, List<LogReportDTO> data) {
+    private void createLogSheet(Workbook wb, List<LogReport> data) {
 
         Sheet sheet = createSheetSafe(wb, "Logs");
 
@@ -159,7 +159,7 @@ public class ExcelExportService {
 
         int rowIdx = 1;
 
-        for (LogReportDTO dto : data) {
+        for (LogReport dto : data) {
             Row row = sheet.createRow(rowIdx++);
 
             row.createCell(0).setCellValue(nvl(dto.getAction()));
@@ -177,12 +177,12 @@ public class ExcelExportService {
     }
 
     // Summary
-    private void createSummarySheet(Workbook wb, SummaryDTO s) {
+    private void createSummarySheet(Workbook wb, Summary s) {
 
         Sheet sheet = createSheetSafe(wb, "Summary");
 
         if (s == null) {
-            s = new SummaryDTO(0L, 0L, 0L, 0L, 0L);
+            s = new Summary(0L, 0L, 0L, 0L, 0L);
         }
 
         String[][] data = {

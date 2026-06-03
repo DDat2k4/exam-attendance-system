@@ -1,25 +1,26 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.identity;
 
 import com.exam.attendance.data.entity.AttendanceSession;
 import com.exam.attendance.data.entity.ExamSession;
 import com.exam.attendance.data.entity.IdentityVerification;
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.pojo.AlertMessage;
-import com.exam.attendance.data.pojo.enums.AlertType;
-import com.exam.attendance.data.pojo.enums.AttendanceStatus;
-import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
-import com.exam.attendance.data.pojo.enums.RiskLevel;
+import com.exam.attendance.data.enums.AlertType;
+import com.exam.attendance.data.enums.AttendanceStatus;
+import com.exam.attendance.data.enums.ExamSessionStatus;
+import com.exam.attendance.data.enums.RiskLevel;
 import com.exam.attendance.data.request.VerifyRequest;
 import com.exam.attendance.data.response.UploadResponse;
 import com.exam.attendance.data.response.VerifyResponse;
 import com.exam.attendance.repository.AttendanceSessionRepository;
 import com.exam.attendance.repository.ExamSessionRepository;
 import com.exam.attendance.repository.IdentityVerificationRepository;
+import com.exam.attendance.service.exam.ExamSessionStateService;
 import com.exam.attendance.service.ai.AiClientService;
 import com.exam.attendance.service.attendance.AttendanceLogService;
 import com.exam.attendance.service.socket.AlertService;
 import com.exam.attendance.service.uploads.FileUploadService;
-import com.exam.attendance.util.SecurityUtils;
+import com.exam.attendance.security.SecurityContextUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,7 +43,7 @@ public class VerificationService {
     private final FileUploadService fileUploadService;
     private final AttendanceLogService logService;
     private final AlertService alertService;
-    private final SessionStateService  sessionStateService;
+    private final ExamSessionStateService examSessionStateService;
     private static final float MIN_CONFIDENCE = 0.7f;
     private static final int MAX_INITIAL_FAIL = 3;
     private static final int MAX_RANDOM_FAIL = 3;
@@ -285,7 +286,7 @@ public class VerificationService {
             ExamSession session
     ) {
         Long currentUserId =
-                SecurityUtils.getCurrentUserId();
+                SecurityContextUtils.getCurrentUserId();
         if (!session.getUser().getId().equals(currentUserId)) {
             throw new RuntimeException("No permission");
         }
@@ -332,7 +333,7 @@ public class VerificationService {
         // suspicious
         session.setPendingDeviceId(currentDevice);
         session.setIsFlagged(true);
-        sessionStateService.updateStatus(
+        examSessionStateService.updateStatus(
                 session,
                 ExamSessionStatus.PENDING_DEVICE_APPROVAL,
                 "Đang chờ giám thị duyệt thay đổi thiết bị"
@@ -541,7 +542,7 @@ public class VerificationService {
     ) {
         if (passed) {
             // vào thi thật sự
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.IN_PROGRESS,
                     "Đã được phép vào thi"
@@ -553,7 +554,7 @@ public class VerificationService {
         }
 
         if (attempt >= MAX_INITIAL_FAIL) {
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.PENDING_VERIFY_REVIEW,
                     "Xác minh khuôn mặt thất bại nhiều lần"
@@ -582,7 +583,7 @@ public class VerificationService {
 
         if (attempt >= MAX_RANDOM_FAIL) {
             session.setIsFlagged(true);
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.PENDING_REVIEW,
                     "Đang chờ giám thị xác minh"

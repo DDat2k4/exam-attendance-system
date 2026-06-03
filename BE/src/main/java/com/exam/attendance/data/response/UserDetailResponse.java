@@ -13,6 +13,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserDetailResponse {
+
     private Long id;
     private String username;
     private String email;

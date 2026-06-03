@@ -1,10 +1,11 @@
-package com.exam.attendance.controller;
+package com.exam.attendance.controller.identity;
 
+import com.exam.attendance.controller.BaseController;
 import com.exam.attendance.data.pojo.CCCDInfo;
 import com.exam.attendance.data.request.EncryptedRequest;
 import com.exam.attendance.data.response.ApiResponse;
 import com.exam.attendance.service.identity.CccdService;
-import com.exam.attendance.service.security.CryptoService;
+import com.exam.attendance.security.service.CryptoService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;

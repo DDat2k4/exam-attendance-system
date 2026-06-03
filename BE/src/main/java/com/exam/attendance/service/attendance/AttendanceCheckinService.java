@@ -1,15 +1,16 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.attendance;
 
 import com.exam.attendance.data.entity.AttendanceSession;
 import com.exam.attendance.data.entity.CitizenCard;
 import com.exam.attendance.data.entity.ExamSession;
 import com.exam.attendance.data.entity.User;
-import com.exam.attendance.data.pojo.enums.AttendanceStatus;
-import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
+import com.exam.attendance.data.enums.AttendanceStatus;
+import com.exam.attendance.data.enums.ExamSessionStatus;
 import com.exam.attendance.data.request.CheckinRequest;
 import com.exam.attendance.repository.AttendanceSessionRepository;
 import com.exam.attendance.repository.CitizenCardRepository;
 import com.exam.attendance.repository.ExamSessionRepository;
+import com.exam.attendance.service.exam.ExamSessionStateService;
 import com.exam.attendance.service.ai.AiClientService;
 import com.exam.attendance.service.uploads.FileUploadService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,7 +36,7 @@ public class AttendanceCheckinService {
     private final CitizenCardRepository citizenCardRepo;
     private final AiClientService aiClientService;
     private final FileUploadService fileUploadService;
-    private final SessionStateService sessionStateService;
+    private final ExamSessionStateService examSessionStateService;
     private final AttendanceLogService logService;
     private final ObjectMapper objectMapper;
     private static final double MIN_CONFIDENCE = 0.7;
@@ -116,7 +117,7 @@ public class AttendanceCheckinService {
             attendance.setReviewNote("Offline checkin verified");
             // chỉ điểm danh thành công
             // CHƯA vào thi
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.CHECKED_IN,
                     "Điểm danh thành công, vui lòng xác minh khuôn mặt"
@@ -137,7 +138,7 @@ public class AttendanceCheckinService {
         else {
             attendance.setStatus(AttendanceStatus.PENDING);
             attendance.setReviewNote("AI verify failed");
-            sessionStateService.updateStatus(
+            examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.PENDING_REVIEW,
                     "Đang chờ giám thị xác minh"
@@ -497,7 +498,7 @@ public class AttendanceCheckinService {
         );
         attendance.setVerifiedBy(proctorUser);
         AttendanceSession saved = attendanceRepo.save(attendance);
-        sessionStateService.updateStatus(
+        examSessionStateService.updateStatus(
                 session,
                 ExamSessionStatus.PENDING_REVIEW,
                 "Đang chờ giám thị xác minh"

@@ -1,14 +1,15 @@
-package com.exam.attendance.controller;
+package com.exam.attendance.controller.exam;
 
-import com.exam.attendance.data.pojo.ExamRoomDTO;
-import com.exam.attendance.data.pojo.RoomStudentDTO;
+import com.exam.attendance.controller.BaseController;
+import com.exam.attendance.data.dto.ExamRoomDTO;
+import com.exam.attendance.data.dto.RoomStudentDTO;
 import com.exam.attendance.data.request.AssignRoomBatchRequest;
 import com.exam.attendance.data.request.ExamRoomRequest;
 import com.exam.attendance.data.response.ApiResponse;
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.data.enums.Action;
+import com.exam.attendance.data.enums.Resource;
 import com.exam.attendance.service.exam.ExamRoomService;
-import com.exam.attendance.service.security.AccessControlService;
+import com.exam.attendance.security.service.AccessControlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;

@@ -1,7 +1,7 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.user;
 
 import com.exam.attendance.data.entity.*;
-import com.exam.attendance.data.pojo.UserDTO;
+import com.exam.attendance.data.dto.UserDTO;
 import com.exam.attendance.repository.*;
 
 import lombok.RequiredArgsConstructor;

@@ -1,6 +1,7 @@
 package com.exam.attendance.data.response;
 
 import lombok.Data;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -10,11 +11,13 @@ public class ExamResponse {
     private Long id;
     private String title;
     private String description;
+    // mã môn thi
+    private String examCode;
+    // học kỳ
+    private String semester;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-
     private Long createdById;
     private String createdByUsername;
-
     private List<ExamRoomResponse> rooms;
 }

@@ -22,6 +22,12 @@ public class Exam {
 
     private String description;
 
+    @Column(name = "exam_code")
+    private String examCode;
+
+    @Column(name = "semester")
+    private String semester;
+
     @Column(name = "start_time")
     private LocalDateTime startTime;
 

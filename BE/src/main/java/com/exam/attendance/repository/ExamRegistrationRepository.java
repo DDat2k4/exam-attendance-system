@@ -1,18 +1,18 @@
 package com.exam.attendance.repository;
 
 import com.exam.attendance.data.entity.ExamRegistration;
-import com.exam.attendance.data.pojo.RoomStudentDTO;
+import com.exam.attendance.data.dto.RoomStudentDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface ExamRegistrationRepository extends JpaRepository<ExamRegistration, Long> {
+
     boolean existsByUserIdAndExamId(Long examId, Long userId);
 
     Optional<ExamRegistration> findByExamIdAndUserId(Long examId, Long userId);
@@ -36,7 +36,7 @@ public interface ExamRegistrationRepository extends JpaRepository<ExamRegistrati
     Page<ExamRegistration> findByUserIdAndExam_Id(Long userId, Long examId, Pageable pageable);
 
     @Query("""
-    SELECT new com.exam.attendance.data.pojo.RoomStudentDTO(
+    SELECT new com.exam.attendance.data.dto.RoomStudentDTO(
         r.id,
         u.id,
         u.username,

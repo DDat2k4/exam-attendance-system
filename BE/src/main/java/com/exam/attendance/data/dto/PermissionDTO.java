@@ -1,7 +1,7 @@
-package com.exam.attendance.data.pojo;
+package com.exam.attendance.data.dto;
 
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.data.enums.Action;
+import com.exam.attendance.data.enums.Resource;
 import lombok.Data;
 
 @Data

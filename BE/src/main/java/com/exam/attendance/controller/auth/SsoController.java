@@ -1,5 +1,6 @@
-package com.exam.attendance.controller;
+package com.exam.attendance.controller.auth;
 
+import com.exam.attendance.controller.BaseController;
 import com.exam.attendance.data.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

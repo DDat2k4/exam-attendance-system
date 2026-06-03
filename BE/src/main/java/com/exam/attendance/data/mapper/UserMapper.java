@@ -1,6 +1,6 @@
 package com.exam.attendance.data.mapper;
 
-import com.exam.attendance.data.pojo.UserDTO;
+import com.exam.attendance.data.dto.UserDTO;
 import com.exam.attendance.data.response.UserDetailResponse;
 
 public class UserMapper {

@@ -1,4 +1,4 @@
-package com.exam.attendance.security.service.sso;
+package com.exam.attendance.security.sso;
 
 import com.exam.attendance.data.entity.User;
 import com.exam.attendance.data.entity.UserToken;

@@ -1,13 +1,9 @@
 package com.exam.attendance.data.mapper;
 
 import com.exam.attendance.data.entity.Role;
-import com.exam.attendance.data.entity.RolePermission;
-import com.exam.attendance.data.pojo.RoleDTO;
+import com.exam.attendance.data.dto.RoleDTO;
 import com.exam.attendance.data.request.RoleRequest;
 import com.exam.attendance.data.response.RoleResponse;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class RoleMapper {
 

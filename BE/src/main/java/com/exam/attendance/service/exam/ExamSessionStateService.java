@@ -1,8 +1,7 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.exam;
 
 import com.exam.attendance.data.entity.ExamSession;
-import com.exam.attendance.data.pojo.enums.ExamSessionStatus;
-import com.exam.attendance.repository.ExamSessionRepository;
+import com.exam.attendance.data.enums.ExamSessionStatus;
 import com.exam.attendance.service.socket.SessionSocketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -10,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class SessionStateService {
+public class ExamSessionStateService {
 
     private final SessionSocketService socketService;
 

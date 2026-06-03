@@ -1,4 +1,4 @@
-package com.exam.attendance.service;
+package com.exam.attendance.service.ai;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ByteArrayResource;

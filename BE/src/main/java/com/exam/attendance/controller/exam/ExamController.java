@@ -1,14 +1,15 @@
-package com.exam.attendance.controller;
+package com.exam.attendance.controller.exam;
 
-import com.exam.attendance.data.pojo.enums.Action;
-import com.exam.attendance.data.pojo.enums.Resource;
+import com.exam.attendance.controller.BaseController;
+import com.exam.attendance.data.enums.Action;
+import com.exam.attendance.data.enums.Resource;
 import com.exam.attendance.data.request.ExamRequest;
 import com.exam.attendance.data.request.ExamRoomRequest;
 import com.exam.attendance.data.response.*;
 import com.exam.attendance.service.exam.ExamService;
 import com.exam.attendance.service.excel.ImportExamService;
-import com.exam.attendance.service.security.AccessControlService;
-import com.exam.attendance.util.SecurityUtils;
+import com.exam.attendance.security.service.AccessControlService;
+import com.exam.attendance.security.SecurityContextUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -36,7 +37,7 @@ public class ExamController extends BaseController {
 
         accessControlService.checkPermission(auth, Resource.EXAM, Action.CREATE);
 
-        Long userId = SecurityUtils.getCurrentUserId();
+        Long userId = SecurityContextUtils.getCurrentUserId();
 
         var exam = examService.createExam(request, userId);
 
@@ -84,7 +85,7 @@ public class ExamController extends BaseController {
             Authentication auth
     ) {
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long currentUserId = SecurityContextUtils.getCurrentUserId();
 
         var exam = examService.getExamEntity(id);
 
@@ -109,7 +110,7 @@ public class ExamController extends BaseController {
             Authentication auth
     ) {
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long currentUserId = SecurityContextUtils.getCurrentUserId();
 
         var exam = examService.getExamEntity(id);
 

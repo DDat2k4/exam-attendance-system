@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class SummaryDTO {
+public class Summary {
 
     private Long total;
     private Long verified;
@@ -17,11 +17,11 @@ public class SummaryDTO {
     private Long blocked;
     private Long pending;
 
-    public SummaryDTO(Number total,
-                      Number verified,
-                      Number failed,
-                      Number blocked,
-                      Number pending) {
+    public Summary(Number total,
+                   Number verified,
+                   Number failed,
+                   Number blocked,
+                   Number pending) {
 
         this.total = total != null ? total.longValue() : 0L;
         this.verified = verified != null ? verified.longValue() : 0L;
