@@ -14,6 +14,7 @@ export const SESSION_STATUS_LABELS = {
   BLOCKED: 'Bị chặn',
   PENDING_REVIEW: 'Chờ giám thị duyệt',
   PENDING_DEVICE_APPROVAL: 'Chờ phê duyệt thiết bị',
+  PENDING_VERIFY_REVIEW: 'Chờ duyệt xác minh',
 }
 
 export const getSessionStatusLabel = (status) => {
@@ -22,6 +23,6 @@ export const getSessionStatusLabel = (status) => {
 }
 
 export const statusToBadgeClass = (status) => {
-  const key = normalizeSessionStatus(status) || 'unknown'
+  const key = normalizeSessionStatus(status) || ''
   return key.toLowerCase()
 }

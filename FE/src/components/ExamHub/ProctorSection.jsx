@@ -16,7 +16,10 @@ import {
   TrashIcon,
 } from '../ui/AppIcons'
 
+import { getAttendanceById, getAttendanceSession } from '../../api/examSessionApi'
+import { getExamSessionVerificationHistory } from '../../api/examSessionApi'
 import { getSessionStatusLabel, statusToBadgeClass } from '../../utils/examSessionStatus'
+import { captureFrame, isCameraSupported, requestCameraAccess, stopCameraStream } from '../../utils/faceCapture'
 
 const ALERT_TYPE_LABELS = {
   VERIFY_FAIL: 'Xác minh thất bại',
@@ -32,7 +35,7 @@ const ALERT_TYPE_LABELS = {
   SUSPICIOUS_ACTIVITY: 'Hành vi đáng ngờ',
 }
 
-const formatLabel = (value, mapping) => mapping[String(value || '').toUpperCase()] || value || 'UNKNOWN'
+const formatLabel = (value, mapping) => mapping[String(value || '').toUpperCase()] || value || ''
 
 const findAlertSessionMatch = (alert, proctorDashboard, getSessionRecordId) => {
   const alertSessionId = Number(alert?.sessionId)
@@ -102,15 +105,74 @@ export default function ProctorSection({
   proctorSocketStatus,
   selectedProctorExamLabel,
   selectedProctorRoomLabel,
+  pendingAttendances,
+  loadingPendingAttendances,
+  pendingAttendanceError,
+  fetchPendingAttendances,
 }) {
   const { loading: exporting, error: exportError, exportReport } = useExcelExport()
   const [showExportError, setShowExportError] = useState(false)
   const [exportErrorMessage, setExportErrorMessage] = useState('')
   const [captureImageBroken, setCaptureImageBroken] = useState(false)
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
+  const [showAttendancePopup, setShowAttendancePopup] = useState(false)
+  const [attendancePopupLoading, setAttendancePopupLoading] = useState(false)
+  const [attendancePopupData, setAttendancePopupData] = useState(null)
+  const [attendanceHistoryLoading, setAttendanceHistoryLoading] = useState(false)
+  const [attendanceHistory, setAttendanceHistory] = useState([])
+  const [attendancePopupError, setAttendancePopupError] = useState('')
+  const [attendanceApproveImage, setAttendanceApproveImage] = useState('')
+  const [attendanceApproveImageName, setAttendanceApproveImageName] = useState('')
+  const [attendancePopupSession, setAttendancePopupSession] = useState(null)
+  const [attendanceCameraOpen, setAttendanceCameraOpen] = useState(false)
+  const [attendanceCameraLoading, setAttendanceCameraLoading] = useState(false)
+  const [attendanceCameraError, setAttendanceCameraError] = useState('')
+  const [attendanceCameraStream, setAttendanceCameraStream] = useState(null)
+  const [localProctorActionError, setLocalProctorActionError] = useState('')
   const [filterCollapsed, setFilterCollapsed] = useState(false)
   const [showFilterToggle, setShowFilterToggle] = useState(true)
   const filterFormRef = useRef(null)
   const lastToggleAtRef = useRef(0)
+  const attendanceCameraVideoRef = useRef(null)
+  const attendanceUploadInputRef = useRef(null)
+  const attendanceDetails = attendancePopupData?.data ?? attendancePopupData ?? null
+  const hasAttendanceRecord = Boolean(attendanceDetails?.id || attendanceDetails?.attendanceId)
+  const proctorActionErrorMessage = proctorActionError || localProctorActionError
+  const safeSetProctorActionError = typeof setProctorActionError === 'function'
+    ? setProctorActionError
+    : setLocalProctorActionError
+
+  const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Không thể đọc file ảnh.'))
+    reader.onload = () => resolve(reader.result)
+    reader.readAsDataURL(file)
+  })
+
+  const normalizeAttendanceImage = async (imageValue) => {
+    const imageUrl = String(imageValue || '')
+    if (!imageUrl) {
+      return ''
+    }
+
+    if (imageUrl.startsWith('data:')) {
+      return imageUrl
+    }
+
+    const isHttpUrl = /^https?:\/\//i.test(imageUrl)
+    const isBlobUrl = imageUrl.startsWith('blob:')
+    if (isHttpUrl || isBlobUrl) {
+      try {
+        const response = await fetch(imageUrl, { method: 'GET', credentials: 'same-origin' })
+        const blob = await response.blob()
+        return await readFileAsDataUrl(blob)
+      } catch {
+        throw new Error('Không thể tải ảnh từ URL để gửi lên server. Kiểm tra CORS hoặc thử chụp ảnh mới.')
+      }
+    }
+
+    return imageUrl
+  }
   // Auto un-collapse when viewport is wide enough
   useEffect(() => {
     let raf = null
@@ -130,7 +192,7 @@ export default function ProctorSection({
 
         setShowFilterToggle(!fits)
         if (fits && filterCollapsed) setFilterCollapsed(false)
-      } catch (e) {}
+      } catch {}
     }
 
     const handleResize = () => {
@@ -163,7 +225,313 @@ export default function ProctorSection({
 
   useEffect(() => {
     setCaptureImageBroken(false)
+    setImagePreviewOpen(false)
+    setShowAttendancePopup(false)
+    setAttendancePopupLoading(false)
+    setAttendancePopupData(null)
+    setAttendanceHistory([])
+    setAttendanceHistoryLoading(false)
+    setAttendancePopupError('')
+    setAttendanceApproveImage('')
+    setAttendanceApproveImageName('')
+    setAttendancePopupSession(null)
+    setAttendanceCameraOpen(false)
+    setAttendanceCameraLoading(false)
+    setAttendanceCameraError('')
+    if (attendanceCameraStream) {
+      stopCameraStream(attendanceCameraStream)
+      setAttendanceCameraStream(null)
+    }
   }, [selectedProctorSessionId])
+
+  useEffect(() => {
+    if (!showAttendancePopup) {
+      setAttendanceCameraOpen(false)
+      setAttendanceCameraLoading(false)
+      setAttendanceCameraError('')
+      if (attendanceCameraStream) {
+        stopCameraStream(attendanceCameraStream)
+        setAttendanceCameraStream(null)
+      }
+      if (attendanceCameraVideoRef.current) {
+        attendanceCameraVideoRef.current.srcObject = null
+      }
+    }
+  }, [showAttendancePopup, attendanceCameraStream])
+
+  const handleOpenAttendancePopup = async (session = selectedProctorSession) => {
+    if (!session) return
+
+    safeSetProctorActionError('')
+    setAttendancePopupSession(session)
+
+    const sessionId = session?.sessionId ?? session?.examSessionId ?? session?.session?.sessionId ?? session?.session?.id ?? getSessionRecordId(session)
+    const attendanceId = session?.attendanceId ?? session?.id ?? session?.attendance?.id ?? null
+
+    try {
+      setAttendancePopupLoading(true)
+      setAttendanceHistoryLoading(true)
+      setAttendancePopupError('')
+      setAttendancePopupData(null)
+      setAttendanceHistory([])
+      setAttendanceApproveImage('')
+      setAttendanceApproveImageName('')
+      setShowAttendancePopup(true)
+
+      let attendanceData = null
+      if (sessionId) {
+        try {
+          const attendance = await getAttendanceSession(sessionId)
+          attendanceData = attendance?.data ?? attendance ?? null
+        } catch (err) {
+          if (attendanceId) {
+            try {
+              const attendance = await getAttendanceById(attendanceId)
+              attendanceData = attendance?.data ?? attendance ?? null
+            } catch {
+              setAttendancePopupError(err.message || 'Không tải được dữ liệu điểm danh hiện tại. Bạn có thể tạo điểm danh thủ công.')
+            }
+          } else {
+            setAttendancePopupError(err.message || 'Không tải được dữ liệu điểm danh hiện tại. Bạn có thể tạo điểm danh thủ công.')
+          }
+        }
+      } else if (attendanceId) {
+        try {
+          const attendance = await getAttendanceById(attendanceId)
+          attendanceData = attendance?.data ?? attendance ?? null
+        } catch (err) {
+          setAttendancePopupError(err.message || 'Không tải được dữ liệu điểm danh hiện tại. Bạn có thể tạo điểm danh thủ công.')
+        }
+      } else {
+        setAttendancePopupError('Không xác định được sessionId hoặc attendanceId để tải điểm danh.')
+      }
+
+      setAttendancePopupData(attendanceData)
+      if (attendanceData?.attendancePhoto) {
+        setAttendanceApproveImage(attendanceData.attendancePhoto)
+        setAttendanceApproveImageName('Ảnh điểm danh fail')
+      } else if (attendanceData?.cccdPhoto) {
+        setAttendanceApproveImage(attendanceData.cccdPhoto)
+        setAttendanceApproveImageName('Ảnh CCCD')
+      }
+
+      try {
+        const historySessionId = sessionId ?? attendanceData?.sessionId ?? attendanceData?.examSessionId ?? attendanceData?.session?.sessionId ?? null
+        if (!historySessionId) {
+          setAttendanceHistory([])
+        } else {
+          const history = await getExamSessionVerificationHistory(historySessionId)
+          setAttendanceHistory(Array.isArray(history) ? history : history ? [history] : [])
+        }
+      } catch {
+        setAttendanceHistory([])
+      }
+    } finally {
+      setAttendancePopupLoading(false)
+      setAttendanceHistoryLoading(false)
+    }
+  }
+
+  const handleUseAttendanceImage = (kind) => {
+    const imageUrl = kind === 'cccd' ? attendanceDetails?.cccdPhoto : attendanceDetails?.attendancePhoto
+    const imageLabel = kind === 'cccd' ? 'Ảnh CCCD' : 'Ảnh điểm danh fail'
+
+    if (!imageUrl) {
+      setAttendancePopupError(kind === 'cccd'
+        ? 'Phiên này chưa có ảnh CCCD để dùng lại.'
+        : 'Phiên này chưa có ảnh điểm danh fail để dùng lại.')
+      return
+    }
+
+    setAttendanceApproveImage(imageUrl)
+    setAttendanceApproveImageName(imageLabel)
+    setAttendancePopupError('')
+  }
+
+  const handleUploadAttendanceImage = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!file) {
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setAttendancePopupError('Vui lòng chọn một file ảnh hợp lệ.')
+      return
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      setAttendanceApproveImage(dataUrl)
+      setAttendanceApproveImageName(file.name || 'Ảnh tải lên')
+      setAttendancePopupError('')
+    } catch (err) {
+      setAttendancePopupError(err.message || 'Không thể tải ảnh lên.')
+    }
+  }
+
+  const handleOpenAttendanceCamera = async () => {
+    if (!isCameraSupported()) {
+      setAttendanceCameraError('Trình duyệt này không hỗ trợ camera.')
+      return
+    }
+
+    try {
+      setAttendanceCameraLoading(true)
+      setAttendanceCameraError('')
+      if (attendanceCameraStream) {
+        stopCameraStream(attendanceCameraStream)
+        setAttendanceCameraStream(null)
+      }
+
+      const stream = await requestCameraAccess()
+      setAttendanceCameraStream(stream)
+      setAttendanceCameraOpen(true)
+
+      window.requestAnimationFrame(() => {
+        if (attendanceCameraVideoRef.current) {
+          attendanceCameraVideoRef.current.srcObject = stream
+          attendanceCameraVideoRef.current.play?.().catch(() => {})
+        }
+      })
+    } catch (err) {
+      setAttendanceCameraError(err.message || 'Không thể mở camera.')
+      setAttendanceCameraOpen(false)
+    } finally {
+      setAttendanceCameraLoading(false)
+    }
+  }
+
+  const handleCaptureAttendanceCamera = () => {
+    if (!attendanceCameraVideoRef.current) {
+      setAttendanceCameraError('Camera chưa sẵn sàng.')
+      return
+    }
+
+    try {
+      const captureImage = captureFrame(attendanceCameraVideoRef.current)
+      setAttendanceApproveImage(captureImage)
+      setAttendanceApproveImageName('Ảnh chụp từ camera')
+      setAttendancePopupError('')
+      setAttendanceCameraOpen(false)
+      if (attendanceCameraStream) {
+        stopCameraStream(attendanceCameraStream)
+        setAttendanceCameraStream(null)
+      }
+      if (attendanceCameraVideoRef.current) {
+        attendanceCameraVideoRef.current.srcObject = null
+      }
+    } catch (err) {
+      setAttendanceCameraError(err.message || 'Không thể chụp ảnh từ camera.')
+    }
+  }
+
+  const handleCloseAttendanceCamera = () => {
+    setAttendanceCameraOpen(false)
+    setAttendanceCameraLoading(false)
+    setAttendanceCameraError('')
+    if (attendanceCameraStream) {
+      stopCameraStream(attendanceCameraStream)
+      setAttendanceCameraStream(null)
+    }
+    if (attendanceCameraVideoRef.current) {
+      attendanceCameraVideoRef.current.srcObject = null
+    }
+  }
+
+  const handleApproveAttendance = async () => {
+    const approvalImage = attendanceApproveImage
+      || attendanceDetails?.attendancePhoto
+      || attendanceDetails?.cccdPhoto
+
+    if (!approvalImage) {
+      setAttendancePopupError('Vui lòng chọn ảnh điểm danh fail hoặc ảnh CCCD trước khi duyệt điểm danh.')
+      return
+    }
+
+    let attendanceIdToUse =
+      attendanceDetails?.id
+      ?? attendanceDetails?.attendanceId
+      ?? attendancePopupSession?.attendanceId
+      ?? attendancePopupSession?.id
+      ?? null
+
+    if (!attendanceIdToUse) {
+      // try fetching attendance detail explicitly as a last resort
+      try {
+        const sessionId = getSessionRecordId(attendancePopupSession)
+        if (sessionId) {
+          const attendance = await getAttendanceSession(sessionId)
+          const attendanceObj = attendance?.data ?? attendance ?? null
+          attendanceIdToUse = attendanceObj?.id ?? attendanceObj?.attendanceId ?? null
+          // also update local state so UI reflects fetched data
+          if (attendanceObj) {
+            setAttendancePopupData(attendanceObj)
+          }
+        }
+      } catch {
+        // ignore — will handle below
+      }
+    }
+
+    if (!attendanceIdToUse) {
+      setAttendancePopupError('Không xác định được attendanceId để duyệt. Vui lòng thử tải lại popup.')
+      return
+    }
+    let base64ToSend = approvalImage
+    try {
+      base64ToSend = await normalizeAttendanceImage(approvalImage)
+    } catch {
+      setAttendancePopupError('Không thể chuẩn hóa ảnh để gửi. Vui lòng thử lại.')
+      return
+    }
+
+    await runProctorAction('approve-attendance', { base64Image: base64ToSend, attendanceId: attendanceIdToUse, sessionId: getSessionRecordId(attendancePopupSession) })
+  }
+
+  const handleManualCheckin = async () => {
+    const sessionId = getSessionRecordId(attendancePopupSession)
+    if (!sessionId) {
+      setAttendancePopupError('Không xác định được sessionId để tạo điểm danh thủ công.')
+      return
+    }
+
+    const manualReason = String(proctorReason || '').trim()
+    if (!manualReason) {
+      setAttendancePopupError('Vui lòng nhập lý do trước khi tạo điểm danh thủ công.')
+      return
+    }
+
+    const manualImage = attendanceApproveImage
+      || attendanceDetails?.attendancePhoto
+      || attendanceDetails?.cccdPhoto
+
+    if (!manualImage) {
+      setAttendancePopupError('Vui lòng chọn hoặc tải lên ảnh xác minh trước khi tạo điểm danh thủ công.')
+      return
+    }
+
+    try {
+      const base64ToSend = await normalizeAttendanceImage(manualImage)
+      await runProctorAction('manual-checkin', {
+        sessionId,
+        base64Image: base64ToSend,
+        reason: manualReason,
+      })
+    } catch (err) {
+      setAttendancePopupError(err.message || 'Không thể tạo điểm danh thủ công.')
+    }
+  }
+
+  const handleRejectAttendance = async () => {
+    if (!hasProctorReason) {
+      setAttendancePopupError('Vui lòng nhập lý do trước khi từ chối điểm danh.')
+      return
+    }
+
+    await runProctorAction('reject-attendance')
+  }
 
   const handleExportReport = async () => {
     // export report invoked
@@ -399,6 +767,91 @@ export default function ProctorSection({
 
       <div className="proctor-list">
         <div className="session-head">
+          <div>
+            <h3>Hàng đợi điểm danh chờ duyệt</h3>
+            <p className="student-exam-note">
+              {selectedProctorRoomLabel && selectedProctorRoomLabel !== '-' ? `Phòng: ${selectedProctorRoomLabel}` : 'Đang lọc theo phòng thi hiện tại'}
+            </p>
+          </div>
+          <div className="inline-actions">
+            <button
+              type="button"
+              className="tiny-btn icon-only-btn"
+              onClick={() => void fetchPendingAttendances()}
+              disabled={loadingPendingAttendances || !proctorFilter.roomId}
+              aria-label="Tải lại hàng đợi điểm danh"
+              title="Tải lại hàng đợi"
+            >
+              <RefreshIcon />
+            </button>
+          </div>
+        </div>
+
+        {pendingAttendanceError && (
+          <p className="proctor-inline-error" style={{ marginTop: 0 }}>
+            {pendingAttendanceError}
+          </p>
+        )}
+
+        {loadingPendingAttendances ? (
+          <p>Đang tải hàng đợi điểm danh...</p>
+        ) : pendingAttendances.length === 0 ? (
+          <p>Không có điểm danh nào đang chờ duyệt cho phòng hiện tại.</p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>CCCD</th>
+                  <th>Room</th>
+                  <th>Attendance</th>
+                  <th>Exam Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingAttendances.map((item, idx) => {
+                  const recordKey = item?.attendanceId ?? item?.sessionId ?? idx
+                  return (
+                    <tr key={`${recordKey}-${idx}`}>
+                      <td>{item?.studentName || '-'}</td>
+                      <td>{item?.citizenId || '-'}</td>
+                      <td>{item?.roomCode || item?.roomId || '-'}</td>
+                      <td>
+                        <span className={`status-badge badge-${statusToBadgeClass(item?.attendanceStatus || 'PENDING_REVIEW')}`}>
+                          {getSessionStatusLabel(item?.attendanceStatus || 'PENDING_REVIEW') || 'Chờ duyệt'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status-badge badge-${statusToBadgeClass(item?.examSessionStatus || 'PENDING_REVIEW')}`}>
+                          {getSessionStatusLabel(item?.examSessionStatus || 'PENDING_REVIEW') || 'Chờ duyệt'}
+                        </span>
+                      </td>
+                      <td>{formatDateTime(item?.createdAt)}</td>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            type="button"
+                            className="tiny-btn"
+                            onClick={() => void handleOpenAttendancePopup(item)}
+                          >
+                            Xử lý
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="proctor-list">
+        <div className="session-head">
           <h3>Dashboard</h3>
           <span className="student-exam-note">{proctorDashboard.length} phiên</span>
         </div>
@@ -434,12 +887,12 @@ export default function ProctorSection({
                         <td>{item?.citizenId ?? '-'}</td>
                         <td>{item?.roomCode ?? item?.roomId ?? item?.room?.id ?? '-'}</td>
                         <td>
-                            <span className={`status-badge badge-${statusToBadgeClass(item?.attendanceStatus || item?.examSessionStatus || 'UNKNOWN')}`}>
+                            <span className={`status-badge badge-${statusToBadgeClass(item?.attendanceStatus || item?.examSessionStatus || '')}`}>
                             {getSessionStatusLabel(item?.attendanceStatus || item?.examSessionStatus) || formatLabel(item?.attendanceStatus, {})}
                           </span>
                         </td>
                         <td>
-                          <span className={`status-badge badge-${statusToBadgeClass(item?.examSessionStatus || 'UNKNOWN')}`}>
+                          <span className={`status-badge badge-${statusToBadgeClass(item?.examSessionStatus || '')}`}>
                             {getSessionStatusLabel(item?.examSessionStatus) || formatLabel(item?.examSessionStatus, {})}
                           </span>
                         </td>
@@ -451,6 +904,16 @@ export default function ProctorSection({
                         <td className="attempt-cell">{item?.attemptNo ?? '-'}</td>
                         <td>
                           <div className="table-actions">
+                            <button
+                              type="button"
+                              className="tiny-btn"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                void handleOpenAttendancePopup(item)
+                              }}
+                            >
+                              Điểm danh
+                            </button>
                             <button
                               type="button"
                               className="tiny-btn"
@@ -507,7 +970,7 @@ export default function ProctorSection({
           setSelectedProctorSession(null)
           setProctorHistory([])
           setProctorReason('')
-          setProctorActionError('')
+          safeSetProctorActionError('')
         }}>
           <div className="proctor-modal" onClick={(e) => e.stopPropagation()}>
             <div className="proctor-modal-header">
@@ -520,7 +983,7 @@ export default function ProctorSection({
                     setSelectedProctorSession(null)
                     setProctorHistory([])
                     setProctorReason('')
-                      setProctorActionError('')
+                    safeSetProctorActionError('')
                   }}
                   aria-label="Đóng chi tiết"
                 >
@@ -537,10 +1000,10 @@ export default function ProctorSection({
                     <div>
                       <h4>{selectedProctorSession?.studentName ?? 'Student'}</h4>
                       <div className="proctor-student-tags">
-                        <span className={`status-badge badge-${statusToBadgeClass(selectedProctorSession?.attendanceStatus || selectedProctorSession?.examSessionStatus || 'UNKNOWN')}`}>
+                        <span className={`status-badge badge-${statusToBadgeClass(selectedProctorSession?.attendanceStatus || selectedProctorSession?.examSessionStatus || '')}`}>
                           {getSessionStatusLabel(selectedProctorSession?.attendanceStatus || selectedProctorSession?.examSessionStatus) || formatLabel(selectedProctorSession?.attendanceStatus, {})}
                         </span>
-                        <span className={`status-badge badge-${statusToBadgeClass(selectedProctorSession?.examSessionStatus || 'UNKNOWN')}`}>
+                        <span className={`status-badge badge-${statusToBadgeClass(selectedProctorSession?.examSessionStatus || '')}`}>
                           {getSessionStatusLabel(selectedProctorSession?.examSessionStatus) || formatLabel(selectedProctorSession?.examSessionStatus, {})}
                         </span>
                         {selectedProctorSession?.flagged && (
@@ -561,7 +1024,7 @@ export default function ProctorSection({
 
                     <div>
                       <span>Attendance Status</span>
-                      <strong className={`status-text badge-${statusToBadgeClass(selectedProctorSession?.attendanceStatus || selectedProctorSession?.examSessionStatus || 'UNKNOWN')}`}>
+                      <strong className={`status-text badge-${statusToBadgeClass(selectedProctorSession?.attendanceStatus || selectedProctorSession?.examSessionStatus || '')}`}>
                         {getSessionStatusLabel(selectedProctorSession?.attendanceStatus || selectedProctorSession?.examSessionStatus) || '-'}
                       </strong>
                     </div>
@@ -580,7 +1043,7 @@ export default function ProctorSection({
                       {selectedProctorSession?.flagged ? '🚩 YES' : '✓ NO'}
                     </strong></div>
 
-                    {selectedProctorSession?.captureImageUrl && (
+                    {selectedProctorSession?.captureImageUrl && imagePreviewOpen && (
                       <div className="capture-image-preview">
                         <span>Ảnh xác minh</span>
                         <a href={selectedProctorSession?.captureImageUrl} target="_blank" rel="noopener noreferrer">
@@ -629,8 +1092,8 @@ export default function ProctorSection({
                   value={proctorReason}
                   onChange={(e) => {
                     setProctorReason(e.target.value)
-                    if (proctorActionError) {
-                      setProctorActionError('')
+                    if (proctorActionErrorMessage) {
+                      safeSetProctorActionError('')
                     }
                   }}
                   placeholder="Nhập lý do gắn cờ hoặc từ chối phiên thi"
@@ -639,74 +1102,87 @@ export default function ProctorSection({
                 <div className="proctor-reason-hint">
                   Bắt buộc nhập lý do cho <strong>Gắn cờ</strong> và <strong>Từ chối</strong>.
                 </div>
-                {proctorActionError && (
+                {proctorActionErrorMessage && (
                   <div className="proctor-inline-error proctor-inline-error--modal" role="alert">
-                    {proctorActionError}
+                    {proctorActionErrorMessage}
                   </div>
                 )}
                 <div className="proctor-footer-actions">
-                  {(selectedProctorSession?.pendingDeviceId || String(selectedProctorSession?.examSessionStatus || '').toUpperCase() === 'PENDING_DEVICE_APPROVAL') && (
-                    <button
-                      type="button"
-                      className="tiny-btn proctor-action-btn proctor-action-btn--device"
-                      onClick={() => runProctorAction('approve-device')}
-                      disabled={proctorActionLoading}
-                      aria-label="Duyệt thiết bị"
-                      title="Duyệt thiết bị"
-                    >
-                      <DeviceIcon />
-                      <span>Duyệt thiết bị</span>
-                    </button>
-                  )}
-                  {!(selectedProctorSession?.pendingDeviceId || String(selectedProctorSession?.examSessionStatus || '').toUpperCase() === 'PENDING_DEVICE_APPROVAL') && (
-                    <button
-                      type="button"
-                      className="tiny-btn proctor-action-btn proctor-action-btn--session"
-                      onClick={() => runProctorAction('approve')}
-                      disabled={proctorActionLoading}
-                      aria-label="Duyệt phiên thi"
-                      title="Duyệt phiên thi"
-                    >
-                      <CheckIcon />
-                      <span>Phiên thi</span>
-                    </button>
-                  )}
-                  {!selectedProctorSession?.flagged ? (
-                    <button
-                      type="button"
-                      className="tiny-btn proctor-action-btn proctor-action-btn--flag"
-                      onClick={() => runProctorAction('flag')}
-                      disabled={proctorActionLoading || !hasProctorReason}
-                      aria-label="Gắn cờ phiên"
-                      title={hasProctorReason ? 'Gắn cờ phiên thi' : 'Nhập lý do trước khi gắn cờ'}
-                    >
-                      <FlagIcon />
-                      <span>Gắn cờ</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="tiny-btn proctor-action-btn proctor-action-btn--unflag"
-                      onClick={() => runProctorAction('unflag')}
-                      disabled={proctorActionLoading}
-                      aria-label="Bỏ cờ phiên"
-                      title="Bỏ cờ phiên thi"
-                    >
-                      <CheckIcon />
-                      <span>Bỏ cờ</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="tiny-btn proctor-action-btn proctor-action-btn--reject"
-                    onClick={() => runProctorAction('reject')}
-                    disabled={proctorActionLoading || !hasProctorReason}
-                    aria-label="Từ chối phiên"
-                    title={hasProctorReason ? 'Từ chối phiên thi' : 'Nhập lý do trước khi từ chối'}
-                  >
-                    <CloseIcon />
-                    <span>Từ chối</span>
-                  </button>
+                  {/* Attendance popup is opened from the row-level "Điểm danh" button; modal footer button removed */}
+                  {(() => {
+                    const actionSessionId = getSessionRecordId(selectedProctorSession)
+                    const examSessionStatus = String(selectedProctorSession?.examSessionStatus || '').toUpperCase()
+                    const canApproveExamSession =
+                      examSessionStatus === 'PENDING_REVIEW' || examSessionStatus === 'PENDING_VERIFY_REVIEW'
+                    return (
+                      <>
+                        {(selectedProctorSession?.pendingDeviceId || String(selectedProctorSession?.examSessionStatus || '').toUpperCase() === 'PENDING_DEVICE_APPROVAL') && (
+                          <button
+                            type="button"
+                            className="tiny-btn proctor-action-btn proctor-action-btn--device"
+                            onClick={() => runProctorAction('approve-device', { sessionId: actionSessionId })}
+                            disabled={proctorActionLoading}
+                            aria-label="Duyệt thiết bị"
+                            title="Duyệt thiết bị"
+                          >
+                            <DeviceIcon />
+                            <span>Duyệt thiết bị</span>
+                          </button>
+                        )}
+                        {String(selectedProctorSession?.attendanceStatus || '').toUpperCase() !== 'PENDING_REVIEW'
+                          && !(selectedProctorSession?.pendingDeviceId || String(selectedProctorSession?.examSessionStatus || '').toUpperCase() === 'PENDING_DEVICE_APPROVAL')
+                          && canApproveExamSession && (
+                          <button
+                            type="button"
+                            className="tiny-btn proctor-action-btn proctor-action-btn--session"
+                            onClick={() => runProctorAction('approve', { sessionId: actionSessionId })}
+                            disabled={proctorActionLoading}
+                            aria-label="Duyệt phiên thi"
+                            title="Duyệt phiên thi"
+                          >
+                            <CheckIcon />
+                            <span>Duyệt phiên</span>
+                          </button>
+                        )}
+                        {!selectedProctorSession?.flagged ? (
+                          <button
+                            type="button"
+                            className="tiny-btn proctor-action-btn proctor-action-btn--flag"
+                            onClick={() => runProctorAction('flag', { sessionId: actionSessionId })}
+                            disabled={proctorActionLoading || !hasProctorReason}
+                            aria-label="Gắn cờ phiên"
+                            title={hasProctorReason ? 'Gắn cờ phiên thi' : 'Nhập lý do trước khi gắn cờ'}
+                          >
+                            <FlagIcon />
+                            <span>Gắn cờ</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="tiny-btn proctor-action-btn proctor-action-btn--unflag"
+                            onClick={() => runProctorAction('unflag', { sessionId: actionSessionId })}
+                            disabled={proctorActionLoading}
+                            aria-label="Bỏ cờ phiên"
+                            title="Bỏ cờ phiên thi"
+                          >
+                            <CheckIcon />
+                            <span>Bỏ cờ</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="tiny-btn proctor-action-btn proctor-action-btn--reject"
+                          onClick={() => runProctorAction('reject', { sessionId: actionSessionId })}
+                          disabled={proctorActionLoading || !hasProctorReason}
+                          aria-label="Từ chối phiên"
+                          title={hasProctorReason ? 'Từ chối phiên thi' : 'Nhập lý do trước khi từ chối'}
+                        >
+                          <CloseIcon />
+                          <span>Từ chối</span>
+                        </button>
+                      </>
+                    )
+                  })()}
                   <button
                     type="button"
                     className="tiny-btn secondary"
@@ -715,7 +1191,7 @@ export default function ProctorSection({
                       setSelectedProctorSession(null)
                       setProctorHistory([])
                       setProctorReason('')
-                      setProctorActionError('')
+                      safeSetProctorActionError('')
                       setShowExportError(false)
                     }}
                   >
@@ -724,6 +1200,262 @@ export default function ProctorSection({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {showAttendancePopup && attendancePopupSession && (
+        <div
+          className="proctor-modal-overlay"
+          onClick={() => {
+            setShowAttendancePopup(false)
+            setAttendancePopupSession(null)
+          }}
+          style={{ zIndex: 1200 }}
+        >
+          <div className="proctor-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '760px' }}>
+            <div className="proctor-modal-header">
+              <h3>{hasAttendanceRecord ? 'Điểm danh / Ảnh xác minh' : 'Điểm danh thủ công'}</h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => {
+                  setShowAttendancePopup(false)
+                  setAttendancePopupSession(null)
+                }}
+                aria-label="Đóng popup điểm danh"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div className="proctor-modal-content">
+              {attendancePopupError && (
+                <div className="proctor-inline-error proctor-inline-error--modal" role="alert">
+                  {attendancePopupError}
+                </div>
+              )}
+
+              <div className="proctor-summary-grid">
+                <div><span>Student</span><strong>{attendanceDetails?.studentName ?? attendancePopupSession?.studentName ?? '-'}</strong></div>
+                <div><span>CCCD</span><strong>{attendanceDetails?.citizenId ?? attendancePopupSession?.citizenId ?? '-'}</strong></div>
+                <div><span>Attendance Status</span><strong>{getSessionStatusLabel(attendanceDetails?.status || attendanceDetails?.attendanceStatus || attendancePopupSession?.attendanceStatus) || '-'}</strong></div>
+                <div><span>Exam Status</span><strong>{getSessionStatusLabel(attendanceDetails?.examSessionStatus || attendancePopupSession?.examSessionStatus) || '-'}</strong></div>
+                <div><span>Check-in Time</span><strong>{attendanceDetails?.checkinTime || '-'}</strong></div>
+                <div><span>Verified At</span><strong>{attendanceDetails?.verifiedAt || '-'}</strong></div>
+                <div><span>Verified By</span><strong>{attendanceDetails?.verifiedByName || attendanceDetails?.verifiedById || '-'}</strong></div>
+                <div><span>Confidence</span><strong>{typeof attendanceDetails?.confidence === 'number' ? `${(attendanceDetails.confidence * 100).toFixed(1)}%` : '-'}</strong></div>
+              </div>
+
+              <div className="proctor-history" style={{ marginTop: '16px' }}>
+                <div className="session-head">
+                  <h4>Lịch sử điểm danh</h4>
+                </div>
+                <VerificationHistory history={attendanceHistory} loading={attendanceHistoryLoading} />
+              </div>
+
+              <div style={{ marginTop: '16px' }}>
+                <label className="student-exam-note" style={{ display: 'block', marginBottom: '8px' }}>
+                  Ảnh xác minh
+                </label>
+                <div className="attendance-approval-panel">
+                  <div className="attendance-approval-sources">
+                    <div className="attendance-source-actions">
+                      <button
+                        type="button"
+                        className="tiny-btn"
+                        onClick={() => handleUseAttendanceImage('fail')}
+                        disabled={!attendanceDetails?.attendancePhoto}
+                      >
+                        Dùng ảnh điểm danh fail
+                      </button>
+                      <button
+                        type="button"
+                        className="tiny-btn"
+                        onClick={() => handleUseAttendanceImage('cccd')}
+                        disabled={!attendanceDetails?.cccdPhoto}
+                      >
+                        Dùng ảnh CCCD
+                      </button>
+                      <button
+                        type="button"
+                        className="tiny-btn"
+                        onClick={() => void handleOpenAttendanceCamera()}
+                        disabled={attendanceCameraLoading}
+                      >
+                        {attendanceCameraLoading ? 'Đang mở camera...' : 'Bật camera chụp ảnh'}
+                      </button>
+                      <button
+                        type="button"
+                        className="tiny-btn"
+                        onClick={() => attendanceUploadInputRef.current?.click()}
+                      >
+                        Tải ảnh lên
+                      </button>
+                      <input
+                        ref={attendanceUploadInputRef}
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        onChange={handleUploadAttendanceImage}
+                      />
+                    </div>
+
+                    {attendanceCameraError && (
+                      <div className="proctor-inline-error proctor-inline-error--modal" role="alert">
+                        {attendanceCameraError}
+                      </div>
+                    )}
+
+                    {attendanceCameraOpen && (
+                      <div className="capture-image-preview attendance-camera-card">
+                        <span>Camera chụp ảnh duyệt</span>
+                        <video
+                          ref={attendanceCameraVideoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          style={{ width: '100%', height: '260px', objectFit: 'cover', borderRadius: '6px', background: '#000' }}
+                        />
+                        <div className="proctor-footer-actions attendance-camera-actions" style={{ justifyContent: 'flex-start' }}>
+                          <button type="button" className="tiny-btn proctor-action-btn proctor-action-btn--session" onClick={handleCaptureAttendanceCamera}>
+                            <CheckIcon />
+                            <span>Chụp ảnh</span>
+                          </button>
+                          <button type="button" className="tiny-btn secondary" onClick={handleCloseAttendanceCamera}>
+                            Đóng camera
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="attendance-approval-preview">
+                    {attendanceApproveImage ? (
+                      <div className="capture-image-preview attendance-selected-preview">
+                        <span>Ảnh sẽ gửi lên backend</span>
+                        <img src={attendanceApproveImage} alt="Attendance approval" loading="lazy" />
+                        <div className="student-exam-note">
+                          Đã chọn: <strong>{attendanceApproveImageName}</strong>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="attendance-empty-state">
+                        <strong>Chưa chọn ảnh duyệt</strong>
+                        <span>Chọn ảnh fail, ảnh CCCD, hoặc chụp mới từ camera.</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="attendance-reason-card">
+                <label className="student-exam-note" style={{ display: 'block', marginBottom: '8px' }}>
+                  {hasAttendanceRecord ? 'Lý do từ chối điểm danh' : 'Lý do / ghi chú điểm danh thủ công'}
+                </label>
+                <textarea
+                  value={proctorReason}
+                  onChange={(e) => {
+                    setProctorReason(e.target.value)
+                    if (attendancePopupError) setAttendancePopupError('')
+                    if (proctorActionErrorMessage) safeSetProctorActionError('')
+                  }}
+                  placeholder={hasAttendanceRecord ? 'Nhập lý do từ chối nếu cần' : 'Nhập lý do và ghi chú cho điểm danh thủ công'}
+                  rows={3}
+                />
+              </div>
+
+              {attendancePopupLoading ? (
+                <div className="capture-image-fallback" style={{ marginTop: '16px' }}>
+                  <strong>Đang tải thông tin điểm danh...</strong>
+                  <span>Vui lòng chờ trong giây lát.</span>
+                </div>
+              ) : (
+                <div className="capture-image-preview" style={{ marginTop: '16px' }}>
+                  <span>Ảnh điểm danh</span>
+                  <div className="images-section" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    {attendanceDetails?.cccdPhoto ? (
+                      <div className="capture-image-preview" style={{ marginTop: 0 }}>
+                        <span>Ảnh CCCD</span>
+                        <a href={attendanceDetails.cccdPhoto} target="_blank" rel="noopener noreferrer">
+                          <img src={attendanceDetails.cccdPhoto} alt="Ảnh CCCD" loading="lazy" />
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="capture-image-fallback">
+                        <strong>Không có ảnh CCCD</strong>
+                        <span>Backend chưa trả cccdPhoto.</span>
+                      </div>
+                    )}
+
+                    {attendanceDetails?.attendancePhoto ? (
+                      <div className="capture-image-preview" style={{ marginTop: 0 }}>
+                        <span>Ảnh điểm danh</span>
+                        <a href={attendanceDetails.attendancePhoto} target="_blank" rel="noopener noreferrer">
+                          <img src={attendanceDetails.attendancePhoto} alt="Ảnh điểm danh" loading="lazy" />
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="capture-image-fallback">
+                        <strong>Không có ảnh điểm danh</strong>
+                        <span>Backend chưa trả attendancePhoto.</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {attendanceDetails?.reviewNote && (
+                    <div className="verification-note" style={{ marginTop: '12px' }}>
+                      {attendanceDetails.reviewNote}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="proctor-footer-actions" style={{ marginTop: '16px', justifyContent: 'flex-end' }}>
+                {hasAttendanceRecord ? (
+                  <>
+                    <button
+                      type="button"
+                      className="tiny-btn proctor-action-btn proctor-action-btn--session"
+                      onClick={() => void handleApproveAttendance()}
+                      disabled={attendancePopupLoading || proctorActionLoading}
+                    >
+                      <CheckIcon />
+                      <span>Duyệt điểm danh</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="tiny-btn proctor-action-btn proctor-action-btn--reject"
+                      onClick={() => void handleRejectAttendance()}
+                      disabled={attendancePopupLoading || proctorActionLoading || !hasProctorReason}
+                    >
+                      <CloseIcon />
+                      <span>Từ chối điểm danh</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="tiny-btn proctor-action-btn proctor-action-btn--session"
+                    onClick={() => void handleManualCheckin()}
+                    disabled={attendancePopupLoading || proctorActionLoading || !String(proctorReason || '').trim() || !attendanceApproveImage}
+                  >
+                    <CheckIcon />
+                    <span>Tạo điểm danh thủ công</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="tiny-btn secondary"
+                  onClick={() => {
+                    setShowAttendancePopup(false)
+                    setAttendancePopupSession(null)
+                  }}
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

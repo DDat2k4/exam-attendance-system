@@ -1,17 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import {
+  manualCheckin,
+  manualApproveCheckin,
+  manualRejectCheckin,
   approveExamSession,
   approveDeviceChange,
+  rejectExamSession,
   flagExamSession,
   unflagExamSession,
   getExamSessionDashboard,
+  getPendingAttendances,
+  getAttendanceBySession,
   getExamSessionVerificationHistory,
-  rejectExamSession,
 } from '../api/examSessionApi'
 import { getRoomsByExamAll, getExamRoomById } from '../api/examRoomApi'
 import { getUserById } from '../api/userApi'
+import { formatExamLabel } from '../utils/examLabel'
 
 export const PROCTOR_STATUS_OPTIONS = [
   'INIT',
@@ -83,6 +89,37 @@ const firstNonEmpty = (...values) => {
   }
 
   return ''
+}
+
+const normalizePendingAttendanceItem = (item) => {
+  const sessionId = firstNonEmpty(
+    item?.sessionId,
+    item?.examSessionId,
+    item?.examSession?.id,
+    item?.session?.sessionId,
+    item?.session?.id,
+    item?.attendanceSessionId,
+  )
+  const attendanceId = firstNonEmpty(item?.attendanceId, item?.id, item?.attendance?.id)
+  const roomId = firstNonEmpty(item?.roomId, item?.room?.id, item?.examSession?.roomId, item?.session?.roomId)
+
+  return {
+    ...item,
+    sessionId: sessionId ? Number(sessionId) : null,
+    attendanceId: attendanceId ? Number(attendanceId) : null,
+    roomId: roomId ? Number(roomId) : null,
+    studentName: firstNonEmpty(item?.studentName, item?.fullName, item?.userFullName, item?.userName, item?.username),
+    citizenId: firstNonEmpty(item?.citizenId, item?.userCitizenId, item?.identityNumber),
+    roomCode: firstNonEmpty(item?.roomCode, item?.room?.roomCode, item?.room?.code),
+    attendanceStatus: firstNonEmpty(item?.attendanceStatus, item?.status),
+    examSessionStatus: firstNonEmpty(item?.examSessionStatus, item?.sessionStatus),
+    reviewNote: item?.reviewNote ?? item?.reason ?? '',
+    createdAt: item?.createdAt ?? item?.checkinTime ?? null,
+    verifiedAt: item?.verifiedAt ?? null,
+    verifiedByName: item?.verifiedByName ?? null,
+    attendancePhoto: item?.attendancePhoto ?? null,
+    cccdPhoto: item?.cccdPhoto ?? null,
+  }
 }
 
 const formatSessionLabel = (session) => {
@@ -180,6 +217,9 @@ export default function useProctorSection({
   const [proctorRoomFilterExamId, setProctorRoomFilterExamId] = useState(() => sessionStorage.getItem('proctor_room_examId') || '')
   const [proctorRoomFilterOptions, setProctorRoomFilterOptions] = useState([])
   const [loadingProctorRoomFilterOptions, setLoadingProctorRoomFilterOptions] = useState(false)
+  const [pendingAttendances, setPendingAttendances] = useState([])
+  const [loadingPendingAttendances, setLoadingPendingAttendances] = useState(false)
+  const [pendingAttendanceError, setPendingAttendanceError] = useState('')
   const [proctorAlerts, setProctorAlerts] = useState(() => {
     try {
       const raw = sessionStorage.getItem('proctor_alerts')
@@ -318,7 +358,7 @@ export default function useProctorSection({
       exams
         .map((exam) => ({
           value: String(exam?.id || ''),
-          label: exam?.title || 'Kỳ thi chưa có tiêu đề',
+          label: formatExamLabel(exam),
         }))
         .filter((option) => option.value),
     [exams],
@@ -390,7 +430,7 @@ export default function useProctorSection({
     [proctorFilter.roomId, proctorRoomFilterOptions],
   )
 
-  const getSessionRecordId = (item) => item?.id ?? item?.sessionId ?? item?.examSessionId ?? null
+  const getSessionRecordId = (item) => item?.sessionId ?? item?.examSessionId ?? item?.session?.sessionId ?? item?.id ?? null
 
   const selectedProctorSessionId = useMemo(
     () => getSessionRecordId(selectedProctorSession),
@@ -451,6 +491,44 @@ export default function useProctorSection({
     }
   }
 
+  const fetchPendingAttendances = useCallback(async () => {
+    const roomId = Number(proctorFilter.roomId)
+    if (!Number.isInteger(roomId) || roomId <= 0) {
+      setPendingAttendances([])
+      setPendingAttendanceError('')
+      setLoadingPendingAttendances(false)
+      return
+    }
+
+    try {
+      setLoadingPendingAttendances(true)
+      setPendingAttendanceError('')
+      const response = await getPendingAttendances()
+      const rows = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.content)
+          ? response.content
+          : Array.isArray(response?.rows)
+            ? response.rows
+            : Array.isArray(response?.items)
+              ? response.items
+              : response
+                ? [response]
+                : []
+
+      const normalized = rows
+        .map(normalizePendingAttendanceItem)
+        .filter((item) => Number(item.roomId) === roomId)
+
+      setPendingAttendances(normalized)
+    } catch (err) {
+      setPendingAttendances([])
+      setPendingAttendanceError(err.message || 'Không thể tải hàng đợi điểm danh chờ duyệt.')
+    } finally {
+      setLoadingPendingAttendances(false)
+    }
+  }, [proctorFilter.roomId])
+
   const fetchProctorHistory = async (session) => {
     const sessionId = getSessionRecordId(session)
     if (!sessionId) {
@@ -461,9 +539,22 @@ export default function useProctorSection({
     }
 
     try {
-      setSelectedProctorSession(session)
+      setSelectedProctorSession(session ?? null)
       setShowProctorDetailModal(true)
       setLoadingProctorHistory(true)
+
+      let attendance = null
+      try {
+        attendance = await getAttendanceBySession(sessionId)
+      } catch {
+        // Attendance endpoint may be unavailable in some deployments; keep detail modal functional.
+      }
+
+      setSelectedProctorSession({
+        ...(session || {}),
+        attendance: attendance && typeof attendance === 'object' ? attendance : null,
+        attendanceId: attendance?.id ?? attendance?.attendanceId ?? session?.attendanceId ?? null,
+      })
       const history = await getExamSessionVerificationHistory(sessionId)
       setProctorHistory(Array.isArray(history) ? history : history ? [history] : [])
     } catch (err) {
@@ -561,8 +652,8 @@ export default function useProctorSection({
     }
   }
 
-  const runProctorAction = async (action) => {
-    const sessionId = getSessionRecordId(selectedProctorSession)
+  const runProctorAction = async (action, payload = {}) => {
+    const sessionId = payload?.sessionId ?? getSessionRecordId(selectedProctorSession)
     if (!sessionId) {
       setError('Vui lòng chọn một phiên thi để thao tác.')
       return
@@ -570,10 +661,32 @@ export default function useProctorSection({
 
     const sessionLabel = formatSessionLabel(selectedProctorSession)
 
-    const reason = String(proctorReason || '').trim()
-    if ((action === 'flag' || action === 'reject') && !reason) {
+    const reason = String(payload?.reason ?? proctorReason ?? '').trim()
+    if ((action === 'flag' || action === 'reject' || action === 'reject-attendance' || action === 'manual-checkin') && !reason) {
       setProctorActionError('Vui lòng nhập lý do trước khi gắn cờ hoặc từ chối.')
       return
+    }
+
+    const attendanceStatus = String(selectedProctorSession?.attendanceStatus || '').toUpperCase()
+    const examStatus = String(selectedProctorSession?.examSessionStatus || '').toUpperCase()
+    const isAttendancePending = attendanceStatus === 'PENDING_REVIEW'
+    const attendanceAction = action === 'approve-attendance' || action === 'reject-attendance' || (action === 'reject' && isAttendancePending)
+
+    let attendanceId =
+      payload?.attendanceId
+      ?? selectedProctorSession?.attendanceId
+      ?? selectedProctorSession?.attendance?.id
+      ?? selectedProctorSession?.attendance?.attendanceId
+      ?? null
+
+    if (attendanceAction && !attendanceId) {
+      try {
+        const attendance = await getAttendanceBySession(sessionId)
+        attendanceId = attendance?.id ?? attendance?.attendanceId ?? null
+      } catch (err) {
+        setError(err.message || 'Không thể lấy attendanceId cho thao tác điểm danh.')
+        return
+      }
     }
 
     try {
@@ -582,12 +695,27 @@ export default function useProctorSection({
       setSuccess('')
       setProctorActionError('')
 
-      if (action === 'approve') {
+      if (action === 'manual-checkin') {
+        if (!payload?.base64Image) {
+          setError('Vui lòng chọn ảnh xác minh trước khi tạo điểm danh thủ công.')
+          return
+        }
+
+        await manualCheckin(sessionId, payload.base64Image, reason)
+      } else if (action === 'approve-attendance') {
+        await manualApproveCheckin(attendanceId, payload?.base64Image)
+      } else if (action === 'reject-attendance') {
+        await manualRejectCheckin(attendanceId, reason)
+      } else if (action === 'approve') {
         await approveExamSession(sessionId)
       } else if (action === 'approve-device') {
         await approveDeviceChange(sessionId)
       } else if (action === 'reject') {
-        await rejectExamSession(sessionId, reason)
+        if (isAttendancePending) {
+          await manualRejectCheckin(attendanceId, reason)
+        } else {
+          await rejectExamSession(sessionId, reason)
+        }
       } else if (action === 'flag') {
         await flagExamSession(sessionId, reason)
       } else if (action === 'unflag') {
@@ -595,7 +723,13 @@ export default function useProctorSection({
       }
 
       setSuccess(
-        action === 'approve'
+        action === 'manual-checkin'
+          ? `Đã tạo điểm danh thủ công cho ${sessionLabel}. Yêu cầu đã chuyển sang chờ duyệt.`
+          : action === 'approve-attendance'
+          ? `Đã duyệt điểm danh cho ${sessionLabel}.`
+          : action === 'reject-attendance'
+          ? `Đã từ chối điểm danh cho ${sessionLabel}.`
+          : action === 'approve'
           ? `Đã duyệt ${sessionLabel}.`
           : action === 'approve-device'
             ? `Đã duyệt thiết bị cho ${sessionLabel}.`
@@ -608,6 +742,7 @@ export default function useProctorSection({
       setProctorReason('')
       setProctorActionError('')
       await fetchProctorDashboard()
+      await fetchPendingAttendances()
       setShowProctorDetailModal(false)
       setSelectedProctorSession(null)
       setProctorHistory([])
@@ -648,6 +783,20 @@ export default function useProctorSection({
       fetchExams()
     }
   }, [activeSection, exams.length, loading])
+
+  useEffect(() => {
+    const roomId = Number(proctorFilter.roomId)
+
+    if (activeSection !== hubSections.PROCTOR || !Number.isInteger(roomId) || roomId <= 0) {
+      setPendingAttendances([])
+      setPendingAttendanceError('')
+      setLoadingPendingAttendances(false)
+      return undefined
+    }
+
+    void fetchPendingAttendances()
+    return undefined
+  }, [activeSection, hubSections.PROCTOR, fetchPendingAttendances, proctorFilter.roomId])
 
   useEffect(() => {
     const roomId = Number(proctorFilter.roomId)
@@ -790,6 +939,10 @@ export default function useProctorSection({
     handleProctorRoomFilterExamChange,
     proctorRoomFilterOptions,
     loadingProctorRoomFilterOptions,
+    pendingAttendances,
+    loadingPendingAttendances,
+    pendingAttendanceError,
+    fetchPendingAttendances,
     selectedProctorExamLabel,
     selectedProctorRoomLabel,
     proctorAlerts,

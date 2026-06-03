@@ -3,6 +3,7 @@ import { getAllExams } from '../../api/examApi'
 import ProctorSection from '../../components/ExamHub/ProctorSection'
 import useProctorSection, { PROCTOR_STATUS_OPTIONS, formatProctorToastMeta } from '../../hooks/useProctorSection'
 import { useAuth } from '../../context/AuthContext'
+import { formatExamLabel } from '../../utils/examLabel'
 import { canAccess } from '../../utils/rbac'
 import '../../components/ExamHub/ExamHub.css'
 
@@ -63,11 +64,10 @@ export default function ProctorPage() {
     setProctorRoomDraft,
     proctorRoomOptions,
     loadingProctorRooms,
-    proctorRoomFilterExamOptions,
-    proctorRoomFilterExamId,
-    handleProctorRoomFilterExamChange,
-    proctorRoomFilterOptions,
-    loadingProctorRoomFilterOptions,
+    pendingAttendances,
+    loadingPendingAttendances,
+    pendingAttendanceError,
+    fetchPendingAttendances,
     selectedProctorExamLabel,
     selectedProctorRoomLabel,
     proctorAlerts,
@@ -160,6 +160,10 @@ export default function ProctorPage() {
         proctorToasts={proctorToasts}
         dismissProctorToast={dismissProctorToast}
         proctorSocketStatus={proctorSocketStatus}
+        pendingAttendances={pendingAttendances}
+        loadingPendingAttendances={loadingPendingAttendances}
+        pendingAttendanceError={pendingAttendanceError}
+        fetchPendingAttendances={fetchPendingAttendances}
         selectedProctorExamLabel={selectedProctorExamLabel}
         selectedProctorRoomLabel={selectedProctorRoomLabel}
       />
@@ -230,19 +234,19 @@ export default function ProctorPage() {
                   }}
                 >
                   {exams
-                    .filter((exam) => (exam.title || '').toLowerCase().includes((examSearch || '').toLowerCase()))
+                    .filter((exam) => formatExamLabel(exam).toLowerCase().includes((examSearch || '').toLowerCase()))
                     .map((exam) => (
                       <li
                         key={exam.id}
                         role="option"
                         onMouseDown={() => {
                           handleProctorExamDraftChange(String(exam.id))
-                          setExamSearch(exam.title || '')
+                          setExamSearch(formatExamLabel(exam))
                           setShowExamDropdown(false)
                         }}
                         style={{ padding: '8px 12px', cursor: 'pointer' }}
                       >
-                        {exam.title || 'Untitled exam'}
+                        {formatExamLabel(exam)}
                       </li>
                     ))}
                 </ul>

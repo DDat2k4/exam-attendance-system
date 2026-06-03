@@ -158,7 +158,7 @@
   opacity: 0.92;
 }
 
-@media (min-width: var(--bp-lg)) {
+@media (min-width: 1024px) {
   .page-card { padding: var(--space-lg); max-width: var(--container-lg) }
   .shell-content { padding: var(--space-lg) }
 }

@@ -19,7 +19,7 @@ export const useExamVerification = (examSessionId) => {
     async (type = 'INITIAL') => {
       if (!videoRef.current) {
         setError('Camera not available')
-        return false
+        return null
       }
 
       try {
@@ -42,39 +42,43 @@ export const useExamVerification = (examSessionId) => {
         const isReconnect = Boolean(response?.reconnect)
         const status = String(response?.sessionStatus || '').toUpperCase()
         const isTerminalBlocked = status === 'BLOCKED'
-        const isPendingReview = status === 'PENDING_REVIEW' || status === 'PENDING_DEVICE_APPROVAL'
+        const isPendingReview =
+          status === 'PENDING_REVIEW' ||
+          status === 'PENDING_DEVICE_APPROVAL' ||
+          status === 'PENDING_VERIFY_REVIEW'
         const isPassed = Boolean(response?.passed) || isReconnect
+        const backendAttempt = Number.isInteger(response?.attempt) ? response.attempt : null
 
-        if (typeof response?.attempt === 'number') {
-          setFailureCount(0)
+        if (backendAttempt !== null) {
+          setFailureCount(backendAttempt)
         }
 
         if (isTerminalBlocked) {
           setVerificationState('failed')
-          setError('Phiên thi đã bị khóa')
-          return false
+          setError(response?.message || 'Phiên thi đã bị khóa')
+          return response
         }
 
         if (isPendingReview) {
           setVerificationState('failed')
-          setError('Phiên thi đang chờ giám thị xác nhận')
-          setFailureCount((prev) => prev + 1)
-          return false
+          setError(response?.message || 'Phiên thi đang chờ giám thị xác nhận')
+          return response
         }
 
         if (isPassed) {
           setVerificationState('success')
-          setFailureCount(0)
-          return true
+          if (backendAttempt === null) {
+            setFailureCount(0)
+          }
+          return response
         } else {
           setVerificationState('failed')
-          setFailureCount((prev) => prev + 1)
-          return false
+          return response
         }
       } catch (err) {
         setError(err.message || 'Verification failed')
         setVerificationState('failed')
-        return false
+        return null
       }
     },
     [examSessionId]
@@ -140,12 +144,13 @@ export const usePeriodicVerification = (examSessionId, options = {}) => {
       }
 
       timerRef.current = setTimeout(async () => {
-        const passed = await verification.verify('RANDOM')
+        const response = await verification.verify('RANDOM')
+        const passed = Boolean(response?.passed) || Boolean(response?.reconnect)
 
         if (passed) {
           onSuccess?.()
         } else {
-          const newFailureCount = failureCount + 1
+          const newFailureCount = Number.isInteger(response?.attempt) ? response.attempt : failureCount + 1
           setFailureCount(newFailureCount)
 
           if (newFailureCount >= maxFailures) {

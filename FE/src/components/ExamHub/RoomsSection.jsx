@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { SearchIcon } from '../ui/AppIcons'
 
 export default function RoomsSection({
   roomForm,
@@ -62,6 +63,7 @@ export default function RoomsSection({
   const [showRoomFilterExamDropdown, setShowRoomFilterExamDropdown] = useState(false)
   const [roomFilterExamText, setRoomFilterExamText] = useState('')
   const [showRegistrationDropdown, setShowRegistrationDropdown] = useState(false)
+  const [roomStudentsQuery, setRoomStudentsQuery] = useState('')
 
   useEffect(() => {
     if (!showRoomFormModal) {
@@ -114,6 +116,25 @@ export default function RoomsSection({
       return fields.some((field) => String(field ?? '').toLowerCase().includes(keyword))
     })
   }, [assignableRegistrations, assignRegistrationQuery])
+
+  useEffect(() => {
+    if (!showRoomStudentsModal) setRoomStudentsQuery('')
+  }, [showRoomStudentsModal])
+
+  const filteredRoomStudents = useMemo(() => {
+    const keyword = String(roomStudentsQuery || '').trim().toLowerCase()
+    if (!keyword) return roomStudents
+
+    return roomStudents.filter((student) => {
+      const fields = [
+        student?.username,
+        student?.fullName,
+        student?.citizenId,
+      ]
+
+      return fields.some((f) => String(f ?? '').toLowerCase().includes(keyword))
+    })
+  }, [roomStudents, roomStudentsQuery])
 
   const handleRegistrationQueryChange = (value) => {
     setAssignRegistrationQuery(value)
@@ -654,14 +675,39 @@ export default function RoomsSection({
                   <p>Đang tải danh sách sinh viên...</p>
                 ) : roomStudents.length === 0 ? (
                   <p>Chưa có sinh viên nào trong phòng này.</p>
+                ) : filteredRoomStudents.length === 0 ? (
+                  <p>Không tìm thấy sinh viên phù hợp.</p>
                 ) : (
                   <>
                     {canManageRoomStudents ? (
                       <div className="room-students-toolbar">
                         <div className="room-students-toolbar__summary">
                           <strong>{selectedRoomStudentIds.length > 0 ? `${selectedRoomStudentIds.length} sinh viên đã chọn` : 'Chưa chọn sinh viên nào'}</strong>
-                          <span>{roomStudents.length} sinh viên trong phòng</span>
+                          <span>{filteredRoomStudents.length} / {roomStudents.length} sinh viên trong phòng</span>
                         </div>
+
+                        <div className="room-students-toolbar__search">
+                          <input
+                            id="roomStudentsQuery"
+                            type="text"
+                            placeholder="Tìm theo họ tên, tên đăng nhập hoặc CCCD"
+                            value={roomStudentsQuery}
+                            onChange={(e) => setRoomStudentsQuery(e.target.value)}
+                            className="rooms-filter-input"
+                            disabled={loadingRoomStudents}
+                          />
+                          <button
+                            type="button"
+                            className="room-students-search-btn"
+                            onClick={() => setRoomStudentsQuery((value) => String(value || '').trim())}
+                            disabled={loadingRoomStudents}
+                            aria-label="Tìm kiếm sinh viên"
+                            title="Tìm kiếm"
+                          >
+                            <SearchIcon size={14} />
+                          </button>
+                        </div>
+
                         <div className="room-students-toolbar__actions">
                           <button type="button" className="tiny-btn" onClick={handleSelectAllRoomStudents} disabled={loadingRoomStudents || roomStudents.length === 0}>
                             Chọn tất cả
@@ -683,7 +729,28 @@ export default function RoomsSection({
                       <div className="room-students-toolbar room-students-toolbar--readonly">
                         <div className="room-students-toolbar__summary">
                           <strong>Chế độ xem</strong>
-                          <span>{roomStudents.length} sinh viên trong phòng</span>
+                          <span>{filteredRoomStudents.length} / {roomStudents.length} sinh viên trong phòng</span>
+                        </div>
+                        <div className="room-students-toolbar__search">
+                          <input
+                            id="roomStudentsQuery"
+                            type="text"
+                            placeholder="Tìm theo họ tên, tên đăng nhập hoặc CCCD"
+                            value={roomStudentsQuery}
+                            onChange={(e) => setRoomStudentsQuery(e.target.value)}
+                            className="rooms-filter-input"
+                            disabled={loadingRoomStudents}
+                          />
+                          <button
+                            type="button"
+                            className="room-students-search-btn"
+                            onClick={() => setRoomStudentsQuery((value) => String(value || '').trim())}
+                            disabled={loadingRoomStudents}
+                            aria-label="Tìm kiếm sinh viên"
+                            title="Tìm kiếm"
+                          >
+                            <SearchIcon size={14} />
+                          </button>
                         </div>
                       </div>
                     )}
@@ -710,7 +777,6 @@ export default function RoomsSection({
                               />
                             </th>
                           ) : null}
-                          <th>ID</th>
                           <th>Tên đăng nhập</th>
                           <th>Họ tên</th>
                           <th>CCCD</th>
@@ -719,7 +785,7 @@ export default function RoomsSection({
                         </tr>
                       </thead>
                       <tbody>
-                        {roomStudents.map((student) => (
+                        {filteredRoomStudents.map((student) => (
                           <tr
                             key={student.registrationId ?? `${student.userId}-${student.seatNumber}`}
                             className={selectedRoomStudentIds.includes(Number(student.registrationId)) ? 'is-selected' : ''}
@@ -735,7 +801,6 @@ export default function RoomsSection({
                                 />
                               </td>
                             ) : null}
-                            <td>{student.registrationId ?? '-'}</td>
                             <td>{student.username || '-'}</td>
                             <td>{student.fullName || '-'}</td>
                             <td>{student.citizenId || '-'}</td>

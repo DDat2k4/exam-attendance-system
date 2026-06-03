@@ -3,25 +3,6 @@ import { dedupeGet } from './requestCache'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL
 
-const unwrap = (res) => {
-  const body = res?.data
-  if (body && typeof body === 'object') {
-    if (Object.prototype.hasOwnProperty.call(body, 'data') && (Object.prototype.hasOwnProperty.call(body, 'code') || Object.prototype.hasOwnProperty.call(body, 'message'))) {
-      return body.data
-    }
-    if (Object.prototype.hasOwnProperty.call(body, 'success')) {
-      if (body.success === false) {
-        const msg = body.message || 'Request failed'
-        const err = new Error(msg)
-        err.response = { status: res?.status, data: body }
-        throw err
-      }
-      return body.data ?? body
-    }
-  }
-  return body
-}
-
 const rethrow = (err) => {
   if (err?.response) {
     const { status, data } = err.response
@@ -80,12 +61,23 @@ const normalizeHistoryResponse = (data) => {
   return [data]
 }
 
-export const startExamSession = async ({ examId, deviceId }) => {
+export const initExamSession = async ({ examId, deviceId }) => {
   try {
     return await axiosClient.post(
-      `${API_URL}/exam-sessions/start`,
+      `${API_URL}/exam-sessions/init`,
       { examId, deviceId },
     )
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+// Backward-compatible alias for older call sites.
+export const startExamSession = initExamSession
+
+export const enterExamSession = async (sessionId) => {
+  try {
+    return await axiosClient.post(`${API_URL}/exam-sessions/${sessionId}/enter`, null)
   } catch (err) {
     rethrow(err)
   }
@@ -178,6 +170,65 @@ export const unflagExamSession = async (sessionId) => {
   }
 }
 
+export const manualApproveCheckin = async (attendanceId, base64Image) => {
+  try {
+    return await axiosClient.post(`${API_URL}/attendance/manual-approve/${attendanceId}`, {
+      base64Image,
+    })
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+export const manualRejectCheckin = async (attendanceId, reason) => {
+  try {
+    return await axiosClient.post(`${API_URL}/attendance/manual-reject/${attendanceId}`, null, {
+      params: { reason },
+    })
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+export const manualCheckin = async (examSessionId, base64Image, reason) => {
+  try {
+    return await axiosClient.post(`${API_URL}/attendance/manual-checkin`, {
+      examSessionId,
+      base64Image,
+      reason,
+    })
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+export const getPendingAttendances = async () => {
+  try {
+    return await dedupeGet(axiosClient, `${API_URL}/attendance/pending`)
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+export const getAttendanceBySession = async (sessionId) => {
+  try {
+    return await dedupeGet(axiosClient, `${API_URL}/attendance/session/${sessionId}`)
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+export const getAttendanceById = async (attendanceId) => {
+  try {
+    return await dedupeGet(axiosClient, `${API_URL}/attendance/${attendanceId}`)
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+// Explicit wrapper for the attendance detail endpoint used by the proctor popup.
+export const getAttendanceSession = getAttendanceBySession
+
 export const approveExamSession = async (sessionId) => {
   try {
     return await axiosClient.post(`${API_URL}/exam-sessions/${sessionId}/approve`, null)
@@ -208,6 +259,14 @@ export const getExamSessionVerificationHistory = async (sessionId) => {
   try {
     const res = await dedupeGet(axiosClient, `${API_URL}/exam-sessions/${sessionId}/verifications`)
     return normalizeHistoryResponse(res)
+  } catch (err) {
+    rethrow(err)
+  }
+}
+
+export const getExamSessionState = async (sessionId) => {
+  try {
+    return await dedupeGet(axiosClient, `${API_URL}/exam-sessions/${sessionId}/state`)
   } catch (err) {
     rethrow(err)
   }

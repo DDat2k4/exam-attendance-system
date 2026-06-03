@@ -31,16 +31,16 @@
 .col-full { flex: 1 1 100% }
 .stack-md { width:100% }
 
-@media (min-width: var(--bp-md)) {
+@media (min-width: 768px) {
   .stack-md { display: flex; gap: var(--space-md) }
   .stack-md > * { flex: 1 }
 }
 
 /* Visibility helpers */
 .hide-mobile { display: none }
-@media (min-width: var(--bp-md)) { .hide-mobile { display: initial } }
+@media (min-width: 768px) { .hide-mobile { display: initial } }
 .hide-desktop { display: initial }
-@media (min-width: var(--bp-md)) { .hide-desktop { display: none } }
+@media (min-width: 768px) { .hide-desktop { display: none } }
 
 img { max-width: 100%; height: auto; display: block }
 

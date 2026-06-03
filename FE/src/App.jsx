@@ -10,7 +10,6 @@ import ExamsPage from './pages/ExamHub/ExamsPage'
 import RegistrationsPage from './pages/ExamHub/RegistrationsPage'
 import ProctorPage from './pages/ExamHub/ProctorPage'
 import RoomsPage from './pages/ExamHub/RoomsPage'
-import StudentExamsPage from './pages/ExamHub/StudentExamsPage'
 import RBACOverviewPage from './pages/RBAC/RBACOverviewPage'
 import RBACRolesPage from './pages/RBAC/RBACRolesPage'
 import RBACPermissionsPage from './pages/RBAC/RBACPermissionsPage'
@@ -18,6 +17,7 @@ import RBACAssignmentsPage from './pages/RBAC/RBACAssignmentsPage'
 import RBACUsersPage from './pages/RBAC/RBACUsersPage'
 import ProfilePage from './pages/Profile/ProfilePage'
 import ChangePasswordPage from './pages/Profile/ChangePasswordPage'
+import { StudentExamsPage as StudentExamsPageRoute } from './pages/ExamHub/StudentExamsPage'
 
 function RootRedirect() {
   const { isAuthenticated, authLoading } = useAuth()
@@ -97,7 +97,7 @@ function App() {
           path="/exam-hub/student-exams"
           element={
             <ProtectedRoute allowRoles={['STUDENT']}>
-              <StudentExamsPage />
+              <StudentExamsPageRoute />
             </ProtectedRoute>
           }
         />

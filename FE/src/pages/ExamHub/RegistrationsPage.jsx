@@ -3,6 +3,7 @@ import { getAllExams } from '../../api/examApi'
 import RegistrationsSection from '../../components/ExamHub/RegistrationsSection'
 import useRegistrationSection from '../../hooks/useRegistrationSection'
 import { useAuth } from '../../context/AuthContext'
+import { formatExamLabel } from '../../utils/examLabel'
 import { canAccess } from '../../utils/rbac'
 import '../../components/ExamHub/ExamHub.css'
 
@@ -23,7 +24,7 @@ export default function RegistrationsPage() {
 
   const examOptions = exams.map((item) => ({
     id: item.id,
-    label: item.title || 'Untitled exam',
+    label: formatExamLabel(item),
   }))
 
   async function fetchExams() {

@@ -7,6 +7,7 @@ import { getExamRegistrationsByExam } from '../../api/examRegistrationApi'
 import { getUserProfiles } from '../../api/userProfileApi'
 import RoomsSection from '../../components/ExamHub/RoomsSection'
 import { useAuth } from '../../context/AuthContext'
+import { formatExamLabel } from '../../utils/examLabel'
 import { hasRole } from '../../utils/rbac'
 import { showConfirmDialog } from '../../utils/confirmDialog'
 import '../../components/ExamHub/ExamHub.css'
@@ -86,7 +87,7 @@ export default function RoomsPage() {
   const [success, setSuccess] = useState('')
 
   const examOptions = useMemo(
-    () => exams.map((item) => ({ id: item.id, label: item.title || 'Untitled exam' })),
+    () => exams.map((item) => ({ id: item.id, label: formatExamLabel(item) })),
     [exams],
   )
 
@@ -138,33 +139,6 @@ export default function RoomsPage() {
   const canCreateRooms = hasRole(user, 'ADMIN')
   const canManageRoomStudents = hasRole(user, 'ADMIN')
 
-  const loadRoomsForExam = async (examId) => {
-    const parsedExamId = Number(examId)
-
-    if (!Number.isInteger(parsedExamId) || parsedExamId <= 0) {
-      setRoomRows([])
-      setRoomPage(1)
-      return []
-    }
-
-    setRoomRows([])
-    setRoomPage(1)
-
-    const rooms = await getRoomsByExamAll(parsedExamId)
-    const matchedExam = exams.find((exam) => Number(exam.id) === parsedExamId)
-
-    const nextRows = (Array.isArray(rooms) ? rooms : []).map((room) => ({
-      examId: parsedExamId,
-      examTitle: matchedExam?.title || `${parsedExamId}`,
-      room,
-      roomId: room.id ?? room.roomId,
-    }))
-
-    setRoomRows(nextRows)
-    setRoomPage(1)
-    return nextRows
-  }
-
   async function fetchExams() {
     try {
       setLoading(true)
@@ -180,7 +154,7 @@ export default function RoomsPage() {
 
             return (Array.isArray(rooms) ? rooms : []).map((room) => ({
               examId: exam.id,
-              examTitle: exam.title,
+              examTitle: formatExamLabel(exam),
               room,
               roomId: room.id ?? room.roomId,
             }))

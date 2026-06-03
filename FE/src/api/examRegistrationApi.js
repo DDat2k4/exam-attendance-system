@@ -103,11 +103,11 @@ export const checkUserExamRegistration = async ({ userId, examId }) => {
   }
 }
 
-// GET /exam-registrations/my-exams?page=&size=
-export const getMyExamRegistrations = async ({ page = 1, size = 10 } = {}) => {
+// GET /exam-registrations/my-exams?page=&size=&examId=
+export const getMyExamRegistrations = async ({ page = 1, size = 10, examId } = {}) => {
   try {
     return await axiosClient.get(`${API_URL}/exam-registrations/my-exams`, {
-      params: { page, size },
+      params: { page, size, ...(examId !== undefined && examId !== null && examId !== '' ? { examId } : {}) },
     })
   } catch (err) {
     rethrow(err)

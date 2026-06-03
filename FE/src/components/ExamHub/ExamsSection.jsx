@@ -18,7 +18,6 @@ export default function ExamsSection({
   updatingExam,
   canCreateExams,
   canManageExams,
-  cancelEditExam,
   showExamFormModal,
   closeExamFormModal,
   canViewExams,
@@ -58,8 +57,8 @@ export default function ExamsSection({
                 className="exam-filter-input"
                 value={examKeyword}
                 onChange={(e) => setExamKeyword(e.target.value)}
-                placeholder="Tìm theo tên kỳ thi"
-                aria-label="Tìm theo tên kỳ thi"
+                placeholder="Tìm theo tên kỳ thi, mã kỳ thi hoặc mã học kỳ"
+                aria-label="Tìm theo tên kỳ thi, mã kỳ thi hoặc mã học kỳ"
               />
             </div>
             <button type="submit" className="tiny-btn exam-filter-button icon-only-btn" disabled={loading} aria-label="Tìm kiếm" title="Tìm kiếm">
@@ -78,6 +77,8 @@ export default function ExamsSection({
                   <tr>
                     <th>ID</th>
                     <th>Tiêu đề</th>
+                    <th>Mã môn thi</th>
+                    <th>Mã học kỳ</th>
                     <th>Người tạo</th>
                     <th>Bắt đầu</th>
                     <th>Kết thúc</th>
@@ -90,7 +91,9 @@ export default function ExamsSection({
                     <tr key={exam.id}>
                       <td>{exam.id}</td>
                       <td>{exam.title || '-'}</td>
-                      <td>{exam.createdByUserId ?? exam.createdByUsername ?? '-'}</td>
+                      <td>{exam.examCode || '-'}</td>
+                      <td>{exam.semester || '-'}</td>
+                      <td>{exam.createdByUsername || exam.createdByUserId || '-'}</td>
                       <td>{formatDateTime(exam.startTime)}</td>
                       <td>{formatDateTime(exam.endTime)}</td>
                       <td>{Array.isArray(exam.rooms) ? exam.rooms.length : 0}</td>
@@ -178,6 +181,18 @@ export default function ExamsSection({
                   <div className="exam-field exam-field--full">
                     <label htmlFor="title">Tên kỳ thi</label>
                     <input id="title" name="title" value={examForm.title} onChange={onExamChange} placeholder="VD: Midterm 2026" />
+                  </div>
+
+                  <div className="exam-field-row">
+                    <div className="exam-field exam-field--half">
+                      <label htmlFor="examCode">Mã môn thi</label>
+                      <input id="examCode" name="examCode" value={examForm.examCode} onChange={onExamChange} placeholder="VD: IT3200" />
+                    </div>
+
+                    <div className="exam-field exam-field--half">
+                      <label htmlFor="semester">Mã học kỳ</label>
+                      <input id="semester" name="semester" value={examForm.semester} onChange={onExamChange} placeholder="VD: 20251" />
+                    </div>
                   </div>
 
                   <div className="exam-field-row">

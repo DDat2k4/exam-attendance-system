@@ -54,6 +54,33 @@ const parseAlertPayload = (payload, fallbackRoomId) => {
   }
 }
 
+const parseSessionStatePayload = (payload) => {
+  try {
+    const parsed = JSON.parse(payload)
+    const status = String(parsed?.status || parsed?.sessionStatus || 'UNKNOWN').toUpperCase()
+
+    return {
+      type: status,
+      sessionId: parsed?.sessionId ?? null,
+      sessionStatus: status,
+      status,
+      flagged: Boolean(parsed?.flagged),
+      message: parsed?.message || 'Cập nhật trạng thái phiên thi.',
+      timestamp: parsed?.timestamp ?? Date.now(),
+    }
+  } catch {
+    return {
+      type: 'UNKNOWN',
+      sessionId: null,
+      sessionStatus: 'UNKNOWN',
+      status: 'UNKNOWN',
+      flagged: false,
+      message: 'Không thể đọc trạng thái phiên thi từ server.',
+      timestamp: Date.now(),
+    }
+  }
+}
+
 const toComparableId = (value) => {
   if (value === null || value === undefined || value === '') {
     return null
@@ -75,8 +102,10 @@ export const useExamSessionAlerts = ({ sessionId, roomId, userId, enabled = true
     const parsedRoomId = Number(roomId)
     const normalizedSessionId = toComparableId(sessionId)
     const normalizedUserId = toComparableId(userId)
+    const hasRoomSubscription = Number.isInteger(parsedRoomId) && parsedRoomId > 0 && normalizedSessionId
+    const hasSessionSubscription = Boolean(normalizedSessionId)
 
-    if (!enabled || !Number.isInteger(parsedRoomId) || parsedRoomId <= 0 || !normalizedSessionId) {
+    if (!enabled || (!hasRoomSubscription && !hasSessionSubscription)) {
       if (clientRef.current) {
         clientRef.current.deactivate()
         clientRef.current = null
@@ -86,7 +115,8 @@ export const useExamSessionAlerts = ({ sessionId, roomId, userId, enabled = true
     }
 
     const wsEndpoint = buildWsEndpoint(import.meta.env.VITE_API_BASE_URL)
-    const roomTopic = `/topic/room/${parsedRoomId}`
+    const roomTopic = hasRoomSubscription ? `/topic/room/${parsedRoomId}` : null
+    const sessionQueue = hasSessionSubscription ? '/user/queue/session' : null
     const token = localStorage.getItem('access_token')
 
     // initializing websocket
@@ -103,24 +133,35 @@ export const useExamSessionAlerts = ({ sessionId, roomId, userId, enabled = true
     client.onConnect = () => {
       setSocketStatus(SOCKET_STATUS.CONNECTED)
 
-      client.subscribe(roomTopic, (message) => {
-        const incomingAlert = parseAlertPayload(message.body, parsedRoomId)
-        const incomingSessionId = toComparableId(incomingAlert.sessionId)
-        const incomingUserId = toComparableId(incomingAlert.userId)
+      if (roomTopic) {
+        client.subscribe(roomTopic, (message) => {
+          const incomingAlert = parseAlertPayload(message.body, parsedRoomId)
+          const incomingSessionId = toComparableId(incomingAlert.sessionId)
+          const incomingUserId = toComparableId(incomingAlert.userId)
 
-        // websocket alert received
+          const sessionMatches = !incomingSessionId || incomingSessionId === normalizedSessionId
+          const userMatches = !incomingUserId || !normalizedUserId || incomingUserId === normalizedUserId
 
-        const sessionMatches = !incomingSessionId || incomingSessionId === normalizedSessionId
-        const userMatches = !incomingUserId || !normalizedUserId || incomingUserId === normalizedUserId
+          if (!sessionMatches || !userMatches) {
+            return
+          }
 
-        // filter check
+          onAlertRef.current?.(incomingAlert)
+        })
+      }
 
-        if (!sessionMatches || !userMatches) {
-          return
-        }
+      if (sessionQueue) {
+        client.subscribe(sessionQueue, (message) => {
+          const incomingState = parseSessionStatePayload(message.body)
+          const incomingSessionId = toComparableId(incomingState.sessionId)
 
-        onAlertRef.current?.(incomingAlert)
-      })
+          if (incomingSessionId && incomingSessionId !== normalizedSessionId) {
+            return
+          }
+
+          onAlertRef.current?.(incomingState)
+        })
+      }
     }
 
     client.onStompError = (error) => {

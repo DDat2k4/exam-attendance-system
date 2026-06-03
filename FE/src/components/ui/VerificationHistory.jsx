@@ -31,9 +31,10 @@ export default function VerificationHistory({ history = [], loading = false }) {
     UNFLAGGED: 'Đã bỏ cờ',
     PENDING: 'Chờ xử lý',
     PENDING_REVIEW: 'Chờ duyệt',
+    PENDING_VERIFY_REVIEW: 'Chờ duyệt xác minh',
   }
 
-  const formatLabel = (value, mapping) => mapping[String(value || '').toUpperCase()] || value || 'UNKNOWN'
+  const formatLabel = (value, mapping) => mapping[String(value || '').toUpperCase()] || value || ''
 
   const formatDate = (dateString) => {
     if (!dateString) return '-'
@@ -62,7 +63,7 @@ export default function VerificationHistory({ history = [], loading = false }) {
   const getStatusBadge = (entry) => {
     const status = getStatusText(entry)
     const isSuccess = status === 'VERIFIED' || status === 'PASS' || status === 'SUCCESS' || status === 'APPROVED'
-    const isPending = status === 'PENDING' || status === 'PENDING_REVIEW'
+    const isPending = status === 'PENDING' || status === 'PENDING_REVIEW' || status === 'PENDING_VERIFY_REVIEW'
 
     const label = getSessionStatusLabel(status) || formatLabel(status, STATUS_LABELS)
 
@@ -93,7 +94,7 @@ export default function VerificationHistory({ history = [], loading = false }) {
           <div className="verification-card-header">
             <div className="header-left">
               <span className="attempt-badge">Lần {entry.attemptNo || index + 1}</span>
-              <span className={`type-badge type-${(entry.type || 'UNKNOWN').toLowerCase()}`}>
+              <span className={`type-badge type-${(entry.type || '').toLowerCase()}`}>
                 {formatLabel(entry.type, TYPE_LABELS)}
               </span>
             </div>

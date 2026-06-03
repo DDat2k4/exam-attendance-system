@@ -30,15 +30,30 @@ export const getDeviceId = () => {
  */
 export const requestCameraAccess = async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
+    const preferredConstraints = {
       video: {
         width: { ideal: 1280 },
         height: { ideal: 720 },
         facingMode: 'user',
       },
       audio: false,
-    })
-    return stream
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(preferredConstraints)
+      return stream
+    } catch (primaryErr) {
+      // Fallback for devices/browsers that cannot satisfy facingMode constraint.
+      const fallbackConstraints = {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      }
+      const stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints)
+      return stream
+    }
   } catch (err) {
     const message =
       err.name === 'NotAllowedError'

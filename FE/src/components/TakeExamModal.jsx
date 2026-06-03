@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { endExamSession, getExamSessionById } from '../api/examSessionApi'
+import {
+  endExamSession,
+  enterExamSession,
+  getExamSessionState,
+} from '../api/examSessionApi'
 import FaceVerification from './ui/FaceVerification'
 import ExamProctor from './ui/ExamProctor'
 import { useAuth } from '../context/AuthContext'
 import { useExamSessionAlerts } from '../hooks/useExamSessionAlerts'
 import { showConfirmDialog } from '../utils/confirmDialog'
-import { isApprovedSessionStatus, normalizeSessionStatus, getSessionStatusLabel } from '../utils/examSessionStatus'
+import { formatExamLabel } from '../utils/examLabel'
+import { normalizeSessionStatus } from '../utils/examSessionStatus'
 import './TakeExamModal.css'
 
 const verificationFlowCards = [
@@ -34,7 +39,7 @@ const verificationFlowCards = [
  */
 export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamEnded }) {
   const { user } = useAuth()
-  const [step, setStep] = useState('instructions') // instructions, verification, exam, ended
+  const [step, setStep] = useState('instructions') // instructions, verification, ready, exam, ended
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [examResult, setExamResult] = useState(null)
   const [realtimeNotice, setRealtimeNotice] = useState(null)
@@ -42,6 +47,8 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
   const [deviceApprovalWaiting, setDeviceApprovalWaiting] = useState(false)
   const [verificationClearedAt, setVerificationClearedAt] = useState(null)
   const [externalFailures, setExternalFailures] = useState(0)
+  const [enteringExam, setEnteringExam] = useState(false)
+  const [sessionState, setSessionState] = useState(null)
   const endSessionCalledRef = useRef(false)
   const stepRef = useRef(step)
 
@@ -64,6 +71,15 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
       }
     }
 
+    if (status === 'PENDING_VERIFY_REVIEW') {
+      return {
+        variant: 'warning',
+        title: 'Đang chờ duyệt xác minh',
+        message:
+          message || 'Bạn đã xác minh không thành công nhiều lần. Vui lòng chờ giám thị duyệt để tiếp tục.',
+      }
+    }
+
     return {
       variant: 'warning',
       title: 'Đang chờ giám thị duyệt',
@@ -71,6 +87,91 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
         message || 'Phiên thi đã được chuyển sang trạng thái chờ xử lý. Khi giám thị duyệt, hệ thống sẽ tự mở lại phiên thi.',
     }
   }, [])
+
+  useEffect(() => {
+    if (!examId) return
+
+    let active = true
+
+    const syncSessionState = async () => {
+      try {
+        const state = await getExamSessionState(examId)
+        if (!active) return
+        setSessionState(state || null)
+
+        const status = normalizeSessionStatus(state?.sessionStatus)
+        if (status === 'IN_PROGRESS') {
+          setStep('exam')
+          return
+        }
+
+        if (state?.canEnterExam) {
+          setStep('ready')
+          setRealtimeNotice({
+            variant: 'success',
+            title: 'Đủ điều kiện vào thi',
+            message: state?.message || 'Bạn đã hoàn tất điều kiện vào thi. Bấm "Vào thi" để bắt đầu tính giờ làm bài.',
+          })
+          return
+        }
+
+        if (state?.blocked || status === 'BLOCKED' || status === 'DONE') {
+          setStep('ended')
+          setExamResult({ status: status || 'BLOCKED', message: state?.message || 'Phiên thi đã kết thúc.' })
+          return
+        }
+
+        if (
+          state?.waitingProctor ||
+          status === 'PENDING_REVIEW' ||
+          status === 'PENDING_DEVICE_APPROVAL' ||
+          status === 'PENDING_VERIFY_REVIEW'
+        ) {
+          setStep('verification')
+          setVerificationWaiting(true)
+          setDeviceApprovalWaiting(status === 'PENDING_DEVICE_APPROVAL')
+          setRealtimeNotice(getPendingReviewNotice(status || 'PENDING_REVIEW', state?.message))
+          return
+        }
+
+        if (status === 'CHECKED_IN') {
+          setStep('verification')
+          setRealtimeNotice({
+            variant: 'info',
+            title: 'Đã điểm danh ngoài phòng',
+            message: state?.message || 'Bạn đã điểm danh. Vui lòng xác minh khuôn mặt để được vào thi.',
+          })
+          return
+        }
+
+        if (status === 'INIT' || normalizeSessionStatus(state?.attendanceStatus) !== 'VERIFIED') {
+          setStep('instructions')
+          setRealtimeNotice({
+            variant: 'warning',
+            title: 'Chưa điểm danh',
+            message: state?.message || 'Bạn chưa được giám thị điểm danh ngoài phòng thi nên chưa thể vào thi.',
+          })
+          return
+        }
+
+        setStep('instructions')
+      } catch {
+        // Keep the local default step if sync fails.
+      }
+    }
+
+    void syncSessionState()
+
+    return () => {
+      active = false
+    }
+  }, [examId, getPendingReviewNotice])
+
+  const canStartInitialVerification = useMemo(() => {
+    const status = normalizeSessionStatus(sessionState?.sessionStatus)
+    const attendanceStatus = normalizeSessionStatus(sessionState?.attendanceStatus)
+    return status === 'CHECKED_IN' || attendanceStatus === 'VERIFIED'
+  }, [sessionState])
 
   const isApprovalBlocked = useCallback(
     () => verificationWaiting || deviceApprovalWaiting,
@@ -106,20 +207,28 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
   )
 
   const handleSocketAlert = useCallback(
-    (alert) => {
+    async (alert) => {
       const alertType = String(alert?.type || '').toUpperCase()
+      const sessionStatus = normalizeSessionStatus(alert?.sessionStatus || alert?.status)
       const message = alert?.message || 'Có cập nhật mới từ giám thị.'
       const normalizedMessage = String(message || '').toLowerCase()
+      const looksPendingMessage =
+        normalizedMessage.includes('đang chờ') ||
+        normalizedMessage.includes('chờ giám thị') ||
+        normalizedMessage.includes('pending')
       
       const looksApproved =
         alertType === 'APPROVED' ||
         alertType === 'DEVICE_APPROVAL_ACCEPTED' ||
         alertType === 'PENDING_REVIEW_APPROVED' ||
         alertType === 'SESSION_RESUMED' ||
-        normalizedMessage.includes('đã được duyệt') ||
-        normalizedMessage.includes('đã được giám thị duyệt') ||
-        normalizedMessage.includes('giám thị đã duyệt') ||
-        normalizedMessage.includes('phê duyệt')
+        (!looksPendingMessage && (
+          normalizedMessage.includes('đã được duyệt') ||
+          normalizedMessage.includes('đã được giám thị duyệt') ||
+          normalizedMessage.includes('giám thị đã duyệt') ||
+          normalizedMessage.includes('đã phê duyệt') ||
+          normalizedMessage.includes('được phê duyệt')
+        ))
       const looksRejected =
         alertType === 'REJECTED' ||
         alertType === 'DEVICE_APPROVAL_REJECTED' ||
@@ -132,7 +241,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
         // fuzzy match check
       }
 
-      if (alertType === 'PENDING_REVIEW' || alertType === 'PENDING_DEVICE_APPROVAL') {
+      if (alertType === 'PENDING_REVIEW' || alertType === 'PENDING_DEVICE_APPROVAL' || alertType === 'PENDING_VERIFY_REVIEW') {
         setVerificationWaiting(true)
         setDeviceApprovalWaiting(alertType === 'PENDING_DEVICE_APPROVAL')
         setRealtimeNotice(getPendingReviewNotice(alertType, message))
@@ -140,28 +249,77 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
         // Also check current status in case it was already approved
         if (examId) {
           setTimeout(() => {
-            getExamSessionById(examId)
-              .then((session) => {
-                const status = normalizeSessionStatus(
-                  session?.examSessionStatus ?? session?.status ?? session ?? ''
-                )
-                if (isApprovedSessionStatus(status)) {
+            getExamSessionState(examId)
+              .then((state) => {
+                setSessionState(state || null)
+                const status = normalizeSessionStatus(state?.sessionStatus)
+                if (status === 'CHECKED_IN') {
                   setVerificationWaiting(false)
                   setDeviceApprovalWaiting(false)
-                  setVerificationClearedAt(Date.now())
                   setExternalFailures(0)
                   setRealtimeNotice({
                     variant: 'success',
                     title: 'Giám thị đã duyệt',
-                    message: 'Giám thị đã duyệt phiên thi. Bắt đầu vào thi ngay bây giờ.',
+                    message: state?.canEnterExam
+                      ? 'Giám thị đã duyệt. Bạn có thể vào thi ngay.'
+                      : 'Giám thị đã duyệt. Vui lòng xác minh khuôn mặt lại để vào thi.',
                   })
                   if (stepRef.current === 'verification') {
-                    setStep('exam')
+                    setStep(state?.canEnterExam ? 'ready' : 'verification')
                   }
                 }
               })
               .catch(() => {})
           }, 500)
+        }
+
+        return
+      }
+
+      if (sessionStatus === 'CHECKED_IN' || sessionStatus === 'IN_PROGRESS') {
+        setSessionState((prev) => ({
+          ...(prev || {}),
+          sessionStatus,
+          message,
+        }))
+        setVerificationWaiting(false)
+        setDeviceApprovalWaiting(false)
+        setVerificationClearedAt(Date.now())
+        setRealtimeNotice({
+          variant: 'success',
+          title: 'Giám thị đã duyệt',
+          message:
+            sessionStatus === 'IN_PROGRESS'
+              ? 'Giám thị đã duyệt phiên thi. Phiên đã vào trạng thái làm bài.'
+              : 'Giám thị đã duyệt phiên thi. Bạn có thể vào thi ngay.',
+        })
+
+        if (sessionStatus === 'IN_PROGRESS') {
+          if (stepRef.current === 'verification') {
+            setStep('exam')
+          }
+          return
+        }
+
+        if (sessionStatus === 'CHECKED_IN') {
+          const state = await getExamSessionState(examId)
+          setSessionState(state || null)
+
+          if (state?.canEnterExam) {
+            await enterExamSession(examId)
+            setVerificationClearedAt(Date.now())
+            setStep('exam')
+            setExamResult((prev) => ({
+              ...(prev || {}),
+              status: 'IN_PROGRESS',
+              message: state?.message || 'Giám thị đã duyệt. Phiên thi đã được mở tự động.',
+            }))
+            return
+          }
+
+          if (stepRef.current === 'verification') {
+            setStep('ready')
+          }
         }
 
         return
@@ -242,16 +400,18 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
         setRealtimeNotice({
           variant: 'success',
           title: 'Giám thị đã duyệt',
-          message: 'Giám thị đã duyệt phiên thi. Bắt đầu vào thi ngay bây giờ.',
+          message: 'Giám thị đã duyệt phiên thi. Nếu chưa xác minh khuôn mặt, vui lòng xác minh trước khi vào thi.',
         })
         
-        if (stepRef.current === 'verification') {
-          setStep('exam')
-        }
-        
-        // Cũng fetch status để log
         if (examId) {
-          getExamSessionById(examId).catch(() => {})
+          getExamSessionState(examId)
+            .then((state) => {
+              setSessionState(state || null)
+              if (stepRef.current === 'verification') {
+                setStep(state?.canEnterExam ? 'ready' : 'verification')
+              }
+            })
+            .catch(() => {})
         }
         return
       }
@@ -295,7 +455,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
         message: message || 'Có cập nhật mới từ hệ thống giám sát.',
       })
     },
-    [handleExamEnded],
+    [examId, getPendingReviewNotice, handleExamEnded],
   )
 
   const { socketStatus } = useExamSessionAlerts({
@@ -314,41 +474,16 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
 
   useEffect(() => {}, [externalFailures])
 
-  // Poll session status while waiting for proctor approval — auto transition if approved
-  useEffect(() => {
-    if (!verificationWaiting || !examId) {
+  const handleStartVerification = () => {
+    if (!canStartInitialVerification) {
+      setRealtimeNotice({
+        variant: 'warning',
+        title: 'Chưa điểm danh',
+        message: sessionState?.message || 'Bạn chưa được giám thị điểm danh ngoài phòng thi nên chưa thể xác minh khuôn mặt.',
+      })
       return
     }
 
-    const pollInterval = setInterval(async () => {
-      try {
-        const session = await getExamSessionById(examId)
-        const sessionStatus = normalizeSessionStatus(session?.examSessionStatus)
-
-        // If proctor approved (status changed to CHECKED_IN/IN_PROGRESS), auto transition to exam
-        if (isApprovedSessionStatus(sessionStatus)) {
-          setVerificationWaiting(false)
-          setDeviceApprovalWaiting(false)
-          setVerificationClearedAt(Date.now())
-          setRealtimeNotice({
-            variant: 'success',
-            title: 'Giám thị đã duyệt',
-            message: 'Giám thị đã duyệt phiên thi. Bắt đầu vào thi ngay bây giờ.',
-          })
-          if (stepRef.current === 'verification') {
-            setStep('exam')
-          }
-        }
-      } catch (err) {
-        console.error('Error polling approval status:', err.message)
-      }
-    }, 1000) // Poll every 1 second
-    return () => {
-      clearInterval(pollInterval)
-    }
-  }, [verificationWaiting, examId])
-
-  const handleStartVerification = () => {
     setRealtimeNotice(null)
     setVerificationWaiting(false)
     setDeviceApprovalWaiting(false)
@@ -358,15 +493,75 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
   const handleVerificationSuccess = (result) => {
     setVerificationWaiting(false)
     setDeviceApprovalWaiting(false)
-    setExamResult({ status: 'VERIFIED', message: 'Xác minh khuôn mặt thành công', result })
-    setStep('exam')
+    setExamResult({ status: 'CHECKED_IN', message: 'Xác minh khuôn mặt thành công. Bạn có thể vào thi.', result })
+    // Clear initial verification failures so they don't count for random checks
+    setExternalFailures(0)
+    setStep('ready')
+    setRealtimeNotice({
+      variant: 'success',
+      title: 'Check-in thành công',
+      message: 'Bạn đã được điểm danh. Bấm "Vào thi" để bắt đầu làm bài.',
+    })
   }
 
-  const handleVerificationPending = (status, attempt) => {
+  const handleEnterExam = useCallback(async () => {
+    if (!examId || enteringExam) return
+
+    try {
+      setEnteringExam(true)
+      setRealtimeNotice(null)
+      // Use backend session state API to determine whether student can enter.
+      const state = await getExamSessionState(examId)
+      setSessionState(state || null)
+
+      if (state?.blocked) {
+        setRealtimeNotice({
+          variant: 'danger',
+          title: 'Phiên thi bị khóa',
+          message: state?.message || 'Phiên thi đã bị khóa và không thể tiếp tục.',
+        })
+        return
+      }
+
+      if (!state?.canEnterExam) {
+        // Show explicit notice and include backend message if present.
+        if (state?.waitingProctor) {
+          setRealtimeNotice(getPendingReviewNotice(state?.sessionStatus || 'PENDING_REVIEW', state?.message))
+        } else {
+          const msg = state?.message || 'Bạn chưa hoàn tất điều kiện vào thi. Vui lòng điểm danh và xác minh khuôn mặt.'
+          setRealtimeNotice({
+            variant: 'danger',
+            title: 'Chưa được điểm danh',
+            message: msg,
+          })
+        }
+        return
+      }
+
+      await enterExamSession(examId)
+      setVerificationClearedAt(Date.now())
+      setStep('exam')
+      setExamResult((prev) => ({
+        ...(prev || {}),
+        status: 'IN_PROGRESS',
+        message: 'Phiên thi đã được mở. Timer đang chạy.',
+      }))
+    } catch (err) {
+      setRealtimeNotice({
+        variant: 'danger',
+        title: 'Không thể vào thi',
+        message: err?.message || 'Không thể bắt đầu làm bài vào lúc này.',
+      })
+    } finally {
+      setEnteringExam(false)
+    }
+  }, [enteringExam, examId])
+
+  const handleVerificationPending = (status, attempt, message) => {
     const nextStatus = String(status || 'PENDING_REVIEW').toUpperCase()
     setVerificationWaiting(true)
     setDeviceApprovalWaiting(nextStatus === 'PENDING_DEVICE_APPROVAL')
-    setRealtimeNotice(getPendingReviewNotice(nextStatus))
+    setRealtimeNotice(getPendingReviewNotice(nextStatus, message))
 
     // Sync external failure count from FaceVerification if provided
     if (typeof attempt === 'number') {
@@ -378,15 +573,18 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
     // Also do a quick status check to ensure we sync with backend
     if (examId) {
       setTimeout(() => {
-        getExamSessionById(examId)
-          .then((session) => {
-            const sessionStatus = normalizeSessionStatus(session?.examSessionStatus)
-            // quick check - no auto-approve
-          })
+        getExamSessionState(examId)
+          .then((state) => setSessionState(state || null))
           .catch(() => {})
       }, 500)
     }
   }
+
+  const handleAttemptUpdate = useCallback((attempt) => {
+    if (typeof attempt === 'number') {
+      setExternalFailures(attempt)
+    }
+  }, [])
 
   const handleVerificationFailed = (reason = 'Xác minh khuôn mặt thất bại') => {
     setStep('ended')
@@ -438,7 +636,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
             )}
 
               <div className="exam-info">
-              <h3>{exam?.title || 'Kỳ Thi'}</h3>
+              <h3>{formatExamLabel(exam)}</h3>
               {exam?.description && <p className="description">{exam.description}</p>}
               {roomInfo?.roomId && (
                 <p className="description">
@@ -492,9 +690,10 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
               <button
                 className="btn-start"
                 onClick={handleStartVerification}
-                disabled={!isConfirmed}
+                disabled={!isConfirmed || !canStartInitialVerification}
+                title={!canStartInitialVerification ? 'Bạn cần được điểm danh ngoài phòng thi trước.' : ''}
               >
-                Bắt Đầu Xác Minh
+                {canStartInitialVerification ? 'Bắt Đầu Xác Minh' : 'Chưa Điểm Danh'}
               </button>
               <button className="btn-cancel" onClick={handleClose}>
                 Hủy
@@ -521,14 +720,68 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
             onVerified={handleVerificationSuccess}
             onFailed={handleVerificationFailed}
             onPending={handleVerificationPending}
-            onAttempt={(attempt) => {
-                if (typeof attempt === 'number') {
-                  setExternalFailures(attempt)
-                }
-              }}
+            onAttempt={handleAttemptUpdate}
             onClose={handleClose}
           />
         </>
+      )}
+
+      {step === 'ready' && (
+        <div className="take-exam-modal">
+          <div className="modal-header">
+            <h2>Đã Sẵn Sàng Vào Thi</h2>
+            <span className={`socket-status socket-status--${socketStatus.toLowerCase()}`}>
+              {socketStatus === 'CONNECTED'
+                ? 'Realtime: đã kết nối'
+                : socketStatus === 'CONNECTING'
+                  ? 'Realtime: đang kết nối'
+                  : socketStatus === 'ERROR'
+                    ? 'Realtime: lỗi kết nối'
+                    : 'Realtime: chờ kết nối'}
+            </span>
+            <button className="modal-close" onClick={handleClose}>
+              ×
+            </button>
+          </div>
+
+          <div className="modal-content">
+            {realtimeNotice && (
+              <div className={`realtime-notice realtime-notice--${realtimeNotice.variant}`}>
+                <strong>{realtimeNotice.title}</strong>
+                <span>{realtimeNotice.message}</span>
+              </div>
+            )}
+
+            <div className="exam-info">
+              <h3>{formatExamLabel(exam)}</h3>
+              {exam?.description && <p className="description">{exam.description}</p>}
+              {roomInfo?.roomId && (
+                <p className="description">
+                  Phòng thi: {roomInfo.roomName || roomInfo.roomCode || roomInfo.roomId}
+                  {roomInfo.seatNumber != null ? ` · Ghế ${roomInfo.seatNumber}` : ''}
+                </p>
+              )}
+            </div>
+
+            <div className="instructions">
+              <h4>Trạng thái hiện tại</h4>
+              <ul>
+                <li>Bạn đã check-in thành công.</li>
+                <li>Timer thi chỉ bắt đầu sau khi bấm Vào thi.</li>
+                <li>Nếu đổi thiết bị hoặc bị gắn cờ, phiên có thể tạm dừng để giám thị duyệt lại.</li>
+              </ul>
+            </div>
+
+            <div className="button-group">
+              <button className="btn-start" onClick={handleEnterExam} disabled={enteringExam}>
+                {enteringExam ? 'Đang vào thi...' : 'Vào thi'}
+              </button>
+              <button className="btn-cancel" onClick={handleClose}>
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {step === 'exam' && (
@@ -547,7 +800,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
             verificationWaiting={verificationWaiting}
             deviceApprovalWaiting={deviceApprovalWaiting}
             verificationClearedAt={verificationClearedAt}
-            externalFailures={externalFailures}
+            externalFailures={step === 'exam' ? externalFailures : 0}
           />
         </div>
       )}

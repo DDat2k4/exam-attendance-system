@@ -33,6 +33,7 @@ export const verifyIdentity = async (request) => {
       if (
         sessionStatus === 'PENDING_REVIEW' ||
         sessionStatus === 'PENDING_DEVICE_APPROVAL' ||
+        sessionStatus === 'PENDING_VERIFY_REVIEW' ||
         sessionStatus === 'BLOCKED' ||
         sessionStatus === 'NOT_ACTIVE'
       ) {

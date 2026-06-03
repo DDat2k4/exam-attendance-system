@@ -55,7 +55,7 @@ export default function PermissionsSection({
     const groups = new Map()
 
     filteredPermissions.forEach((permission) => {
-      const resource = String(permission?.resource || 'UNKNOWN').trim() || 'UNKNOWN'
+      const resource = String(permission?.resource || '').trim() || ''
       const current = groups.get(resource) || {
         resource,
         permissions: [],

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { requestCameraAccess, captureFrame, getDeviceInfo } from '../../utils/faceCapture'
 import { getExamSessionById } from '../../api/examSessionApi'
 import { verifyIdentity } from '../../api/verificationApi'
-import { flagExamSession } from '../../api/examSessionApi'
 import './FaceVerification.css'
 
 export default function FaceVerification({ examSessionId, onVerified, onFailed, onPending, onAttempt, onClose }) {
@@ -12,79 +11,169 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [attempts, setAttempts] = useState(0)
+  const [maxAttempts, setMaxAttempts] = useState(3)
+  const [remainingAttempts, setRemainingAttempts] = useState(3)
   const [verificationResult, setVerificationResult] = useState(null)
   const [awaitingProctorApproval, setAwaitingProctorApproval] = useState(false)
-  const MAX_ATTEMPTS = 3
   const streamRef = useRef(null)
+  const onAttemptRef = useRef(onAttempt)
+  const onPendingRef = useRef(onPending)
+  const confidence = Number(verificationResult?.confidence)
+  const hasValidConfidence = Number.isFinite(confidence) && confidence >= 0
+
+  useEffect(() => {
+    onAttemptRef.current = onAttempt
+  }, [onAttempt])
+
+  useEffect(() => {
+    onPendingRef.current = onPending
+  }, [onPending])
+
+  const attachStreamToVideo = async (stream) => {
+    if (!videoRef.current || !stream) return false
+
+    if (videoRef.current.srcObject !== stream) {
+      videoRef.current.srcObject = stream
+    }
+
+    try {
+      await videoRef.current.play()
+    } catch {
+      // Some browsers block autoplay until metadata is loaded or user interaction.
+    }
+
+    return true
+  }
 
   // Initialize camera
   useEffect(() => {
-    const initCamera = async () => {
-      try {
-        setMessage('Đang yêu cầu quyền truy cập camera...')
-        const stream = await requestCameraAccess()
-        streamRef.current = stream
+    let cancelled = false
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          setCameraActive(true)
-          setMessage('')
-        }
-      } catch (err) {
-        setError(err.message)
-        setMessage('')
+    const stopStream = () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop())
+        streamRef.current = null
       }
     }
 
-    initCamera()
+    const shouldLockCameraByStatus = (session) => {
+      const sessionStatus = String(session?.examSessionStatus || session?.status || '').toUpperCase()
+      return sessionStatus === 'PENDING_DEVICE_APPROVAL' || sessionStatus === 'PENDING_REVIEW' || sessionStatus === 'PENDING_VERIFY_REVIEW'
+    }
 
-    // Sync session status/attempts and detect device mismatch on mount
     const syncSession = async () => {
-      if (!examSessionId) return
+      if (!examSessionId) return null
       try {
         const session = await getExamSessionById(examSessionId)
-        const serverAttempt = Number(session?.attemptNo ?? session?.attempt ?? session?.attemptNo)
+        if (cancelled) return null
+
+        const serverAttempt = Number(session?.attempt ?? session?.attemptCount)
         if (Number.isInteger(serverAttempt) && serverAttempt >= 0) {
           setAttempts(serverAttempt)
-          onAttempt?.(serverAttempt)
+          onAttemptRef.current?.(serverAttempt)
+        }
+
+        const serverMaxAttempt = Number(session?.maxAttempt ?? session?.maxAttempts)
+        if (Number.isInteger(serverMaxAttempt) && serverMaxAttempt > 0) {
+          setMaxAttempts(serverMaxAttempt)
+        }
+
+        const serverRemainingAttempt = Number(session?.remainingAttempt ?? session?.remainingAttempts)
+        if (Number.isInteger(serverRemainingAttempt) && serverRemainingAttempt >= 0) {
+          setRemainingAttempts(serverRemainingAttempt)
         }
 
         const sessionStatus = String(session?.examSessionStatus || session?.status || '').toUpperCase()
         const approvedStates = ['CHECKED_IN', 'IN_PROGRESS', 'APPROVED']
+
         if (sessionStatus === 'PENDING_DEVICE_APPROVAL') {
           setAwaitingProctorApproval(true)
-          setError('Thiết bị đã thay đổi — chờ giám thị xác nhận')
-          onPending?.('PENDING_DEVICE_APPROVAL', serverAttempt)
-        } else if (sessionStatus === 'PENDING_REVIEW') {
+          const backendMsg = session?.message || ''
+          setMessage('')
+          setError(backendMsg || 'Thiết bị đã thay đổi — chờ giám thị xác nhận')
+          onPendingRef.current?.('PENDING_DEVICE_APPROVAL', serverAttempt, backendMsg)
+        } else if (sessionStatus === 'PENDING_REVIEW' || sessionStatus === 'PENDING_VERIFY_REVIEW') {
           setAwaitingProctorApproval(true)
-          setError('Phiên đang chờ giám thị duyệt')
-          onPending?.('PENDING_REVIEW', serverAttempt)
+          const backendMsg = session?.message || ''
+          setMessage('')
+          setError(backendMsg || 'Phiên đang chờ giám thị duyệt xác minh')
+          onPendingRef.current?.(sessionStatus, serverAttempt, backendMsg)
         } else {
           // detect local device mismatch compared to stored session deviceId
           try {
             const localDeviceId = getDeviceInfo().deviceId
             const serverDeviceId = session?.deviceId || session?.device_id || null
-            // Only consider device mismatch as pending when the session is NOT already approved/checked-in
             if (!approvedStates.includes(sessionStatus) && localDeviceId && serverDeviceId && String(localDeviceId) !== String(serverDeviceId)) {
               setAwaitingProctorApproval(true)
+              setMessage('')
               setError('Phát hiện đổi thiết bị — chờ giám thị duyệt')
-              onPending?.('PENDING_DEVICE_APPROVAL', serverAttempt)
+              onPendingRef.current?.('PENDING_DEVICE_APPROVAL', serverAttempt)
             }
-          } catch {}
+          } catch {
+            // ignore device comparison errors
+          }
+        }
+
+        return session
+      } catch {
+        // ignore sync errors
+        return null
+      }
+    }
+
+    const initCamera = async () => {
+      try {
+        setError('')
+        setCameraActive(false)
+        setMessage('Đang yêu cầu quyền truy cập camera...')
+
+        const session = await syncSession()
+        if (cancelled) return
+
+        if (shouldLockCameraByStatus(session)) {
+          setCameraActive(false)
+          setMessage('')
+          stopStream()
+          return
+        }
+
+        const stream = await requestCameraAccess()
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
+
+        streamRef.current = stream
+        setCameraActive(true)
+        setMessage('')
+
+        const attached = await attachStreamToVideo(stream)
+        if (!attached) {
+          // Retry attaching shortly in case ref is not ready yet.
+          setTimeout(() => {
+            void attachStreamToVideo(stream)
+          }, 100)
         }
       } catch (err) {
-        // ignore sync errors
+        setCameraActive(false)
+        setError(err.message)
+        setMessage('')
       }
     }
 
-    void syncSession()
+    void initCamera()
 
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop())
-      }
+      cancelled = true
+      stopStream()
     }
-  }, [])
+  }, [examSessionId])
+
+  // Keep video element synced with stream in case DOM re-renders while stream is alive.
+  useEffect(() => {
+    if (!streamRef.current) return
+    void attachStreamToVideo(streamRef.current)
+  }, [cameraActive])
 
   // Handle verification
   const handleVerify = async () => {
@@ -94,7 +183,7 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
     }
 
     // Prevent further attempts if we already hit max attempts or waiting for proctor
-    if (attempts >= MAX_ATTEMPTS || awaitingProctorApproval) {
+    if (attempts >= maxAttempts || awaitingProctorApproval) {
       setAwaitingProctorApproval(true)
       setError('Bạn đã vượt quá số lần xác minh. Phiên đang chờ giám thị duyệt')
       return
@@ -128,36 +217,50 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
 
       setVerificationResult(response)
 
+      if (Number.isInteger(response?.maxAttempt) && response.maxAttempt > 0) {
+        setMaxAttempts(response.maxAttempt)
+      }
+
+      if (Number.isInteger(response?.remainingAttempt) && response.remainingAttempt >= 0) {
+        setRemainingAttempts(response.remainingAttempt)
+      }
+
       // Use attempt from backend to keep FE in sync
       if (typeof response.attempt === 'number') {
         setAttempts(response.attempt)
-        onAttempt?.(response.attempt)
+        onAttemptRef.current?.(response.attempt)
       }
 
       // Handle session status from backend
       const status = (response.sessionStatus || '').toUpperCase()
 
       if (status === 'PENDING_DEVICE_APPROVAL') {
-        setError('Thiết bị đã thay đổi — chờ giám thị xác nhận')
+        const backendMsg = response?.message || ''
+        setVerificationResult(null)
+        setError(backendMsg || 'Thiết bị đã thay đổi — chờ giám thị xác nhận')
         setMessage('')
         setAwaitingProctorApproval(true)
         setLoading(false)
-        onPending?.('PENDING_DEVICE_APPROVAL', response?.attempt)
-        if (typeof response?.attempt === 'number') onAttempt?.(response.attempt)
+        onPendingRef.current?.('PENDING_DEVICE_APPROVAL', response?.attempt, backendMsg)
+        if (typeof response?.attempt === 'number') onAttemptRef.current?.(response.attempt)
         return
       }
 
-      if (status === 'PENDING_REVIEW') {
-        setError('Phiên đang chờ giám thị duyệt')
+      if (status === 'PENDING_REVIEW' || status === 'PENDING_VERIFY_REVIEW') {
+        const backendMsg = response?.message || ''
+        setVerificationResult(null)
+        setError(backendMsg || 'Phiên đang chờ giám thị duyệt xác minh')
         setMessage('')
         setAwaitingProctorApproval(true)
-        onPending?.('PENDING_REVIEW', response?.attempt)
-        if (typeof response?.attempt === 'number') onAttempt?.(response.attempt)
+        onPendingRef.current?.(status, response?.attempt, backendMsg)
+        if (typeof response?.attempt === 'number') onAttemptRef.current?.(response.attempt)
         return
       }
 
       if (status === 'BLOCKED') {
-        setError('Phiên thi đã bị khóa')
+        const backendMsg = response?.message || ''
+        setVerificationResult(null)
+        setError(backendMsg || 'Phiên thi đã bị khóa')
         setMessage('')
         onFailed?.('BLOCKED')
         return
@@ -169,46 +272,42 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
         if (isReconnect) {
           setMessage(`✓ Reconnected — vào lại phiên thành công.`)
         } else {
-          setMessage(`✓ Xác minh thành công! Độ tin cậy: ${pct}%`)
+          setMessage(`✓ Check-in thành công! Độ tin cậy: ${pct}%`)
         }
 
         setTimeout(() => {
           onVerified?.(response)
-          if (typeof response.attempt === 'number') onAttempt?.(response.attempt)
+          if (typeof response.attempt === 'number') onAttemptRef.current?.(response.attempt)
         }, 1500)
       } else {
-        // Use backend attempt if provided, otherwise increment local counter
-        const newAttempts = typeof response.attempt === 'number' ? response.attempt : attempts + 1
-        // verification failed
-        setAttempts(newAttempts)
-        onAttempt?.(newAttempts)
+        const backendAttempt = typeof response.attempt === 'number' ? response.attempt : attempts
+        const backendMaxAttempt = typeof response.maxAttempt === 'number' ? response.maxAttempt : maxAttempts
+        const backendRemainingAttempt =
+          typeof response.remainingAttempt === 'number'
+            ? response.remainingAttempt
+            : Math.max(0, backendMaxAttempt - backendAttempt)
+
+        setAttempts(backendAttempt)
+        setMaxAttempts(backendMaxAttempt)
+        setRemainingAttempts(backendRemainingAttempt)
+        onAttemptRef.current?.(backendAttempt)
         const confidenceText = Number.isFinite(response.confidence)
           ? `${(response.confidence * 100).toFixed(1)}%`
           : '—'
-        setError(
-          `✗ Xác minh thất bại (Lần ${newAttempts}/${MAX_ATTEMPTS}). Độ tin cậy: ${confidenceText}. Vui lòng thử lại.`,
-        )
+        const defaultErr = `✗ Xác minh thất bại (Lần ${backendAttempt}/${backendMaxAttempt}). Độ tin cậy: ${confidenceText}. Vui lòng thử lại.`
+        setError(response?.message || defaultErr)
 
-        // If we've reached max attempts, inform backend so it can mark session as pending review.
-        if (newAttempts >= MAX_ATTEMPTS) {
-          try {
-            // Best-effort notify backend that multiple verify attempts occurred
-            await flagExamSession(examSessionId, 'MULTIPLE_VERIFY_FAILED')
-          } catch (err) {
-            // failed to flag session (suppressed)
-          }
-
+        // If we've reached max attempts, wait for backend-driven pending review state.
+        if (backendRemainingAttempt <= 0 || backendAttempt >= backendMaxAttempt) {
           // Enter awaiting state and notify parent
           setAwaitingProctorApproval(true)
-          onPending?.('PENDING_REVIEW', newAttempts)
+          onPendingRef.current?.('PENDING_VERIFY_REVIEW', backendAttempt)
         }
         // Do not move to pending purely on client-side count — backend will return sessionStatus when appropriate.
       }
     } catch (err) {
-      const newAttempts = attempts + 1
-      setAttempts(newAttempts)
-      onAttempt?.(newAttempts)
-      setError(`✗ Lỗi xác minh (Lần ${newAttempts}/${MAX_ATTEMPTS}): ${err.message}`)
+      setVerificationResult(null)
+      setError(`✗ Lỗi xác minh (Lần ${attempts}/${maxAttempts}): ${err.message}`)
       // Do not trigger pending/review here; backend determines when session becomes PENDING_REVIEW.
     } finally {
       setLoading(false)
@@ -221,9 +320,9 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
         <div className="face-verification-header">
           <div>
             <p className="verification-eyebrow">Bước xác minh bắt đầu</p>
-            <h2>Xác minh khuôn mặt khi vào thi</h2>
+            <h2>Xác minh khuôn mặt để check-in</h2>
           </div>
-            <div className="verification-badge">Lần thử {typeof attempts === 'number' ? `${attempts}/${MAX_ATTEMPTS}` : '—'}</div>
+          <div className="verification-badge">Lần thử {typeof attempts === 'number' ? `${attempts}/${maxAttempts}` : '—'}</div>
         </div>
 
         <div className="face-verification-body">
@@ -236,7 +335,11 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
                 muted
                 className="verification-video"
               />
-              {!cameraActive && <div className="video-placeholder">Đang tải camera...</div>}
+              {!cameraActive && (
+                <div className="video-placeholder">
+                  {awaitingProctorApproval ? 'Camera tạm khóa - đang chờ giám thị duyệt' : 'Đang tải camera...'}
+                </div>
+              )}
             </div>
           </div>
 
@@ -252,12 +355,13 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
             <div className="verification-tips">
               <div className="verification-tip verification-tip--good">Ánh sáng đều, không ngược sáng</div>
               <div className="verification-tip verification-tip--warn">Giữ khuôn mặt nằm giữa khung hình</div>
-              <div className="verification-tip verification-tip--info">Fail 3 lần sẽ chờ giám thị duyệt</div>
+              <div className="verification-tip verification-tip--info">Fail đủ số lần sẽ chờ giám thị duyệt</div>
             </div>
 
-              <div className="attempt-counter">
-                Lần thử: <strong>{typeof attempts === 'number' ? attempts : '—'}</strong>/<strong>{MAX_ATTEMPTS}</strong>
-              </div>
+            <div className="attempt-counter">
+              Lần thử: <strong>{typeof attempts === 'number' ? attempts : '—'}</strong>/<strong>{maxAttempts}</strong>
+              <span style={{ marginLeft: 8 }}>Còn lại: <strong>{remainingAttempts}</strong></span>
+            </div>
           </div>
         </div>
 
@@ -266,15 +370,15 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
           {error && <div className="message error-message">{error}</div>}
         </div>
 
-        {verificationResult && (
+        {hasValidConfidence && (
           <div className="confidence-section">
             <p>
-              Độ tin cậy: <strong>{(verificationResult.confidence * 100).toFixed(1)}%</strong>
+              Độ tin cậy: <strong>{(confidence * 100).toFixed(1)}%</strong>
             </p>
             <div className="confidence-bar">
               <div
-                className={`confidence-fill ${verificationResult.confidence >= 0.7 ? 'pass' : 'fail'}`}
-                style={{ width: `${verificationResult.confidence * 100}%` }}
+                className={`confidence-fill ${confidence >= 0.7 ? 'pass' : 'fail'}`}
+                style={{ width: `${Math.min(100, Math.max(0, confidence * 100))}%` }}
               />
             </div>
           </div>
@@ -284,7 +388,7 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
           <button
             className="btn-verify"
             onClick={handleVerify}
-            disabled={loading || !cameraActive || awaitingProctorApproval || attempts >= MAX_ATTEMPTS}
+            disabled={loading || !cameraActive || awaitingProctorApproval || attempts >= maxAttempts}
           >
             {loading ? 'Đang xử lý...' : awaitingProctorApproval ? 'Đang chờ giám thị duyệt' : 'Xác Minh'}
           </button>

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { requestCameraAccess, captureFrame, getDeviceInfo } from '../../utils/faceCapture'
 import { verifyIdentity } from '../../api/verificationApi'
-import { getExamSessionById } from '../../api/examSessionApi'
-import { isApprovedSessionStatus, normalizeSessionStatus } from '../../utils/examSessionStatus'
 import './ExamProctor.css'
 
 export default function ExamProctor({ examSessionId, onSessionEnd, questions = [], verificationWaiting = false, deviceApprovalWaiting = false, verificationClearedAt = null, externalFailures = 0 }) {
@@ -15,6 +13,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
   const [verificationStatus, setVerificationStatus] = useState('idle') // idle, verifying, success, failed
   const [lastVerification, setLastVerification] = useState(null)
   const [totalFailures, setTotalFailures] = useState(0)
+  const [maxFailures, setMaxFailures] = useState(3)
   const [verificationLog, setVerificationLog] = useState([])
   const [examTime, setExamTime] = useState(0)
   const [showCamera, setShowCamera] = useState(false)
@@ -32,6 +31,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
   const MAX_FAILURES = 3
   const EXAM_DURATION = 3600 // 1 hour in seconds
   const approvalBlocked = verificationWaiting || deviceApprovalWaiting || awaitingReview || verificationStatus === 'needs_review'
+  const failureLimit = Number.isInteger(maxFailures) && maxFailures > 0 ? maxFailures : MAX_FAILURES
 
   useEffect(() => {
     showCameraRef.current = showCamera
@@ -99,33 +99,6 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
     }
   }, [showCamera])
 
-  // Poll session status while awaiting review — auto exit if proctor approves
-  useEffect(() => {
-    if (!awaitingReview || !examSessionId) return
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const session = await getExamSessionById(examSessionId)
-        const sessionStatus = normalizeSessionStatus(session?.examSessionStatus)
-
-        // If proctor approved (status changed to CHECKED_IN/IN_PROGRESS), exit waiting state
-        if (isApprovedSessionStatus(sessionStatus) || sessionStatus === 'NOT_STARTED') {
-          
-          setAwaitingReview(false)
-          // reset failures so random checks can resume normally
-          setTotalFailures(0)
-          setVerificationStatus('idle')
-          // temporarily ignore externalFailures updates to avoid immediate re-sync
-          setIgnoreExternalUntil(Date.now() + 3000)
-        }
-      } catch (err) {
-        console.error('Error polling session status:', err.message)
-      }
-    }, 2000) // Poll every 2 seconds
-
-    return () => clearInterval(pollInterval)
-  }, [awaitingReview, examSessionId])
-
   useEffect(() => {
     if (deviceApprovalWaiting) {
       setAwaitingReview(true)
@@ -141,21 +114,24 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
     if (!verificationClearedAt) return
     setAwaitingReview(false)
     setTotalFailures(0)
+    setMaxFailures(MAX_FAILURES)
     setVerificationStatus('idle')
     setVerificationLog([])
   }, [verificationClearedAt])
 
   // Sync external failures reported by initial verification flow
   useEffect(() => {
-    if (!externalFailures) return
     // If we recently cleared (proctor approved), ignore external updates for a short window
     if (Date.now() < ignoreExternalUntil) {
       return
     }
+
     setTotalFailures((prev) => {
+      if (externalFailures === 0) return 0
       if (externalFailures > prev) return externalFailures
       return prev
     })
+
     if (externalFailures >= MAX_FAILURES) {
       setVerificationStatus('needs_review')
       if (verificationWaiting) {
@@ -216,6 +192,13 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
         ...deviceInfo,
       })
 
+      if (Number.isInteger(response?.attempt)) {
+        setTotalFailures(response.attempt)
+      }
+      if (Number.isInteger(response?.maxAttempt) && response.maxAttempt > 0) {
+        setMaxFailures(response.maxAttempt)
+      }
+
       const logEntry = {
         timestamp: new Date().toLocaleTimeString(),
         type: 'RANDOM',
@@ -251,7 +234,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
       if (status === 'PENDING_REVIEW' || status === 'PENDING_DEVICE_APPROVAL') {
         // backend flagged session — show proctor notice, do not auto-block
         setVerificationStatus('needs_review')
-        registerFailure('needs_review')
+        setAwaitingReview(true)
         if (verificationWaiting) {
           setAwaitingReview(true)
         }
@@ -263,17 +246,46 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
         setAwaitingReview(false)
         setTimeout(() => setVerificationStatus('idle'), 2000)
       } else {
-        registerFailure('failed')
+        const backendFailures = Number.isInteger(response?.attempt) ? response.attempt : totalFailures + 1
+        setTotalFailures(backendFailures)
+        if (Number.isInteger(response?.maxAttempt) && response.maxAttempt > 0) {
+          setMaxFailures(response.maxAttempt)
+        }
+
+        if ((Number.isInteger(response?.remainingAttempt) && response.remainingAttempt <= 0) || backendFailures >= failureLimit) {
+          setVerificationStatus('needs_review')
+          setAwaitingReview(true)
+        } else {
+          setVerificationStatus('failed')
+          setTimeout(() => setVerificationStatus('idle'), 2500)
+        }
       }
     } catch (err) {
-      console.error('Verification error:', err.message)
-      registerFailure('failed')
+        console.error('Verification error:', err)
+        // Log error with backend message when available
+        const logEntry = {
+          timestamp: new Date().toLocaleTimeString(),
+          type: 'RANDOM',
+          passed: false,
+          confidence: null,
+          attempt: null,
+          sessionStatus: null,
+          reconnect: null,
+          message: err?.message || String(err),
+        }
+        setVerificationLog((prev) => [...prev, logEntry])
+        setLastVerification(logEntry)
+        // Surface backend message if present
+        setVerificationStatus('failed')
+        setAwaitingReview(false)
+        setTotalFailures((prev) => prev + 1)
+        setTimeout(() => setVerificationStatus('idle'), 2500)
     }
-  }, [cameraActive, examSessionId, registerFailure, totalFailures, externalFailures, awaitingReview, verificationWaiting, approvalBlocked])
+  }, [cameraActive, examSessionId, registerFailure, totalFailures, externalFailures, awaitingReview, verificationWaiting, approvalBlocked, failureLimit])
 
   const scheduleNextRandomVerification = useCallback(function scheduleNextRandomVerificationImpl() {
     const combinedFailures = Math.max(totalFailures, externalFailures)
-    if ((combinedFailures >= MAX_FAILURES && verificationWaiting) || !cameraActive || approvalBlocked) return
+    if ((combinedFailures >= failureLimit && verificationWaiting) || !cameraActive || approvalBlocked) return
 
     const delay =
       Math.floor(Math.random() * (RANDOM_MAX_INTERVAL - RANDOM_MIN_INTERVAL + 1)) + RANDOM_MIN_INTERVAL
@@ -315,12 +327,12 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
         }
       }, 1000)
     }, delay)
-  }, [cameraActive, performRandomVerification, totalFailures, approvalBlocked, awaitingReview, externalFailures])
+  }, [cameraActive, performRandomVerification, totalFailures, approvalBlocked, awaitingReview, externalFailures, failureLimit])
 
   // Periodic verification (RANDOM)
   useEffect(() => {
     const combinedFailures = Math.max(totalFailures, externalFailures)
-    if (!cameraActive || (combinedFailures >= MAX_FAILURES && verificationWaiting) || approvalBlocked) {
+    if (!cameraActive || (combinedFailures >= failureLimit && verificationWaiting) || approvalBlocked) {
       return
     }
 
@@ -338,7 +350,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
       }
       setRandomCountdown(null)
     }
-  }, [cameraActive, totalFailures, approvalBlocked, awaitingReview, scheduleNextRandomVerification])
+  }, [cameraActive, totalFailures, approvalBlocked, awaitingReview, scheduleNextRandomVerification, failureLimit])
 
   // Manual verification
   const handleManualVerify = async () => {
@@ -503,22 +515,22 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
           <div className="failure-rows">
             <div className="failure-row">
               <span className="label">Ngẫu nhiên</span>
-              <span className="value">{totalFailures}/{MAX_FAILURES}</span>
+              <span className="value">{totalFailures}/{failureLimit}</span>
             </div>
 
             <div className="failure-progress">
               <div className="progress-bar" aria-hidden>
                 <div
                   className="progress-fill"
-                  style={{ width: `${(totalFailures / MAX_FAILURES) * 100}%` }}
+                  style={{ width: `${Math.min((totalFailures / failureLimit) * 100, 100)}%` }}
                 />
               </div>
-              <div className="progress-label">{totalFailures}/{MAX_FAILURES}</div>
+              <div className="progress-label">{totalFailures}/{failureLimit}</div>
             </div>
           </div>
         </div>
 
-        {(combinedFailures >= MAX_FAILURES || awaitingReview) && (
+        {(combinedFailures >= failureLimit || awaitingReview) && (
           <div className="alert-block">
             <span className="alert-icon">⚠️</span>
             <p>

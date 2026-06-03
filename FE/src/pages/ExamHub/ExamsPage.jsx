@@ -15,6 +15,8 @@ import '../../components/ExamHub/ExamHub.css'
 
 const INITIAL_EXAM_FORM = {
   title: '',
+  examCode: '',
+  semester: '',
   description: '',
   startTime: '',
   endTime: '',
@@ -113,8 +115,8 @@ export default function ExamsPage() {
     setError('')
     setSuccess('')
 
-    if (!examForm.title || !examForm.startTime || !examForm.endTime) {
-      setError('Vui lòng nhập đầy đủ title, startTime, endTime.')
+    if (!examForm.title || !examForm.examCode || !examForm.semester || !examForm.startTime || !examForm.endTime) {
+      setError('Vui lòng nhập đầy đủ title, examCode, semester, startTime, endTime.')
       return
     }
 
@@ -122,6 +124,8 @@ export default function ExamsPage() {
       setSubmittingExam(true)
       await createExam({
         title: examForm.title,
+        examCode: examForm.examCode,
+        semester: examForm.semester,
         description: examForm.description,
         startTime: examForm.startTime,
         endTime: examForm.endTime,
@@ -140,6 +144,8 @@ export default function ExamsPage() {
     setEditingExamId(exam.id)
     setExamForm({
       title: exam.title || '',
+      examCode: exam.examCode || '',
+      semester: exam.semester || '',
       description: exam.description || '',
       startTime: (exam.startTime || '').slice(0, 16),
       endTime: (exam.endTime || '').slice(0, 16),
@@ -159,8 +165,8 @@ export default function ExamsPage() {
 
     if (!editingExamId) return
 
-    if (!examForm.title || !examForm.startTime || !examForm.endTime) {
-      setError('Vui lòng nhập đầy đủ title, startTime, endTime.')
+    if (!examForm.title || !examForm.examCode || !examForm.semester || !examForm.startTime || !examForm.endTime) {
+      setError('Vui lòng nhập đầy đủ title, examCode, semester, startTime, endTime.')
       return
     }
 
@@ -168,6 +174,8 @@ export default function ExamsPage() {
       setUpdatingExam(true)
       await updateExam(editingExamId, {
         title: examForm.title,
+        examCode: examForm.examCode,
+        semester: examForm.semester,
         description: examForm.description,
         startTime: examForm.startTime,
         endTime: examForm.endTime,
@@ -354,7 +362,6 @@ export default function ExamsPage() {
         updatingExam={updatingExam}
         canCreateExams={canCreateExams}
         canManageExams={canManageExams}
-        cancelEditExam={cancelEditExam}
         showExamFormModal={showExamFormModal}
         closeExamFormModal={closeExamFormModal}
         canViewExams={canViewExams}
