@@ -21,4 +21,6 @@ public class AttendanceSessionResponse {
     private Long sessionId;
     private Long verifiedById;
     private String verifiedByName;
+    private String studentName;
+    private String citizenId;
 }

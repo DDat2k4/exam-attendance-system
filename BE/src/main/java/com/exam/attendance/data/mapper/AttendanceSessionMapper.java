@@ -1,6 +1,7 @@
 package com.exam.attendance.data.mapper;
 
 import com.exam.attendance.data.entity.AttendanceSession;
+import com.exam.attendance.data.entity.CitizenCard;
 import com.exam.attendance.data.response.AttendanceSessionResponse;
 
 public class AttendanceSessionMapper {
@@ -47,5 +48,15 @@ public class AttendanceSessionMapper {
         );
 
         return r;
+    }
+
+    public static AttendanceSessionResponse toPendingResponse(AttendanceSession entity) {
+        AttendanceSessionResponse response = toResponse(entity);
+
+        CitizenCard citizenCard = entity.getExamSession().getUser().getCitizenCard();
+        response.setStudentName(citizenCard.getFullName());
+        response.setCitizenId(citizenCard.getCitizenId());
+
+        return response;
     }
 }

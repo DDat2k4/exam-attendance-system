@@ -1,5 +1,6 @@
 package com.exam.attendance.service.attendance;
 
+import com.exam.attendance.data.dto.FaceVerifyResultDTO;
 import com.exam.attendance.data.entity.*;
 import com.exam.attendance.data.enums.AttendanceStatus;
 import com.exam.attendance.data.enums.ExamSessionStatus;
@@ -42,70 +43,43 @@ public class AttendanceCheckinService {
     // OFFLINE CHECKIN
     // =========================================================
     @Transactional
-    public AttendanceSession checkin(
-            CheckinRequest req
-    ) {
+    public AttendanceSession checkin(CheckinRequest req) {
+
         validateRequest(req);
 
-        CitizenCard card =
-                citizenCardRepo
-                        .findByCitizenId(req.getCitizenId())
-                        .orElseThrow(() ->
-                                new RuntimeException("Không tìm thấy CCCD")
-                        );
+        CitizenCard card = citizenCardRepo
+                .findByCitizenId(req.getCitizenId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy CCCD"));
 
         validateCccdInfo(req, card);
 
-        ExamRegistration registration =
-                registrationRepo
-                        .findByCheckinInfo(
-                                req.getSemester(),
-                                req.getExamCode(),
-                                req.getRoomCode(),
-                                req.getCitizenId()
-                        )
-                        .orElseThrow(() ->
-                                new RuntimeException("Không tìm thấy lịch thi phù hợp")
-                        );
+        ExamRegistration registration = registrationRepo
+                .findByCheckinInfo(
+                        req.getSemester(),
+                        req.getExamCode(),
+                        req.getRoomCode(),
+                        req.getCitizenId()
+                )
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch thi phù hợp"));
 
-        ExamSession session =
-                examSessionRepo
-                        .findFirstByUserIdAndExamIdOrderByIdDesc(
-                                registration.getUser().getId(),
-                                registration.getExam().getId()
-                        )
-                        .orElse(null);
+        ExamSession session = examSessionRepo
+                .findFirstByUserIdAndExamIdOrderByIdDesc(
+                        registration.getUser().getId(),
+                        registration.getExam().getId()
+                )
+                .orElse(null);
 
         if (session == null) {
 
             session = new ExamSession();
-
-            session.setUser(
-                    registration.getUser()
-            );
-
-            session.setExam(
-                    registration.getExam()
-            );
-
-            session.setRoom(
-                    registration.getRoom()
-            );
-
+            session.setUser(registration.getUser());
+            session.setExam(registration.getExam());
+            session.setRoom(registration.getRoom());
             session.setDeviceId(null);
-
-            session.setCreatedAt(
-                    LocalDateTime.now()
-            );
-
-            session.setLastSeenAt(
-                    LocalDateTime.now()
-            );
-
+            session.setCreatedAt(LocalDateTime.now());
+            session.setLastSeenAt(LocalDateTime.now());
             session.setIsFlagged(false);
-
             session.setSessionStart(null);
-
             session.setSessionEnd(null);
 
             examSessionStateService.updateStatus(
@@ -114,14 +88,12 @@ public class AttendanceCheckinService {
                     "Tạo phiên từ điểm danh NFC"
             );
 
-            session =
-                    examSessionRepo.save(session);
+            session = examSessionRepo.save(session);
         }
 
         if (session.getStatus() == ExamSessionStatus.CHECKED_IN
                 || session.getStatus() == ExamSessionStatus.IN_PROGRESS
                 || session.getStatus() == ExamSessionStatus.DONE) {
-
             throw new RuntimeException("Thí sinh đã điểm danh");
         }
 
@@ -129,84 +101,97 @@ public class AttendanceCheckinService {
             throw new RuntimeException("Phiên thi đã bị khóa");
         }
 
-        byte[] webcamBytes =
-                decodeBase64(req.getWebcamImage());
+        byte[] webcamBytes = decodeBase64(req.getWebcamImage());
+        byte[] cccdBytes   = decodeBase64(req.getFaceImage());
 
-        byte[] cccdBytes =
-                decodeBase64(req.getFaceImage());
-
-        double confidence =
-                verifyRealtimeFace(
-                        cccdBytes,
-                        webcamBytes
-                );
-
-        Map<String, Object> embeddingResult =
-                extractEmbedding(webcamBytes);
-
-        Object embedding =
-                embeddingResult.get("embedding");
+        // Verify face — không throw, chỉ lấy kết quả
+        FaceVerifyResultDTO faceResult = verifyRealtimeFaceSafe(cccdBytes, webcamBytes);
+        log.info("faceResult isPassed={} confidence={}",
+                faceResult.isPassed(), faceResult.getConfidence());
+        // Extract embedding từ webcam
+        Map<String, Object> embeddingResult = extractEmbedding(webcamBytes);
+        Object embedding = embeddingResult.get("embedding");
 
         if (embedding == null) {
             throw new RuntimeException("Embedding null");
         }
 
         try {
-
-            String embeddingJson =
-                    objectMapper.writeValueAsString(
-                            embedding
-                    );
-
-                card.setFaceEmbedding(embeddingJson);
-                citizenCardRepo.save(card);
-
-        }
-        catch (Exception e) {
-
-            throw new RuntimeException(
-                    "Convert embedding lỗi"
-            );
+            card.setFaceEmbedding(objectMapper.writeValueAsString(embedding));
+            citizenCardRepo.save(card);
+        } catch (Exception e) {
+            throw new RuntimeException("Convert embedding lỗi");
         }
 
         String webcamUrl = uploadImage(req.getWebcamImage(), card.getUser().getId());
-        String cccdUrl = uploadImage(req.getFaceImage(), card.getUser().getId());
-        AttendanceSession attendance =
-                attendanceRepo
-                        .findByExamSessionId(session.getId())
-                        .orElseGet(AttendanceSession::new);
+        String cccdUrl   = uploadImage(req.getFaceImage(),   card.getUser().getId());
+
+        AttendanceSession attendance = attendanceRepo
+                .findByExamSessionId(session.getId())
+                .orElseGet(AttendanceSession::new);
 
         attendance.setExamSession(session);
         attendance.setCheckinTime(LocalDateTime.now());
         attendance.setAttendancePhoto(webcamUrl);
         attendance.setCccdPhoto(cccdUrl);
-        attendance.setConfidence(confidence);
+        attendance.setConfidence(faceResult.getConfidence());
         attendance.setVerifiedAt(LocalDateTime.now());
-        attendance.setStatus(AttendanceStatus.VERIFIED);
 
-        attendance.setReviewNote("Offline checkin verified");
-        // chỉ điểm danh thành công
-        // CHƯA vào thi
-        examSessionStateService.updateStatus(
-                session,
-                ExamSessionStatus.CHECKED_IN,
-                "Điểm danh thành công, vui lòng xác minh khuôn mặt"
-        );
+        if (faceResult.isPassed()) {
 
-        session.setIsFlagged(false);
-        session.setLastSeenAt(LocalDateTime.now());
+            // Webcam khớp → VERIFIED
+            attendance.setStatus(AttendanceStatus.VERIFIED);
+            attendance.setReviewNote("Offline checkin verified");
 
-        examSessionRepo.save(session);
-        logService.log(
-                "CHECKIN_SUCCESS",
-                "Điểm danh thành công",
-                "CHECKIN",
-                "SUCCESS",
+            examSessionStateService.updateStatus(
+                    session,
+                    ExamSessionStatus.CHECKED_IN,
+                    "Điểm danh thành công, vui lòng xác minh khuôn mặt"
+            );
+
+            session.setIsFlagged(false);
+            session.setLastSeenAt(LocalDateTime.now());
+            examSessionRepo.save(session);
+
+            logService.log(
+                    "CHECKIN_SUCCESS",
+                    "Điểm danh thành công",
+                    "CHECKIN",
+                    "SUCCESS",
                     session
             );
 
-        AttendanceSession saved = attendanceRepo.save(attendance);
-            return saved;
+        } else {
+
+            // Webcam không khớp → PENDING, chờ giám thị
+            attendance.setStatus(AttendanceStatus.PENDING);
+            attendance.setReviewNote(
+                    "Face mismatch, confidence="
+                            + String.format("%.2f",
+                            faceResult.getConfidence())
+                            + ". Chờ giám thị xác minh"
+            );
+
+            examSessionStateService.updateStatus(
+                    session,
+                    ExamSessionStatus.PENDING_REVIEW,
+                    "Khuôn mặt không khớp, chờ giám thị xác minh"
+            );
+
+            session.setIsFlagged(true);
+            session.setLastSeenAt(LocalDateTime.now());
+            examSessionRepo.save(session);
+
+            logService.log(
+                    "CHECKIN_FACE_MISMATCH",
+                    "Face mismatch confidence=" + faceResult.getConfidence(),
+                    "CHECKIN",
+                    "PENDING",
+                    session
+            );
+        }
+
+        return attendanceRepo.save(attendance);
     }
 
     // =========================================================
@@ -291,48 +276,41 @@ public class AttendanceCheckinService {
     // =========================================================
     // VERIFY REALTIME FACE
     // =========================================================
-    private double verifyRealtimeFace(
+    private FaceVerifyResultDTO verifyRealtimeFaceSafe(
             byte[] cccdImage,
             byte[] webcamImage
     ) {
+        FaceVerifyResultDTO result = new FaceVerifyResultDTO();
 
-        Map<String, Object> result =
-                aiClientService.verifyFace(
-                        cccdImage,
-                        webcamImage
-                );
+        try {
+            Map<String, Object> aiResult =
+                    aiClientService.verifyFace(cccdImage, webcamImage);
 
-        if (result == null) {
-            throw new RuntimeException(
-                    "AI verify không phản hồi"
-            );
+            if (aiResult == null) {
+                log.warn("AI verify không phản hồi");
+                result.setPassed(false);
+                result.setConfidence(0.0);
+                return result;
+            }
+
+            String status     = String.valueOf(aiResult.get("status"));
+            double confidence = extractConfidence(aiResult);
+
+            log.info("Realtime verify status={} confidence={}", status, confidence);
+
+            boolean passed = "SUCCESS".equalsIgnoreCase(status)
+                    && confidence >= MIN_CONFIDENCE;
+
+            result.setPassed(passed);
+            result.setConfidence(confidence);
+            return result;
+
+        } catch (Exception e) {
+            log.warn("verifyFace exception: {}", e.getMessage());
+            result.setPassed(false);
+            result.setConfidence(0.0);
+            return result;
         }
-
-        String status =
-                String.valueOf(
-                        result.get("status")
-                );
-
-        double confidence =
-                extractConfidence(result);
-
-        log.info(
-                "Realtime verify status={} confidence={}",
-                status,
-                confidence
-        );
-
-        boolean passed =
-                "SUCCESS".equalsIgnoreCase(status)
-                        && confidence >= MIN_CONFIDENCE;
-
-        if (!passed) {
-            throw new RuntimeException(
-                    "Webcam không khớp CCCD"
-            );
-        }
-
-        return confidence;
     }
 
 
@@ -482,31 +460,35 @@ public class AttendanceCheckinService {
         attendance.setExamSession(session);
         attendance.setCheckinTime(LocalDateTime.now());
         attendance.setAttendancePhoto(imageUrl);
-        attendance.setStatus(AttendanceStatus.PENDING);
+        attendance.setStatus(AttendanceStatus.VERIFIED);
         attendance.setReviewNote(
                 reason != null
                         ? reason
-                        : "Manual checkin created"
+                        : "Manual checkin approved by proctor"
         );
         attendance.setVerifiedBy(proctorUser);
+        attendance.setVerifiedAt(LocalDateTime.now());
+
         AttendanceSession saved = attendanceRepo.save(attendance);
+
         examSessionStateService.updateStatus(
                 session,
-                ExamSessionStatus.PENDING_REVIEW,
-                "Đang chờ giám thị xác minh"
+                ExamSessionStatus.CHECKED_IN,
+                "Giám thị xác minh thủ công thành công"
         );
 
-        session.setIsFlagged(true);
+        session.setIsFlagged(false);
         session.setLastSeenAt(LocalDateTime.now());
         examSessionRepo.save(session);
+
         logService.log(
-                "MANUAL_CHECKIN_CREATED",
-                "Created by proctorId="
-                        + proctorUser.getId(),
+                "MANUAL_CHECKIN_APPROVED",
+                "Approved by proctorId=" + proctorUser.getId(),
                 "CHECKIN",
-                "PENDING",
+                "SUCCESS",
                 session
         );
+
         return saved;
     }
 }

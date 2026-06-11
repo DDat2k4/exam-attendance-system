@@ -438,10 +438,6 @@ public class ProctorService {
         }
 
         try {
-
-            // =====================================================
-            // upload ảnh manual mới
-            // =====================================================
             String imageUrl = attendance.getAttendancePhoto();
             if (base64Image != null && !base64Image.isBlank()) {
 
@@ -667,17 +663,16 @@ public class ProctorService {
     // =========================================================
     // GET PENDING ATTENDANCES
     // =========================================================
-    public List<AttendanceSessionResponse> getPendingAttendances() {
+    @Transactional(readOnly = true)
+    public List<AttendanceSessionResponse> getPendingAttendances(Long roomId) {
 
         return attendanceRepo
-                .findByStatus(
-                        AttendanceStatus.PENDING
+                .findByStatusAndRoomId(
+                        AttendanceStatus.PENDING,
+                        roomId
                 )
                 .stream()
-                .map(
-                        AttendanceSessionMapper::toResponse
-                )
+                .map(AttendanceSessionMapper::toPendingResponse)
                 .toList();
     }
-
 }

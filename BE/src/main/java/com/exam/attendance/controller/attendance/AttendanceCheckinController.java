@@ -3,6 +3,7 @@ package com.exam.attendance.controller.attendance;
 import com.exam.attendance.controller.BaseController;
 import com.exam.attendance.data.entity.AttendanceSession;
 import com.exam.attendance.data.entity.User;
+import com.exam.attendance.data.enums.AttendanceStatus;
 import com.exam.attendance.data.mapper.AttendanceSessionMapper;
 import com.exam.attendance.data.enums.Action;
 import com.exam.attendance.data.enums.Resource;
@@ -55,39 +56,34 @@ public class AttendanceCheckinController extends BaseController {
                 );
 
         if (!valid) {
-
-            throw new RuntimeException(
-                    "Invalid signature"
-            );
+            throw new RuntimeException("Invalid signature");
         }
 
-        String json =
-                cryptoService.decrypt(
-                        request.getData(),
-                        request.getIv()
-                );
+        String json = cryptoService.decrypt(
+                request.getData(),
+                request.getIv()
+        );
 
         try {
 
             CheckinRequest checkinRequest =
-                    objectMapper.readValue(
-                            json,
-                            CheckinRequest.class
-                    );
+                    objectMapper.readValue(json, CheckinRequest.class);
 
             AttendanceSession attendance =
                     attendanceCheckinService.checkin(checkinRequest);
 
+            String message =
+                    attendance.getStatus() == AttendanceStatus.PENDING
+                            ? "Khuôn mặt không khớp, chờ giám thị xác minh"
+                            : "Điểm danh thành công";
+
             return created(
-                    "Điểm danh thành công",
+                    message,
                     AttendanceSessionMapper.toResponse(attendance)
             );
 
         } catch (JsonProcessingException e) {
-
-            throw new RuntimeException(
-                    "JSON request không hợp lệ"
-            );
+            throw new RuntimeException("JSON request không hợp lệ");
         }
     }
 
@@ -240,6 +236,7 @@ public class AttendanceCheckinController extends BaseController {
     @GetMapping("/pending")
     @PreAuthorize("hasAnyRole('ADMIN','PROCTOR')")
     public ResponseEntity<ApiResponse<List<AttendanceSessionResponse>>> getPendingAttendances(
+            @RequestParam Long roomId,
             Authentication auth
     ) {
 
@@ -250,7 +247,7 @@ public class AttendanceCheckinController extends BaseController {
         );
 
         return success(
-                proctorService.getPendingAttendances()
+                proctorService.getPendingAttendances(roomId)
         );
     }
 }

@@ -3,8 +3,10 @@ package com.exam.attendance.repository;
 import com.exam.attendance.data.entity.AttendanceSession;
 import com.exam.attendance.data.enums.AttendanceStatus;
 import com.exam.attendance.data.pojo.report.AttendanceReport;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +35,19 @@ WHERE es.room.id = :roomId
 """)
     List<AttendanceReport> getAttendanceReport(Long roomId);
 
-    List<AttendanceSession> findByStatus(
-            AttendanceStatus status
+    @EntityGraph(attributePaths = {
+            "examSession",
+            "examSession.user",
+            "examSession.user.citizenCard",
+            "verifiedBy"
+    })
+    @Query("""
+    SELECT a FROM AttendanceSession a
+    WHERE a.status = :status
+    AND a.examSession.room.id = :roomId
+""")
+    List<AttendanceSession> findByStatusAndRoomId(
+            @Param("status") AttendanceStatus status,
+            @Param("roomId") Long roomId
     );
 }
