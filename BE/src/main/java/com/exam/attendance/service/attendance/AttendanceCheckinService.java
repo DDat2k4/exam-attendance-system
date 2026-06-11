@@ -1,14 +1,12 @@
 package com.exam.attendance.service.attendance;
 
-import com.exam.attendance.data.entity.AttendanceSession;
-import com.exam.attendance.data.entity.CitizenCard;
-import com.exam.attendance.data.entity.ExamSession;
-import com.exam.attendance.data.entity.User;
+import com.exam.attendance.data.entity.*;
 import com.exam.attendance.data.enums.AttendanceStatus;
 import com.exam.attendance.data.enums.ExamSessionStatus;
 import com.exam.attendance.data.request.CheckinRequest;
 import com.exam.attendance.repository.AttendanceSessionRepository;
 import com.exam.attendance.repository.CitizenCardRepository;
+import com.exam.attendance.repository.ExamRegistrationRepository;
 import com.exam.attendance.repository.ExamSessionRepository;
 import com.exam.attendance.service.exam.ExamSessionStateService;
 import com.exam.attendance.service.ai.AiClientService;
@@ -20,11 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -37,10 +33,10 @@ public class AttendanceCheckinService {
     private final AiClientService aiClientService;
     private final FileUploadService fileUploadService;
     private final ExamSessionStateService examSessionStateService;
+    private final ExamRegistrationRepository registrationRepo;
     private final AttendanceLogService logService;
     private final ObjectMapper objectMapper;
     private static final double MIN_CONFIDENCE = 0.7;
-    private static final double FACE_MATCH_THRESHOLD = 0.7;
 
     // =========================================================
     // OFFLINE CHECKIN
@@ -54,25 +50,77 @@ public class AttendanceCheckinService {
         CitizenCard card =
                 citizenCardRepo
                         .findByCitizenId(req.getCitizenId())
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy CCCD"));
+                        .orElseThrow(() ->
+                                new RuntimeException("Không tìm thấy CCCD")
+                        );
+
         validateCccdInfo(req, card);
 
-        ExamSession session =
-                examSessionRepo
+        ExamRegistration registration =
+                registrationRepo
                         .findByCheckinInfo(
                                 req.getSemester(),
                                 req.getExamCode(),
                                 req.getRoomCode(),
                                 req.getCitizenId()
                         )
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy ca thi phù hợp"));
+                        .orElseThrow(() ->
+                                new RuntimeException("Không tìm thấy lịch thi phù hợp")
+                        );
 
-        if (session.getStatus()
-                == ExamSessionStatus.CHECKED_IN
-                || session.getStatus()
-                == ExamSessionStatus.IN_PROGRESS
-                || session.getStatus()
-                == ExamSessionStatus.DONE) {
+        ExamSession session =
+                examSessionRepo
+                        .findFirstByUserIdAndExamIdOrderByIdDesc(
+                                registration.getUser().getId(),
+                                registration.getExam().getId()
+                        )
+                        .orElse(null);
+
+        if (session == null) {
+
+            session = new ExamSession();
+
+            session.setUser(
+                    registration.getUser()
+            );
+
+            session.setExam(
+                    registration.getExam()
+            );
+
+            session.setRoom(
+                    registration.getRoom()
+            );
+
+            session.setDeviceId(null);
+
+            session.setCreatedAt(
+                    LocalDateTime.now()
+            );
+
+            session.setLastSeenAt(
+                    LocalDateTime.now()
+            );
+
+            session.setIsFlagged(false);
+
+            session.setSessionStart(null);
+
+            session.setSessionEnd(null);
+
+            examSessionStateService.updateStatus(
+                    session,
+                    ExamSessionStatus.INIT,
+                    "Tạo phiên từ điểm danh NFC"
+            );
+
+            session =
+                    examSessionRepo.save(session);
+        }
+
+        if (session.getStatus() == ExamSessionStatus.CHECKED_IN
+                || session.getStatus() == ExamSessionStatus.IN_PROGRESS
+                || session.getStatus() == ExamSessionStatus.DONE) {
 
             throw new RuntimeException("Thí sinh đã điểm danh");
         }
@@ -81,22 +129,46 @@ public class AttendanceCheckinService {
             throw new RuntimeException("Phiên thi đã bị khóa");
         }
 
-        byte[] webcamBytes = decodeBase64(req.getWebcamImage());
-        byte[] cccdBytes = decodeBase64(req.getFaceImage());
-        verifyRealtimeFace(cccdBytes, webcamBytes);
-        String webcamEmbedding = extractEmbedding(webcamBytes);
-        verifyFaceEmbedding(card, webcamEmbedding);
+        byte[] webcamBytes =
+                decodeBase64(req.getWebcamImage());
 
-        Map<String, Object> result =
-                aiClientService.verifyFast(webcamBytes, card.getFaceEmbedding());
+        byte[] cccdBytes =
+                decodeBase64(req.getFaceImage());
 
-        if (result == null) {
-            throw new RuntimeException("AI không phản hồi");
+        double confidence =
+                verifyRealtimeFace(
+                        cccdBytes,
+                        webcamBytes
+                );
+
+        Map<String, Object> embeddingResult =
+                extractEmbedding(webcamBytes);
+
+        Object embedding =
+                embeddingResult.get("embedding");
+
+        if (embedding == null) {
+            throw new RuntimeException("Embedding null");
         }
 
-        String status = String.valueOf(result.get("status"));
-        double confidence = extractConfidence(result);
-        boolean passed = "SUCCESS".equalsIgnoreCase(status) && confidence >= MIN_CONFIDENCE;
+        try {
+
+            String embeddingJson =
+                    objectMapper.writeValueAsString(
+                            embedding
+                    );
+
+                card.setFaceEmbedding(embeddingJson);
+                citizenCardRepo.save(card);
+
+        }
+        catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Convert embedding lỗi"
+            );
+        }
+
         String webcamUrl = uploadImage(req.getWebcamImage(), card.getUser().getId());
         String cccdUrl = uploadImage(req.getFaceImage(), card.getUser().getId());
         AttendanceSession attendance =
@@ -110,61 +182,31 @@ public class AttendanceCheckinService {
         attendance.setCccdPhoto(cccdUrl);
         attendance.setConfidence(confidence);
         attendance.setVerifiedAt(LocalDateTime.now());
+        attendance.setStatus(AttendanceStatus.VERIFIED);
 
-        if (passed) {
-            attendance.setStatus(AttendanceStatus.VERIFIED);
+        attendance.setReviewNote("Offline checkin verified");
+        // chỉ điểm danh thành công
+        // CHƯA vào thi
+        examSessionStateService.updateStatus(
+                session,
+                ExamSessionStatus.CHECKED_IN,
+                "Điểm danh thành công, vui lòng xác minh khuôn mặt"
+        );
 
-            attendance.setReviewNote("Offline checkin verified");
-            // chỉ điểm danh thành công
-            // CHƯA vào thi
-            examSessionStateService.updateStatus(
-                    session,
-                    ExamSessionStatus.CHECKED_IN,
-                    "Điểm danh thành công, vui lòng xác minh khuôn mặt"
-            );
+        session.setIsFlagged(false);
+        session.setLastSeenAt(LocalDateTime.now());
 
-            session.setIsFlagged(false);
-            session.setLastSeenAt(LocalDateTime.now());
-
-            examSessionRepo.save(session);
-            logService.log(
-                    "CHECKIN_SUCCESS",
-                    "Điểm danh thành công",
-                    "CHECKIN",
-                    "SUCCESS",
+        examSessionRepo.save(session);
+        logService.log(
+                "CHECKIN_SUCCESS",
+                "Điểm danh thành công",
+                "CHECKIN",
+                "SUCCESS",
                     session
             );
-        }
-        else {
-            attendance.setStatus(AttendanceStatus.PENDING);
-            attendance.setReviewNote("AI verify failed");
-            examSessionStateService.updateStatus(
-                    session,
-                    ExamSessionStatus.PENDING_REVIEW,
-                    "Đang chờ giám thị xác minh"
-            );
-
-            session.setIsFlagged(true);
-            examSessionRepo.save(session);
-
-            logService.log(
-                    "CHECKIN_FAILED",
-                    "AI verify failed",
-                    "CHECKIN",
-                    "FAILED",
-                    session
-            );
-        }
 
         AttendanceSession saved = attendanceRepo.save(attendance);
-
-        log.info(
-                "Offline checkin completed sessionId={} passed={} confidence={}",
-                session.getId(),
-                passed,
-                confidence
-        );
-        return saved;
+            return saved;
     }
 
     // =========================================================
@@ -219,41 +261,60 @@ public class AttendanceCheckinService {
             CitizenCard card
     ) {
 
-        if (!normalize(card.getFullName())
-                .equals(normalize(req.getFullName()))) {
+        if (card.getFullName() == null) {
+            throw new RuntimeException(
+                    "CCCD chưa có họ tên trong hệ thống"
+            );
+        }
+
+        if (card.getBirthDate() == null) {
+            throw new RuntimeException(
+                    "CCCD chưa có ngày sinh trong hệ thống"
+            );
+        }
+
+        if (!Objects.equals(
+                normalize(card.getFullName()),
+                normalize(req.getFullName())
+        )) {
             throw new RuntimeException("Họ tên không khớp");
         }
 
-        if (!card.getBirthDate()
-                .equals(req.getBirthDate())) {
-            throw new RuntimeException("Ngày sinh không khớp");
-        }
-
-        if (card.getExpiry() != null
-                && card.getExpiry().isBefore(
-                LocalDateTime.now().toLocalDate()
+        if (!Objects.equals(
+                card.getBirthDate(),
+                req.getBirthDate()
         )) {
-            throw new RuntimeException("CCCD đã hết hạn");
+            throw new RuntimeException("Ngày sinh không khớp");
         }
     }
 
     // =========================================================
     // VERIFY REALTIME FACE
     // =========================================================
-    private void verifyRealtimeFace(
+    private double verifyRealtimeFace(
             byte[] cccdImage,
             byte[] webcamImage
     ) {
 
-        Map<String, Object> result = aiClientService.verifyFace(cccdImage, webcamImage);
+        Map<String, Object> result =
+                aiClientService.verifyFace(
+                        cccdImage,
+                        webcamImage
+                );
 
         if (result == null) {
-            throw new RuntimeException("AI verify không phản hồi");
+            throw new RuntimeException(
+                    "AI verify không phản hồi"
+            );
         }
 
-        String status = String.valueOf(result.get("status"));
+        String status =
+                String.valueOf(
+                        result.get("status")
+                );
 
-        double confidence = extractConfidence(result);
+        double confidence =
+                extractConfidence(result);
 
         log.info(
                 "Realtime verify status={} confidence={}",
@@ -266,113 +327,44 @@ public class AttendanceCheckinService {
                         && confidence >= MIN_CONFIDENCE;
 
         if (!passed) {
-            throw new RuntimeException("Webcam không khớp CCCD");
+            throw new RuntimeException(
+                    "Webcam không khớp CCCD"
+            );
         }
+
+        return confidence;
     }
 
 
     // =========================================================
     // EXTRACT EMBEDDING
     // =========================================================
-    private String extractEmbedding(
+    private Map<String, Object> extractEmbedding(
             byte[] imageBytes
     ) {
 
-        Map<String, Object> aiResult = aiClientService.extractEmbedding(imageBytes);
+        Map<String, Object> aiResult =
+                aiClientService.extractEmbedding(imageBytes);
+
         if (aiResult == null) {
             throw new RuntimeException("AI không phản hồi");
         }
 
-        String status = String.valueOf(aiResult.get("status"));
+        String status =
+                String.valueOf(aiResult.get("status"));
 
         if (!"SUCCESS".equalsIgnoreCase(status)) {
-            throw new RuntimeException("Không extract được embedding");
-        }
-
-        Object embedding = aiResult.get("embedding");
-
-        if (embedding == null) {
-            throw new RuntimeException("Embedding null");
-        }
-
-        try {
-            return objectMapper.writeValueAsString(embedding);
-        } catch (Exception e) {
-            throw new RuntimeException("Convert embedding lỗi");
-        }
-    }
-
-    // =========================================================
-    // VERIFY FACE EMBEDDING
-    // =========================================================
-    private void verifyFaceEmbedding(
-            CitizenCard card,
-            String newEmbeddingJson
-    ) {
-
-        if (card.getFaceEmbedding() == null) {
-            return;
-        }
-
-        List<Double> oldEmbedding = parseEmbedding(card.getFaceEmbedding());
-        List<Double> newEmbedding = parseEmbedding(newEmbeddingJson);
-        double similarity = cosineSimilarity(oldEmbedding, newEmbedding);
-
-        log.info("Embedding similarity={}", similarity);
-
-        if (similarity < FACE_MATCH_THRESHOLD) {
-            throw new RuntimeException("Khuôn mặt không khớp dữ liệu cũ");
-        }
-    }
-
-    // =========================================================
-    // PARSE EMBEDDING
-    // =========================================================
-    private List<Double> parseEmbedding(
-            String json
-    ) {
-        try {
-            return objectMapper.readValue(
-                    json,
-                    objectMapper.getTypeFactory()
-                            .constructCollectionType(
-                                    List.class,
-                                    Double.class
+            throw new RuntimeException(
+                    String.valueOf(
+                            aiResult.getOrDefault(
+                                    "message",
+                                    "Không extract được embedding"
                             )
+                    )
             );
-
-        } catch (Exception e) {
-            throw new RuntimeException("Embedding không hợp lệ");
-        }
-    }
-
-    // =========================================================
-    // COSINE
-    // =========================================================
-    private double cosineSimilarity(
-            List<Double> a,
-            List<Double> b
-    ) {
-
-        if (a == null || b == null || a.size() != b.size()) {
-            return 0;
         }
 
-        double dot = 0.0;
-        double normA = 0.0;
-        double normB = 0.0;
-
-        for (int i = 0; i < a.size(); i++) {
-            dot += a.get(i) * b.get(i);
-            normA += Math.pow(a.get(i), 2);
-            normB += Math.pow(b.get(i), 2);
-        }
-
-        if (normA == 0 || normB == 0) {
-            return 0;
-        }
-
-        return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+        return aiResult;
     }
 
     // =========================================================

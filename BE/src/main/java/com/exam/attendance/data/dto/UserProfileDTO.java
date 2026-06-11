@@ -14,6 +14,4 @@ public class UserProfileDTO {
     private Short gender;
     private LocalDate birthDate;
     private String citizenId;
-    private Boolean isVerified;
-    private LocalDateTime verifiedAt;
 }

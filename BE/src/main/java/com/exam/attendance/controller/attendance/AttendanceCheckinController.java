@@ -76,14 +76,11 @@ public class AttendanceCheckinController extends BaseController {
                     );
 
             AttendanceSession attendance =
-                    attendanceCheckinService.checkin(
-                            checkinRequest
-                    );
+                    attendanceCheckinService.checkin(checkinRequest);
 
             return created(
-                    AttendanceSessionMapper.toResponse(
-                            attendance
-                    )
+                    "Điểm danh thành công",
+                    AttendanceSessionMapper.toResponse(attendance)
             );
 
         } catch (JsonProcessingException e) {

@@ -37,21 +37,4 @@ public class UserProfile {
     // Thông tin xác thực
     @Column(name = "citizen_id", unique = true, length = 12)
     private String citizenId;
-    /**
-     * Trạng thái đã xác thực CCCD hay chưa
-     */
-    private Boolean isVerified = false;
-
-    /**
-     * Thời điểm xác thực CCCD
-     */
-    @Column(name = "verified_at")
-    private LocalDateTime verifiedAt;
-
-    @PrePersist
-    public void prePersist() {
-        if (isVerified == null) {
-            isVerified = false;
-        }
-    }
 }

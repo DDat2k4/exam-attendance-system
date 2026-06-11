@@ -12,7 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -93,12 +95,19 @@ public class ImportExamService {
 
                     String fullName = getString(row.getCell(1));
                     String cccd = getString(row.getCell(2));
-                    String email = getString(row.getCell(3));
+                    LocalDate birthDate = getDate(row.getCell(3));
+                    String email = getString(row.getCell(4));
 
                     // Validate
                     if (seat <= 0) {
                         throw new RuntimeException(
                                 "Seat không hợp lệ tại dòng " + (rowIdx + 1)
+                        );
+                    }
+
+                    if (birthDate == null) {
+                        throw new RuntimeException(
+                                "Ngày sinh trống tại dòng " + (rowIdx + 1)
                         );
                     }
 
@@ -145,6 +154,7 @@ public class ImportExamService {
                     User user = findOrCreateUser(
                             fullName,
                             cccd,
+                            birthDate,
                             email
                     );
 
@@ -204,6 +214,7 @@ public class ImportExamService {
     private User findOrCreateUser(
             String name,
             String cccd,
+            LocalDate birthDate,
             String email
     ) {
 
@@ -230,7 +241,7 @@ public class ImportExamService {
 
         return byCccd.orElseGet(() ->
                 byEmail.orElseGet(() ->
-                        createUser(name, cccd, email)
+                        createUser(name, cccd, birthDate, email)
                 )
         );
     }
@@ -253,6 +264,7 @@ public class ImportExamService {
     private User createUser(
             String name,
             String cccd,
+            LocalDate birthDate,
             String email
     ) {
 
@@ -286,7 +298,10 @@ public class ImportExamService {
         String last9 = getLast9(cccd);
 
         CitizenCard card = new CitizenCard();
+
         card.setCitizenId(last9);
+        card.setFullName(name);
+        card.setBirthDate(birthDate);
         card.setUser(user);
 
         citizenCardRepository.save(card);
@@ -294,6 +309,7 @@ public class ImportExamService {
         UserProfile profile = new UserProfile();
         profile.setName(name);
         profile.setCitizenId(last9);
+        profile.setBirthDate(birthDate);
         profile.setUser(user);
 
         userProfileRepository.save(profile);
@@ -322,7 +338,7 @@ public class ImportExamService {
     // Check dòng trống
     private boolean isEmptyRow(Row row) {
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 5; i++) {
 
             Cell cell = row.getCell(i);
 
@@ -351,5 +367,40 @@ public class ImportExamService {
         }
 
         return count;
+    }
+
+    private LocalDate getDate(Cell cell) {
+
+        if (cell == null) {
+            return null;
+        }
+
+        try {
+
+            if (cell.getCellType() == CellType.NUMERIC
+                    && DateUtil.isCellDateFormatted(cell)) {
+
+                return cell.getLocalDateTimeCellValue()
+                        .toLocalDate();
+            }
+
+            String value = getString(cell);
+
+            if (value.isBlank()) {
+                return null;
+            }
+
+            return LocalDate.parse(
+                    value,
+                    DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            );
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Ngày sinh không hợp lệ: "
+                            + getString(cell)
+            );
+        }
     }
 }

@@ -23,8 +23,8 @@ public class UserProfileMapper {
         dto.setGender(entity.getGender());
         dto.setBirthDate(entity.getBirthDate());
         dto.setCitizenId(entity.getCitizenId());
-        dto.setIsVerified(entity.getIsVerified());
-        dto.setVerifiedAt(entity.getVerifiedAt());
+//        dto.setIsVerified(entity.getIsVerified());
+//        dto.setVerifiedAt(entity.getVerifiedAt());
         return dto;
     }
 
@@ -40,8 +40,8 @@ public class UserProfileMapper {
         res.setGender(dto.getGender());
         res.setBirthDate(dto.getBirthDate());
         res.setCitizenId(dto.getCitizenId());
-        res.setIsVerified(dto.getIsVerified());
-        res.setVerifiedAt(dto.getVerifiedAt());
+//        res.setIsVerified(dto.getIsVerified());
+//        res.setVerifiedAt(dto.getVerifiedAt());
         return res;
     }
 
@@ -55,9 +55,9 @@ public class UserProfileMapper {
         entity.setBirthDate(request.getBirthDate());
         entity.setCitizenId(request.getCitizenId());
 
-        // default verify state
-        entity.setIsVerified(false);
-        entity.setVerifiedAt(null);
+//        // default verify state
+//        entity.setIsVerified(false);
+//        entity.setVerifiedAt(null);
         // set user
         if (request.getUserId() != null) {
             User user = new User();
@@ -79,11 +79,11 @@ public class UserProfileMapper {
         entity.setCitizenId(request.getCitizenId());
     }
 
-    // VERIFY CCCD
-    public static void markVerified(UserProfile entity) {
-        if (entity == null) return;
-
-        entity.setIsVerified(true);
-        entity.setVerifiedAt(LocalDateTime.now());
-    }
+//    // VERIFY CCCD
+//    public static void markVerified(UserProfile entity) {
+//        if (entity == null) return;
+//
+//        entity.setIsVerified(true);
+//        entity.setVerifiedAt(LocalDateTime.now());
+//    }
 }

@@ -20,13 +20,11 @@ public class Summary {
     public Summary(Number total,
                    Number verified,
                    Number failed,
-                   Number blocked,
                    Number pending) {
 
         this.total = total != null ? total.longValue() : 0L;
         this.verified = verified != null ? verified.longValue() : 0L;
         this.failed = failed != null ? failed.longValue() : 0L;
-        this.blocked = blocked != null ? blocked.longValue() : 0L;
         this.pending = pending != null ? pending.longValue() : 0L;
     }
 }

@@ -111,7 +111,6 @@ SELECT new com.exam.attendance.data.pojo.report.Summary(
     COUNT(DISTINCT es.id),
     COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.enums.AttendanceStatus.VERIFIED THEN 1L ELSE 0L END), 0L),
     COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.enums.AttendanceStatus.FAILED THEN 1L ELSE 0L END), 0L),
-    COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.enums.AttendanceStatus.BLOCKED THEN 1L ELSE 0L END), 0L),
     COALESCE(SUM(CASE WHEN a.status = com.exam.attendance.data.enums.AttendanceStatus.PENDING THEN 1L ELSE 0L END), 0L)
 
 )

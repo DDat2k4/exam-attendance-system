@@ -344,8 +344,6 @@ public class CccdService {
         profile.setCitizenId(cccdInfo.getCitizenId());
         profile.setName(cccdInfo.getFullName());
         profile.setBirthDate(cccdInfo.getBirthDate());
-        profile.setIsVerified(true);
-        profile.setVerifiedAt(LocalDateTime.now());
         userProfileRepository.save(profile);
 
         log.info("CCCD verified success userId={}", user.getId());

@@ -21,10 +21,10 @@ public class AttendanceLog {
     private String detail;
 
     @Column(name = "type")
-    private String type; // VERIFY / RANDOM_CHECK / CHEAT
+    private String type; // VERIFY / RANDOM / CHECKIN / INITIAL
 
     @Column(name = "result")
-    private String result; // SUCCESS / FAILED
+    private String result; // SUCCESS / FAILED / ADMIN
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

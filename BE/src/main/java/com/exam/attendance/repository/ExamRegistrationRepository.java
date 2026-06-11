@@ -62,4 +62,23 @@ public interface ExamRegistrationRepository extends JpaRepository<ExamRegistrati
     WHERE r.room.id = :roomId
 """)
     List<Integer> findSeatNumbersByRoomId(@Param("roomId") Long roomId);
+
+    @Query("""
+SELECT er
+FROM ExamRegistration er
+JOIN er.exam e
+JOIN er.room r
+JOIN er.user u
+JOIN u.userProfile up
+WHERE e.semester = :semester
+AND e.examCode = :examCode
+AND r.roomCode = :roomCode
+AND up.citizenId = :citizenId
+""")
+    Optional<ExamRegistration> findByCheckinInfo(
+            @Param("semester") String semester,
+            @Param("examCode") String examCode,
+            @Param("roomCode") String roomCode,
+            @Param("citizenId") String citizenId
+    );
 }

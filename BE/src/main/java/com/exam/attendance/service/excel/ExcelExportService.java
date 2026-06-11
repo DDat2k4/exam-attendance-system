@@ -182,14 +182,13 @@ public class ExcelExportService {
         Sheet sheet = createSheetSafe(wb, "Summary");
 
         if (s == null) {
-            s = new Summary(0L, 0L, 0L, 0L, 0L);
+            s = new Summary(0L, 0L, 0L, 0L);
         }
 
         String[][] data = {
                 {"Total", String.valueOf(nvlLong(s.getTotal()))},
                 {"Verified", String.valueOf(nvlLong(s.getVerified()))},
                 {"Failed", String.valueOf(nvlLong(s.getFailed()))},
-                {"Blocked", String.valueOf(nvlLong(s.getBlocked()))},
                 {"Pending", String.valueOf(nvlLong(s.getPending()))},
         };
 

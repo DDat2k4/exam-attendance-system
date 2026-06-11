@@ -263,7 +263,6 @@ public class ExamSessionController extends BaseController {
     // =========================================================
     // UNFLAG
     // =========================================================
-
     @PostMapping("/{sessionId}/unflag")
     @PreAuthorize("hasRole('PROCTOR')")
     public ResponseEntity<ApiResponse<Void>> unflag(

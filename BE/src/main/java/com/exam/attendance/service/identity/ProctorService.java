@@ -497,12 +497,10 @@ public class ProctorService {
             attendanceRepo.save(attendance);
 
             // session
-            if (session.getStatus() == ExamSessionStatus.BLOCKED) {
-                throw new RuntimeException("Session bị khóa");
-            }
-
-            if (session.getStatus() == ExamSessionStatus.IN_PROGRESS) {
-                throw new RuntimeException("Đang thi không thể duyệt lại checkin");
+            if (session.getStatus() != ExamSessionStatus.PENDING_REVIEW) {
+                throw new RuntimeException(
+                        "Chỉ được duyệt khi trạng thái là PENDING_REVIEW"
+                );
             }
 
             examSessionStateService.updateStatus(
@@ -539,7 +537,7 @@ public class ProctorService {
         } catch (Exception e) {
 
             log.error("Manual approve checkin failed", e);
-            throw new RuntimeException("Manual approve failed: " + e.getMessage());
+            throw new RuntimeException(e.getMessage());
         }
 
     }

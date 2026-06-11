@@ -108,10 +108,6 @@ public class ExamSessionService {
             );
         }
 
-        // =====================================================
-        // ROOM
-        // =====================================================
-
         ExamRoom room =
                 reg.getRoom();
 
@@ -119,25 +115,16 @@ public class ExamSessionService {
             throw new RuntimeException("Bạn chưa được phân phòng");
         }
 
-        // =====================================================
-        // ROOM FULL
-        // =====================================================
         long count =
                 examSessionRepo.countByRoomId(room.getId());
         if (count >= room.getMaxStudents()) {
             throw new RuntimeException("Phòng đã đầy");
         }
 
-        // =====================================================
-        // DEVICE
-        // =====================================================
         if (deviceId == null || deviceId.isBlank()) {
             throw new RuntimeException("Thiết bị không hợp lệ");
         }
 
-        // =====================================================
-        // CREATE SESSION
-        // =====================================================
         ExamSession s = new ExamSession();
         s.setUser(user);
         s.setExam(exam);
@@ -175,17 +162,15 @@ public class ExamSessionService {
 
         validateAttendanceVerified(session);
         validateInitialVerify(session);
-        // BLOCKED
+
         if (session.getStatus() == ExamSessionStatus.BLOCKED) {
             throw new RuntimeException("Phiên thi đã bị khóa");
         }
 
-        // REVIEW
         if (session.getStatus() == ExamSessionStatus.PENDING_REVIEW) {
             throw new RuntimeException("Đang chờ giám thị duyệt");
         }
 
-        // DEVICE APPROVAL
         if (session.getStatus() == ExamSessionStatus.PENDING_DEVICE_APPROVAL) {
             throw new RuntimeException("Đang chờ duyệt đổi thiết bị");
         }
@@ -204,7 +189,6 @@ public class ExamSessionService {
     // =========================================================
     // VALIDATE ATTENDANCE
     // =========================================================
-
     private void validateAttendanceVerified(
             ExamSession session
     ) {
@@ -258,10 +242,6 @@ public class ExamSessionService {
         if (profile.getCitizenId() == null || profile.getCitizenId().isBlank()) {
             throw new RuntimeException("Chưa có CCCD");
         }
-
-        if (!Boolean.TRUE.equals(profile.getIsVerified())) {
-            throw new RuntimeException("CCCD chưa được xác thực");
-        }
     }
 
     // =========================================================
@@ -310,7 +290,6 @@ public class ExamSessionService {
     // =========================================================
     // GET
     // =========================================================
-
     public ExamSession getById(
             Long id
     ) {
