@@ -4,7 +4,7 @@ import { getAllExams } from '../../api/examApi'
 import { getMyExamRegistrations } from '../../api/examRegistrationApi'
 import { getAllExamSessions, getMyExamSessions } from '../../api/examSessionApi'
 import { getUsers } from '../../api/userApi'
-import { getMyUserProfile, getUserProfile } from '../../api/userProfileApi'
+import { getMyUserProfile } from '../../api/userProfileApi'
 import { getUserFromToken } from '../../utils/jwt'
 import { useAuth } from '../../context/AuthContext'
 import { canAccess, getRoleCodes } from '../../utils/rbac'
@@ -43,11 +43,11 @@ const DASHBOARD_BY_ROLE = {
   },
   STUDENT: {
     heading: 'Lịch thi của bạn',
-    lead: 'Xem đăng ký, phiên thi và trạng thái xác minh của bạn.',
+    lead: 'Xem đăng ký, phiên thi và trạng thái hồ sơ của bạn.',
     kpis: [
       { key: 'registrationsTotal', label: 'Kỳ thi đã đăng ký' },
       { key: 'mySessionsTotal', label: 'Phiên thi của tôi' },
-      { key: 'verification', label: 'Trạng thái xác minh' },
+      { key: 'profileStatus', label: 'Hồ sơ' },
       { key: 'readiness', label: 'Sẵn sàng vào phòng' },
     ],
     timeline: [
@@ -73,7 +73,7 @@ const HOME_ACTIONS = [
 
 export default function Home() {
   const { user } = useAuth()
-  const [verificationKpi, setVerificationKpi] = useState({ value: '...', label: 'Đang kiểm tra' })
+  const [profileKpi, setProfileKpi] = useState({ value: '...', label: 'Đang kiểm tra hồ sơ' })
   const [dashboardStats, setDashboardStats] = useState({
     examsTotal: '—',
     roomsTotal: '—',
@@ -121,60 +121,14 @@ export default function Home() {
 
         if (profile?.id) {
           localStorage.setItem('profileId', String(profile.id))
-        }
-
-        if (profile?.isVerified === true) {
-          setVerificationKpi({ value: '✓', label: 'Đã xác minh' })
+          setProfileKpi({ value: '✓', label: 'Đã có hồ sơ' })
           return
         }
 
-        if (profile?.isVerified === false) {
-          setVerificationKpi({ value: '!', label: 'Chưa xác minh' })
-          return
-        }
-
-        setVerificationKpi({ value: '-', label: 'Chưa xác minh' })
+        setProfileKpi({ value: '-', label: 'Chưa có hồ sơ' })
       } catch (err) {
         if (cancelled) return
-        if (err?.response?.status === 404) {
-          const tokenUser = getUserFromToken()
-          const profileIdRaw =
-            tokenUser?.profileId ??
-            tokenUser?.id ??
-            tokenUser?.userId ??
-            localStorage.getItem('profileId')
-          const profileId = Number(profileIdRaw)
-
-          if (!profileId) {
-            setVerificationKpi({ value: '-', label: 'Chưa có dữ liệu xác minh' })
-            return
-          }
-
-          try {
-            const legacyProfile = await getUserProfile(profileId)
-            if (cancelled) return
-
-            if (legacyProfile?.isVerified === true) {
-              setVerificationKpi({ value: '✓', label: 'Đã xác minh' })
-              return
-            }
-
-            if (legacyProfile?.isVerified === false) {
-              setVerificationKpi({ value: '!', label: 'Chưa xác minh' })
-              return
-            }
-
-            setVerificationKpi({ value: '-', label: 'Chưa xác minh' })
-            return
-          } catch (legacyErr) {
-            if (legacyErr?.response?.status === 404) {
-              setVerificationKpi({ value: '-', label: 'Chưa có dữ liệu xác minh' })
-              return
-            }
-            throw legacyErr
-          }
-        }
-        setVerificationKpi({ value: '?', label: 'Lỗi xác minh' })
+        setProfileKpi({ value: '?', label: 'Lỗi tải hồ sơ' })
       }
     }
 
@@ -293,12 +247,12 @@ export default function Home() {
     return {
       ...base,
       kpis: base.kpis.map((item) => {
-        if (item.key === 'verification') {
-          return { value: verificationKpi.value, label: verificationKpi.label }
+        if (item.key === 'profileStatus') {
+          return { value: profileKpi.value, label: profileKpi.label }
         }
 
         if (item.key === 'readiness') {
-          const isReady = verificationKpi.label === 'Đã xác minh'
+          const isReady = profileKpi.label === 'Đã có hồ sơ'
           return {
             value: isReady ? '✓' : '!',
             label: isReady ? 'Sẵn sàng vào phòng' : 'Chưa sẵn sàng',
@@ -311,7 +265,7 @@ export default function Home() {
         }
       }),
     }
-  }, [activeRole, verificationKpi, dashboardStats])
+  }, [activeRole, profileKpi, dashboardStats])
 
   const resolvedDashboard = useMemo(() => {
     const base = DASHBOARD_BY_ROLE[activeRole]

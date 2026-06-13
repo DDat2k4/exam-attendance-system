@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getMyUserProfile, updateUserProfile } from '../../api/userProfileApi'
 import { useAuth } from '../../context/AuthContext'
-// removed Link import — profile page no longer links to change-password
 import './ProfilePage.css'
 
 export default function ProfilePage() {
@@ -106,10 +105,6 @@ export default function ProfilePage() {
           <div>
             <p className="label">Ngày sinh</p>
             <p className="value">{profile?.birthDate || '-'}</p>
-          </div>
-          <div>
-            <p className="label">Xác minh</p>
-            <p className="value">{profile?.isVerified === true ? 'Đã xác minh' : profile?.isVerified === false ? 'Chưa xác minh' : '-'}</p>
           </div>
         </div>
       )}

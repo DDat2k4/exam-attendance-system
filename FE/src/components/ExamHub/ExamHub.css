@@ -990,6 +990,14 @@
     padding: 8px 10px;
   }
 
+  .proctor-modal-content .pending-attendance-table th:first-child,
+  .proctor-modal-content .pending-attendance-table td:first-child {
+    width: 240px;
+    min-width: 240px;
+    white-space: normal;
+    word-break: break-word;
+  }
+
   /* Make action buttons smaller and wrap */
   .table-actions button, .modal-centered .profile-popover__actions button {
     padding: 6px 8px;
@@ -3190,6 +3198,54 @@
   background: #ebfaf2;
   color: #196b41;
   border: 1px solid #b9eccf;
+}
+
+.proctor-action-feedback-stack {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 8px;
+  width: min(760px, calc(100vw - 24px));
+  z-index: 1450;
+  pointer-events: none;
+}
+
+.proctor-action-feedback {
+  pointer-events: auto;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  box-shadow: 0 12px 28px rgba(20, 34, 84, 0.22);
+  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.proctor-action-feedback--error {
+  background: #ffeff1;
+  color: #8f1f33;
+  border-color: #ffc7d0;
+}
+
+.proctor-action-feedback--success {
+  background: #ebfaf2;
+  color: #196b41;
+  border-color: #b9eccf;
+}
+
+.proctor-action-feedback__close {
+  border: 0;
+  background: transparent;
+  color: currentColor;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 2px;
 }
 
 .table-wrap {

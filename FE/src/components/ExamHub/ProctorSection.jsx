@@ -17,7 +17,6 @@ import {
 } from '../ui/AppIcons'
 
 import { getAttendanceById, getAttendanceSession } from '../../api/examSessionApi'
-import { getExamSessionVerificationHistory } from '../../api/examSessionApi'
 import { getSessionStatusLabel, statusToBadgeClass } from '../../utils/examSessionStatus'
 import { captureFrame, isCameraSupported, requestCameraAccess, stopCameraStream } from '../../utils/faceCapture'
 
@@ -118,8 +117,6 @@ export default function ProctorSection({
   const [showAttendancePopup, setShowAttendancePopup] = useState(false)
   const [attendancePopupLoading, setAttendancePopupLoading] = useState(false)
   const [attendancePopupData, setAttendancePopupData] = useState(null)
-  const [attendanceHistoryLoading, setAttendanceHistoryLoading] = useState(false)
-  const [attendanceHistory, setAttendanceHistory] = useState([])
   const [attendancePopupError, setAttendancePopupError] = useState('')
   const [attendanceApproveImage, setAttendanceApproveImage] = useState('')
   const [attendanceApproveImageName, setAttendanceApproveImageName] = useState('')
@@ -130,13 +127,16 @@ export default function ProctorSection({
   const [attendanceCameraStream, setAttendanceCameraStream] = useState(null)
   const [localProctorActionError, setLocalProctorActionError] = useState('')
   const [filterCollapsed, setFilterCollapsed] = useState(false)
+  const [showRealtimeAlertsPanel, setShowRealtimeAlertsPanel] = useState(false)
+  const [showPendingAttendancesPopup, setShowPendingAttendancesPopup] = useState(false)
   const [showFilterToggle, setShowFilterToggle] = useState(true)
   const filterFormRef = useRef(null)
   const lastToggleAtRef = useRef(0)
   const attendanceCameraVideoRef = useRef(null)
   const attendanceUploadInputRef = useRef(null)
   const attendanceDetails = attendancePopupData?.data ?? attendancePopupData ?? null
-  const hasAttendanceRecord = Boolean(attendanceDetails?.id || attendanceDetails?.attendanceId)
+  const attendanceDetailRecord = Array.isArray(attendanceDetails) ? attendanceDetails[0] ?? null : attendanceDetails
+  const hasAttendanceRecord = Boolean(attendanceDetailRecord?.id || attendanceDetailRecord?.attendanceId)
   const proctorActionErrorMessage = proctorActionError || localProctorActionError
   const safeSetProctorActionError = typeof setProctorActionError === 'function'
     ? setProctorActionError
@@ -229,8 +229,6 @@ export default function ProctorSection({
     setShowAttendancePopup(false)
     setAttendancePopupLoading(false)
     setAttendancePopupData(null)
-    setAttendanceHistory([])
-    setAttendanceHistoryLoading(false)
     setAttendancePopupError('')
     setAttendanceApproveImage('')
     setAttendanceApproveImageName('')
@@ -270,10 +268,8 @@ export default function ProctorSection({
 
     try {
       setAttendancePopupLoading(true)
-      setAttendanceHistoryLoading(true)
       setAttendancePopupError('')
       setAttendancePopupData(null)
-      setAttendanceHistory([])
       setAttendanceApproveImage('')
       setAttendanceApproveImageName('')
       setShowAttendancePopup(true)
@@ -306,34 +302,63 @@ export default function ProctorSection({
         setAttendancePopupError('Không xác định được sessionId hoặc attendanceId để tải điểm danh.')
       }
 
-      setAttendancePopupData(attendanceData)
-      if (attendanceData?.attendancePhoto) {
-        setAttendanceApproveImage(attendanceData.attendancePhoto)
-        setAttendanceApproveImageName('Ảnh điểm danh fail')
-      } else if (attendanceData?.cccdPhoto) {
-        setAttendanceApproveImage(attendanceData.cccdPhoto)
-        setAttendanceApproveImageName('Ảnh CCCD')
-      }
+      const attendanceRecord = Array.isArray(attendanceData) ? attendanceData[0] ?? null : attendanceData
 
-      try {
-        const historySessionId = sessionId ?? attendanceData?.sessionId ?? attendanceData?.examSessionId ?? attendanceData?.session?.sessionId ?? null
-        if (!historySessionId) {
-          setAttendanceHistory([])
-        } else {
-          const history = await getExamSessionVerificationHistory(historySessionId)
-          setAttendanceHistory(Array.isArray(history) ? history : history ? [history] : [])
-        }
-      } catch {
-        setAttendanceHistory([])
+      setAttendancePopupData(attendanceRecord)
+      if (attendanceRecord?.attendancePhoto) {
+        setAttendanceApproveImage(attendanceRecord.attendancePhoto)
+        setAttendanceApproveImageName('Ảnh điểm danh fail')
+      } else if (attendanceRecord?.cccdPhoto) {
+        setAttendanceApproveImage(attendanceRecord.cccdPhoto)
+        setAttendanceApproveImageName('Ảnh CCCD')
       }
     } finally {
       setAttendancePopupLoading(false)
-      setAttendanceHistoryLoading(false)
+    }
+  }
+
+  const handleOpenPendingAttendancePopup = async (attendanceItem) => {
+    if (!attendanceItem) return
+
+    safeSetProctorActionError('')
+    setAttendancePopupSession(attendanceItem)
+
+    const attendanceId = attendanceItem?.attendanceId ?? attendanceItem?.id ?? attendanceItem?.attendance?.id ?? null
+
+    try {
+      setAttendancePopupLoading(true)
+      setAttendancePopupError('')
+      setAttendancePopupData(null)
+      setAttendanceApproveImage('')
+      setAttendanceApproveImageName('')
+      setShowAttendancePopup(true)
+
+      if (!attendanceId) {
+        setAttendancePopupError('Không xác định được attendanceId để tải điểm danh.')
+        return
+      }
+
+      const attendance = await getAttendanceById(attendanceId)
+      const attendanceData = attendance?.data ?? attendance ?? null
+      const attendanceRecord = Array.isArray(attendanceData) ? attendanceData[0] ?? null : attendanceData
+
+      setAttendancePopupData(attendanceRecord)
+      if (attendanceRecord?.attendancePhoto) {
+        setAttendanceApproveImage(attendanceRecord.attendancePhoto)
+        setAttendanceApproveImageName('Ảnh điểm danh fail')
+      } else if (attendanceRecord?.cccdPhoto) {
+        setAttendanceApproveImage(attendanceRecord.cccdPhoto)
+        setAttendanceApproveImageName('Ảnh CCCD')
+      }
+    } catch (err) {
+      setAttendancePopupError(err.message || 'Không tải được dữ liệu điểm danh hiện tại. Bạn có thể tạo điểm danh thủ công.')
+    } finally {
+      setAttendancePopupLoading(false)
     }
   }
 
   const handleUseAttendanceImage = (kind) => {
-    const imageUrl = kind === 'cccd' ? attendanceDetails?.cccdPhoto : attendanceDetails?.attendancePhoto
+    const imageUrl = kind === 'cccd' ? attendanceDetailRecord?.cccdPhoto : attendanceDetailRecord?.attendancePhoto
     const imageLabel = kind === 'cccd' ? 'Ảnh CCCD' : 'Ảnh điểm danh fail'
 
     if (!imageUrl) {
@@ -530,7 +555,19 @@ export default function ProctorSection({
       return
     }
 
-    await runProctorAction('reject-attendance')
+    const sessionId = getSessionRecordId(attendancePopupSession)
+    const attendanceId =
+      attendanceDetailRecord?.id
+      ?? attendanceDetailRecord?.attendanceId
+      ?? attendancePopupSession?.attendanceId
+      ?? attendancePopupSession?.id
+      ?? null
+
+    await runProctorAction('reject-attendance', {
+      sessionId,
+      attendanceId,
+      reason: String(proctorReason || '').trim(),
+    })
   }
 
   const handleExportReport = async () => {
@@ -731,6 +768,16 @@ export default function ProctorSection({
           <div className="inline-actions">
             <button
               type="button"
+              className="tiny-btn"
+              onClick={() => setShowRealtimeAlertsPanel((current) => !current)}
+              aria-expanded={showRealtimeAlertsPanel}
+              aria-label={showRealtimeAlertsPanel ? 'Ẩn cảnh báo realtime' : 'Hiện cảnh báo realtime'}
+              title={showRealtimeAlertsPanel ? 'Ẩn cảnh báo' : 'Hiện cảnh báo'}
+            >
+              {showRealtimeAlertsPanel ? 'Ẩn' : 'Hiện'}
+            </button>
+            <button
+              type="button"
               className="tiny-btn icon-only-btn"
               onClick={clearProctorAlerts}
               disabled={proctorAlerts.length === 0}
@@ -742,7 +789,9 @@ export default function ProctorSection({
           </div>
         </div>
 
-        {enrichedProctorAlerts.length === 0 ? (
+        {!showRealtimeAlertsPanel ? (
+          <p>Bấm <strong>Hiện</strong> để mở danh sách cảnh báo realtime. Hiện có {enrichedProctorAlerts.length} cảnh báo.</p>
+        ) : enrichedProctorAlerts.length === 0 ? (
           <p>Chưa có cảnh báo mới cho phòng đang giám sát.</p>
         ) : (
           <div className="proctor-alert-list">
@@ -776,6 +825,20 @@ export default function ProctorSection({
           <div className="inline-actions">
             <button
               type="button"
+              className="tiny-btn"
+              onClick={() => {
+                setShowPendingAttendancesPopup(true)
+                if (!loadingPendingAttendances && pendingAttendances.length === 0 && !pendingAttendanceError && proctorFilter.roomId) {
+                  void fetchPendingAttendances()
+                }
+              }}
+              aria-label="Mở popup hàng đợi điểm danh"
+              title="Mở popup hàng đợi"
+            >
+              Mở popup
+            </button>
+            <button
+              type="button"
               className="tiny-btn icon-only-btn"
               onClick={() => void fetchPendingAttendances()}
               disabled={loadingPendingAttendances || !proctorFilter.roomId}
@@ -787,67 +850,9 @@ export default function ProctorSection({
           </div>
         </div>
 
-        {pendingAttendanceError && (
-          <p className="proctor-inline-error" style={{ marginTop: 0 }}>
-            {pendingAttendanceError}
-          </p>
-        )}
-
-        {loadingPendingAttendances ? (
-          <p>Đang tải hàng đợi điểm danh...</p>
-        ) : pendingAttendances.length === 0 ? (
-          <p>Không có điểm danh nào đang chờ duyệt cho phòng hiện tại.</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Student</th>
-                  <th>CCCD</th>
-                  <th>Room</th>
-                  <th>Attendance</th>
-                  <th>Exam Status</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingAttendances.map((item, idx) => {
-                  const recordKey = item?.attendanceId ?? item?.sessionId ?? idx
-                  return (
-                    <tr key={`${recordKey}-${idx}`}>
-                      <td>{item?.studentName || '-'}</td>
-                      <td>{item?.citizenId || '-'}</td>
-                      <td>{item?.roomCode || item?.roomId || '-'}</td>
-                      <td>
-                        <span className={`status-badge badge-${statusToBadgeClass(item?.attendanceStatus || 'PENDING_REVIEW')}`}>
-                          {getSessionStatusLabel(item?.attendanceStatus || 'PENDING_REVIEW') || 'Chờ duyệt'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`status-badge badge-${statusToBadgeClass(item?.examSessionStatus || 'PENDING_REVIEW')}`}>
-                          {getSessionStatusLabel(item?.examSessionStatus || 'PENDING_REVIEW') || 'Chờ duyệt'}
-                        </span>
-                      </td>
-                      <td>{formatDateTime(item?.createdAt)}</td>
-                      <td>
-                        <div className="table-actions">
-                          <button
-                            type="button"
-                            className="tiny-btn"
-                            onClick={() => void handleOpenAttendancePopup(item)}
-                          >
-                            Xử lý
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <p className="student-exam-note" style={{ margin: 0 }}>
+          Hiện có {pendingAttendances.length} bản ghi chờ duyệt. Danh sách chi tiết được mở trong popup.
+        </p>
       </div>
 
       <div className="proctor-list">
@@ -1204,6 +1209,109 @@ export default function ProctorSection({
         </div>
       )}
 
+      {showPendingAttendancesPopup && (
+        <div
+          className="proctor-modal-overlay"
+          onClick={() => setShowPendingAttendancesPopup(false)}
+          style={{ zIndex: 1190 }}
+        >
+          <div className="proctor-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1100px' }}>
+            <div className="proctor-modal-header">
+              <div>
+                <h3>Hàng đợi điểm danh chờ duyệt</h3>
+                <p className="student-exam-note">
+                  {selectedProctorRoomLabel && selectedProctorRoomLabel !== '-' ? `Phòng: ${selectedProctorRoomLabel}` : 'Đang lọc theo phòng thi hiện tại'}
+                </p>
+              </div>
+              <div className="inline-actions">
+                <button
+                  type="button"
+                  className="tiny-btn icon-only-btn"
+                  onClick={() => void fetchPendingAttendances()}
+                  disabled={loadingPendingAttendances || !proctorFilter.roomId}
+                  aria-label="Tải lại hàng đợi điểm danh"
+                  title="Tải lại hàng đợi"
+                >
+                  <RefreshIcon />
+                </button>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => setShowPendingAttendancesPopup(false)}
+                  aria-label="Đóng popup hàng đợi"
+                >
+                  <CloseIcon />
+                </button>
+              </div>
+            </div>
+
+            <div className="proctor-modal-content">
+              {pendingAttendanceError && (
+                <div className="proctor-inline-error proctor-inline-error--modal" role="alert">
+                  {pendingAttendanceError}
+                </div>
+              )}
+
+              {loadingPendingAttendances ? (
+                <p>Đang tải hàng đợi điểm danh...</p>
+              ) : pendingAttendances.length === 0 ? (
+                <p>Không có điểm danh nào đang chờ duyệt cho phòng hiện tại.</p>
+              ) : (
+                <div className="table-wrap">
+                  <table className="pending-attendance-table">
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>CCCD</th>
+                        <th>Room</th>
+                        <th>Attendance</th>
+                        <th>Exam Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingAttendances.map((item, idx) => {
+                        const recordKey = item?.attendanceId ?? item?.sessionId ?? idx
+                        return (
+                          <tr key={`${recordKey}-${idx}`}>
+                            <td>{item?.studentName || '-'}</td>
+                            <td>{item?.citizenId || '-'}</td>
+                            <td>{item?.roomCode || (selectedProctorRoomLabel && selectedProctorRoomLabel !== '-' ? selectedProctorRoomLabel : '-')}</td>
+                            <td>
+                              <span className={`status-badge badge-${statusToBadgeClass(item?.attendanceStatus || 'PENDING_REVIEW')}`}>
+                                {getSessionStatusLabel(item?.attendanceStatus || 'PENDING_REVIEW') || 'Chờ duyệt'}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`status-badge badge-${statusToBadgeClass(item?.examSessionStatus || 'PENDING_REVIEW')}`}>
+                                {getSessionStatusLabel(item?.examSessionStatus || 'PENDING_REVIEW') || 'Chờ duyệt'}
+                              </span>
+                            </td>
+                            <td>{formatDateTime(item?.createdAt)}</td>
+                            <td>
+                              <div className="table-actions">
+                                <button
+                                  type="button"
+                                  className="tiny-btn"
+                                  onClick={() => void handleOpenPendingAttendancePopup(item)}
+                                >
+                                  Xử lý
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAttendancePopup && attendancePopupSession && (
         <div
           className="proctor-modal-overlay"
@@ -1237,21 +1345,14 @@ export default function ProctorSection({
               )}
 
               <div className="proctor-summary-grid">
-                <div><span>Student</span><strong>{attendanceDetails?.studentName ?? attendancePopupSession?.studentName ?? '-'}</strong></div>
-                <div><span>CCCD</span><strong>{attendanceDetails?.citizenId ?? attendancePopupSession?.citizenId ?? '-'}</strong></div>
-                <div><span>Attendance Status</span><strong>{getSessionStatusLabel(attendanceDetails?.status || attendanceDetails?.attendanceStatus || attendancePopupSession?.attendanceStatus) || '-'}</strong></div>
-                <div><span>Exam Status</span><strong>{getSessionStatusLabel(attendanceDetails?.examSessionStatus || attendancePopupSession?.examSessionStatus) || '-'}</strong></div>
-                <div><span>Check-in Time</span><strong>{attendanceDetails?.checkinTime || '-'}</strong></div>
-                <div><span>Verified At</span><strong>{attendanceDetails?.verifiedAt || '-'}</strong></div>
-                <div><span>Verified By</span><strong>{attendanceDetails?.verifiedByName || attendanceDetails?.verifiedById || '-'}</strong></div>
-                <div><span>Confidence</span><strong>{typeof attendanceDetails?.confidence === 'number' ? `${(attendanceDetails.confidence * 100).toFixed(1)}%` : '-'}</strong></div>
-              </div>
-
-              <div className="proctor-history" style={{ marginTop: '16px' }}>
-                <div className="session-head">
-                  <h4>Lịch sử điểm danh</h4>
-                </div>
-                <VerificationHistory history={attendanceHistory} loading={attendanceHistoryLoading} />
+                <div><span>Student</span><strong>{attendanceDetailRecord?.studentName ?? attendancePopupSession?.studentName ?? '-'}</strong></div>
+                <div><span>CCCD</span><strong>{attendanceDetailRecord?.citizenId ?? attendancePopupSession?.citizenId ?? '-'}</strong></div>
+                <div><span>Attendance Status</span><strong>{getSessionStatusLabel(attendanceDetailRecord?.status || attendanceDetailRecord?.attendanceStatus || attendancePopupSession?.attendanceStatus) || '-'}</strong></div>
+                <div><span>Exam Status</span><strong>{getSessionStatusLabel(attendanceDetailRecord?.examSessionStatus || attendancePopupSession?.examSessionStatus) || '-'}</strong></div>
+                <div><span>Check-in Time</span><strong>{attendanceDetailRecord?.checkinTime || '-'}</strong></div>
+                <div><span>Verified At</span><strong>{attendanceDetailRecord?.verifiedAt || '-'}</strong></div>
+                <div><span>Verified By</span><strong>{attendanceDetailRecord?.verifiedByName || attendanceDetailRecord?.verifiedById || '-'}</strong></div>
+                <div><span>Confidence</span><strong>{typeof attendanceDetailRecord?.confidence === 'number' ? `${(attendanceDetailRecord.confidence * 100).toFixed(1)}%` : '-'}</strong></div>
               </div>
 
               <div style={{ marginTop: '16px' }}>
@@ -1265,7 +1366,7 @@ export default function ProctorSection({
                         type="button"
                         className="tiny-btn"
                         onClick={() => handleUseAttendanceImage('fail')}
-                        disabled={!attendanceDetails?.attendancePhoto}
+                        disabled={!attendanceDetailRecord?.attendancePhoto}
                       >
                         Dùng ảnh điểm danh fail
                       </button>
@@ -1273,7 +1374,7 @@ export default function ProctorSection({
                         type="button"
                         className="tiny-btn"
                         onClick={() => handleUseAttendanceImage('cccd')}
-                        disabled={!attendanceDetails?.cccdPhoto}
+                        disabled={!attendanceDetailRecord?.cccdPhoto}
                       >
                         Dùng ảnh CCCD
                       </button>
@@ -1374,11 +1475,11 @@ export default function ProctorSection({
                 <div className="capture-image-preview" style={{ marginTop: '16px' }}>
                   <span>Ảnh điểm danh</span>
                   <div className="images-section" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    {attendanceDetails?.cccdPhoto ? (
+                    {attendanceDetailRecord?.cccdPhoto ? (
                       <div className="capture-image-preview" style={{ marginTop: 0 }}>
                         <span>Ảnh CCCD</span>
-                        <a href={attendanceDetails.cccdPhoto} target="_blank" rel="noopener noreferrer">
-                          <img src={attendanceDetails.cccdPhoto} alt="Ảnh CCCD" loading="lazy" />
+                        <a href={attendanceDetailRecord.cccdPhoto} target="_blank" rel="noopener noreferrer">
+                          <img src={attendanceDetailRecord.cccdPhoto} alt="Ảnh CCCD" loading="lazy" />
                         </a>
                       </div>
                     ) : (
@@ -1388,11 +1489,11 @@ export default function ProctorSection({
                       </div>
                     )}
 
-                    {attendanceDetails?.attendancePhoto ? (
+                    {attendanceDetailRecord?.attendancePhoto ? (
                       <div className="capture-image-preview" style={{ marginTop: 0 }}>
                         <span>Ảnh điểm danh</span>
-                        <a href={attendanceDetails.attendancePhoto} target="_blank" rel="noopener noreferrer">
-                          <img src={attendanceDetails.attendancePhoto} alt="Ảnh điểm danh" loading="lazy" />
+                        <a href={attendanceDetailRecord.attendancePhoto} target="_blank" rel="noopener noreferrer">
+                          <img src={attendanceDetailRecord.attendancePhoto} alt="Ảnh điểm danh" loading="lazy" />
                         </a>
                       </div>
                     ) : (
@@ -1403,9 +1504,9 @@ export default function ProctorSection({
                     )}
                   </div>
 
-                  {attendanceDetails?.reviewNote && (
+                  {attendanceDetailRecord?.reviewNote && (
                     <div className="verification-note" style={{ marginTop: '12px' }}>
-                      {attendanceDetails.reviewNote}
+                      {attendanceDetailRecord.reviewNote}
                     </div>
                   )}
                 </div>

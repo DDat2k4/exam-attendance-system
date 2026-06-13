@@ -91,7 +91,7 @@ const firstNonEmpty = (...values) => {
   return ''
 }
 
-const normalizePendingAttendanceItem = (item) => {
+const normalizePendingAttendanceItem = (item, fallbackRoomId = null) => {
   const sessionId = firstNonEmpty(
     item?.sessionId,
     item?.examSessionId,
@@ -101,7 +101,7 @@ const normalizePendingAttendanceItem = (item) => {
     item?.attendanceSessionId,
   )
   const attendanceId = firstNonEmpty(item?.attendanceId, item?.id, item?.attendance?.id)
-  const roomId = firstNonEmpty(item?.roomId, item?.room?.id, item?.examSession?.roomId, item?.session?.roomId)
+  const roomId = firstNonEmpty(item?.roomId, item?.room?.id, item?.examSession?.roomId, item?.session?.roomId, fallbackRoomId)
 
   return {
     ...item,
@@ -503,7 +503,7 @@ export default function useProctorSection({
     try {
       setLoadingPendingAttendances(true)
       setPendingAttendanceError('')
-      const response = await getPendingAttendances()
+      const response = await getPendingAttendances(roomId)
       const rows = Array.isArray(response)
         ? response
         : Array.isArray(response?.content)
@@ -516,9 +516,7 @@ export default function useProctorSection({
                 ? [response]
                 : []
 
-      const normalized = rows
-        .map(normalizePendingAttendanceItem)
-        .filter((item) => Number(item.roomId) === roomId)
+      const normalized = rows.map((item) => normalizePendingAttendanceItem(item, roomId))
 
       setPendingAttendances(normalized)
     } catch (err) {
@@ -653,8 +651,18 @@ export default function useProctorSection({
   }
 
   const runProctorAction = async (action, payload = {}) => {
-    const sessionId = payload?.sessionId ?? getSessionRecordId(selectedProctorSession)
-    if (!sessionId) {
+    const attendanceAction = action === 'approve-attendance' || action === 'reject-attendance'
+    const payloadSessionId = payload?.sessionId ?? null
+    const sessionId = payloadSessionId ?? getSessionRecordId(selectedProctorSession)
+
+    let attendanceId =
+      payload?.attendanceId
+      ?? selectedProctorSession?.attendanceId
+      ?? selectedProctorSession?.attendance?.id
+      ?? selectedProctorSession?.attendance?.attendanceId
+      ?? null
+
+    if (!sessionId && !(attendanceAction && attendanceId)) {
       setError('Vui lòng chọn một phiên thi để thao tác.')
       return
     }
@@ -670,16 +678,13 @@ export default function useProctorSection({
     const attendanceStatus = String(selectedProctorSession?.attendanceStatus || '').toUpperCase()
     const examStatus = String(selectedProctorSession?.examSessionStatus || '').toUpperCase()
     const isAttendancePending = attendanceStatus === 'PENDING_REVIEW'
-    const attendanceAction = action === 'approve-attendance' || action === 'reject-attendance' || (action === 'reject' && isAttendancePending)
+    const requiresAttendanceLookup = action === 'approve-attendance' || action === 'reject-attendance' || (action === 'reject' && isAttendancePending)
 
-    let attendanceId =
-      payload?.attendanceId
-      ?? selectedProctorSession?.attendanceId
-      ?? selectedProctorSession?.attendance?.id
-      ?? selectedProctorSession?.attendance?.attendanceId
-      ?? null
-
-    if (attendanceAction && !attendanceId) {
+    if (requiresAttendanceLookup && !attendanceId) {
+      if (!sessionId) {
+        setError('Không xác định được sessionId hoặc attendanceId cho thao tác điểm danh.')
+        return
+      }
       try {
         const attendance = await getAttendanceBySession(sessionId)
         attendanceId = attendance?.id ?? attendance?.attendanceId ?? null
@@ -724,7 +729,7 @@ export default function useProctorSection({
 
       setSuccess(
         action === 'manual-checkin'
-          ? `Đã tạo điểm danh thủ công cho ${sessionLabel}. Yêu cầu đã chuyển sang chờ duyệt.`
+          ? `Đã điểm danh thủ công cho ${sessionLabel}`
           : action === 'approve-attendance'
           ? `Đã duyệt điểm danh cho ${sessionLabel}.`
           : action === 'reject-attendance'

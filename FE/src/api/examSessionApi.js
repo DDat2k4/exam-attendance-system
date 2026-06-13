@@ -202,9 +202,11 @@ export const manualCheckin = async (examSessionId, base64Image, reason) => {
   }
 }
 
-export const getPendingAttendances = async () => {
+export const getPendingAttendances = async (roomId) => {
   try {
-    return await dedupeGet(axiosClient, `${API_URL}/attendance/pending`)
+    return await dedupeGet(axiosClient, `${API_URL}/attendance/pending`, {
+      params: { roomId },
+    })
   } catch (err) {
     rethrow(err)
   }
