@@ -44,7 +44,7 @@ public class ExamRoomService {
     // Lấy room theo id
     public ExamRoomDTO getById(Long id) {
         ExamRoom room = examRoomRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Room not found"));
+                .orElseThrow(() -> new RuntimeException("Phòng không tồn tại"));
         return ExamRoomMapper.toDTO(room);
     }
 
@@ -52,7 +52,7 @@ public class ExamRoomService {
     public ExamRoomDTO create(ExamRoomRequest room) {
 
         Exam exam = examRepository.findById(room.getExamId())
-                .orElseThrow(() -> new RuntimeException("Exam not found"));
+                .orElseThrow(() -> new RuntimeException("Bài thi không tồn tại"));
 
         ExamRoom examRoom = ExamRoomMapper.toEntity(room, exam);
 
@@ -64,7 +64,7 @@ public class ExamRoomService {
     // Cập nhật room
     public ExamRoomDTO update(Long id, ExamRoomRequest request) {
         ExamRoom room = examRoomRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Room not found"));
+                .orElseThrow(() -> new RuntimeException("Phòng không tồn tại"));
 
         room.setRoomCode(request.getRoomCode());
         room.setMaxStudents(request.getMaxStudents());
@@ -78,7 +78,7 @@ public class ExamRoomService {
     public void delete(Long id) {
 
         if (!examRoomRepository.existsById(id)) {
-            throw new RuntimeException("Room not found");
+            throw new RuntimeException("Phòng không tồn tại");
         }
 
         if (examSessionRepository.existsByRoomId(id)) {
@@ -111,11 +111,11 @@ public class ExamRoomService {
                 .orElseThrow(() -> new RuntimeException("Registration not found"));
 
         ExamRoom room = examRoomRepository.findById(roomId)
-                .orElseThrow(() -> new RuntimeException("Room not found"));
+                .orElseThrow(() -> new RuntimeException("Phòng không tồn tại"));
 
         // check cùng exam
         if (!room.getExam().getId().equals(reg.getExam().getId())) {
-            throw new RuntimeException("Room không thuộc kỳ thi");
+            throw new RuntimeException("Phòng không thuộc kỳ thi");
         }
 
         // không cho assign lại
@@ -152,7 +152,7 @@ public class ExamRoomService {
     ) {
 
         if (!examRoomRepository.existsById(roomId)) {
-            throw new RuntimeException("Room not found");
+            throw new RuntimeException("Phòng không tồn tại");
         }
 
         Pageable pageable = PageRequest.of(page, size);
@@ -164,7 +164,7 @@ public class ExamRoomService {
     public void assignMultipleStudents(AssignRoomBatchRequest request) {
 
         ExamRoom room = examRoomRepository.findById(request.getRoomId())
-                .orElseThrow(() -> new RuntimeException("Room not found"));
+                .orElseThrow(() -> new RuntimeException("Phòng không tồn tại"));
 
         List<Long> regIds = request.getStudents()
                 .stream()
@@ -207,7 +207,7 @@ public class ExamRoomService {
         for (ExamRegistration reg : registrations) {
             if (reg.getRoom() != null) {
                 throw new RuntimeException(
-                        "User đã có phòng: " + reg.getUser().getId()
+                        "Sinh viên đã có phòng: " + reg.getUser().getId()
                 );
             }
         }

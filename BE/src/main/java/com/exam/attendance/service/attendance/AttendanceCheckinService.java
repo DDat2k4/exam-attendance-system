@@ -427,12 +427,9 @@ public class AttendanceCheckinService {
                                 new RuntimeException("Không tìm thấy ca thi")
                         );
 
-        if (session.getStatus()
-                == ExamSessionStatus.CHECKED_IN
-                || session.getStatus()
-                == ExamSessionStatus.IN_PROGRESS
-                || session.getStatus()
-                == ExamSessionStatus.DONE) {
+        if (session.getStatus() == ExamSessionStatus.CHECKED_IN
+                || session.getStatus() == ExamSessionStatus.IN_PROGRESS
+                || session.getStatus() == ExamSessionStatus.DONE) {
             throw new RuntimeException("Thí sinh đã điểm danh");
         }
 
@@ -446,7 +443,10 @@ public class AttendanceCheckinService {
                         .orElseGet(AttendanceSession::new);
 
         String imageUrl = null;
+
         if (base64Image != null && !base64Image.isBlank()) {
+
+            // Upload ảnh
             imageUrl =
                     fileUploadService
                             .uploadBase64Async(
@@ -455,14 +455,45 @@ public class AttendanceCheckinService {
                             )
                             .join()
                             .getUrl();
+
+            // Extract embedding
+            byte[] imageBytes = decodeBase64(base64Image);
+
+            Map<String, Object> embeddingResult =
+                    extractEmbedding(imageBytes);
+
+            Object embedding = embeddingResult.get("embedding");
+
+            if (embedding == null) {
+                throw new RuntimeException("Không extract được embedding");
+            }
+
+            CitizenCard card =
+                    citizenCardRepo
+                            .findByUserId(session.getUser().getId())
+                            .orElseThrow(() ->
+                                    new RuntimeException("Không tìm thấy CCCD")
+                            );
+
+            try {
+                card.setFaceEmbedding(
+                        objectMapper.writeValueAsString(embedding)
+                );
+
+                citizenCardRepo.save(card);
+
+            } catch (Exception e) {
+                throw new RuntimeException("Lưu face embedding thất bại");
+            }
         }
 
         attendance.setExamSession(session);
         attendance.setCheckinTime(LocalDateTime.now());
         attendance.setAttendancePhoto(imageUrl);
         attendance.setStatus(AttendanceStatus.VERIFIED);
+        attendance.setConfidence(1.0);
         attendance.setReviewNote(
-                reason != null
+                reason != null && !reason.isBlank()
                         ? reason
                         : "Manual checkin approved by proctor"
         );

@@ -31,15 +31,15 @@ public class ExamRegistrationService {
 
         // check tồn tại
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại"));
 
         Exam exam = examRepository.findById(examId)
-                .orElseThrow(() -> new RuntimeException("Exam not found"));
+                .orElseThrow(() -> new RuntimeException("Bài thi không tồn tại"));
 
         // check duplicate
         examregistrationRepository.findByExamIdAndUserId(examId, userId)
                 .ifPresent(r -> {
-                    throw new RuntimeException("User already in exam");
+                    throw new RuntimeException("Người dùng đã có trong kỳ thi");
                 });
 
         ExamRegistration registration = new ExamRegistration();
@@ -55,7 +55,7 @@ public class ExamRegistrationService {
     public void addUsersToExam(List<Long> userIds, Long examId) {
 
         Exam exam = examRepository.findById(examId)
-                .orElseThrow(() -> new RuntimeException("Exam not found"));
+                .orElseThrow(() -> new RuntimeException("Bài thi không tồn tại"));
 
         List<User> users = userRepository.findAllById(userIds);
 

@@ -40,7 +40,7 @@ public class ExamService {
 
         User user =
                 userRepository.findById(creatorId)
-                        .orElseThrow(() -> new RuntimeException("User not found"));
+                        .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại"));
 
         // Check unique examCode + semester
         boolean exists =
@@ -103,7 +103,7 @@ public class ExamService {
 
         return examRepository
                 .findDetailById(id)
-                .orElseThrow(() -> new RuntimeException("Exam not found"));
+                .orElseThrow(() -> new RuntimeException("Bài thi không tồn tại"));
     }
 
     // Get exam response

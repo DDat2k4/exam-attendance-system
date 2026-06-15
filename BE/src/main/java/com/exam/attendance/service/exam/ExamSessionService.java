@@ -518,7 +518,7 @@ public class ExamSessionService {
                 examSessionRepo.findById(sessionId)
                         .orElseThrow(() ->
                                 new RuntimeException(
-                                        "Session not found"
+                                        "Không tìm thấy phiên thi"
                                 )
                         );
 
@@ -608,7 +608,7 @@ public class ExamSessionService {
                 examSessionRepo.findById(id)
                         .orElseThrow(() ->
                                 new RuntimeException(
-                                        "Session not found"
+                                        "Không tìm thấy phiên thi"
                                 )
                         );
 
@@ -634,12 +634,12 @@ public class ExamSessionService {
 
         User user =
                 userRepo.findById(userId)
-                        .orElseThrow(() -> new RuntimeException("User not found"));
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         validateUserVerified(user);
         Exam exam =
                 examRepo.findById(examId)
-                        .orElseThrow(() -> new RuntimeException("Exam not found"));
+                        .orElseThrow(() -> new RuntimeException("Bài thi khng tồn tại"));
 
         ExamRegistration reg =
                 registrationRepo
@@ -648,17 +648,17 @@ public class ExamSessionService {
                                 userId
                         )
                         .orElseThrow(() ->
-                                new RuntimeException("User not registered")
+                                new RuntimeException("Người dùng chưa được đăng ký vào kỳ thi")
                         );
 
         if (reg.getStatus() != null
                 && reg.getStatus() == 3) {
-            throw new RuntimeException("User is banned");
+            throw new RuntimeException("Người dùng đã bị cấm");
         }
 
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(exam.getStartTime()) || now.isAfter(exam.getEndTime())) {
-            throw new RuntimeException("Exam not active");
+            throw new RuntimeException("Bài thi chưa kích hoạt");
         }
 
         ExamSession existing = examSessionRepo.findFirstByUserIdAndExamIdOrderByIdDesc(

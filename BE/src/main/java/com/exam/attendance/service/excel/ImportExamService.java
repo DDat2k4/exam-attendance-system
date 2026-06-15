@@ -38,7 +38,7 @@ public class ImportExamService {
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
 
             Exam exam = examRepository.findById(examId)
-                    .orElseThrow(() -> new RuntimeException("Exam not found"));
+                    .orElseThrow(() -> new RuntimeException("Bài thi không tồn tại"));
 
             // Duyệt từng sheet = từng phòng
             for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -251,7 +251,7 @@ public class ImportExamService {
 
         Exam exam = examRepository.findById(room.getExamId())
                 .orElseThrow(() ->
-                        new RuntimeException("Exam not found")
+                        new RuntimeException("Bài thi không tồn tại")
                 );
 
         ExamRoom examRoom =

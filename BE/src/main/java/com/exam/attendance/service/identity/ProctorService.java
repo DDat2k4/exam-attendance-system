@@ -120,7 +120,12 @@ public class ProctorService {
 
         if (currentStatus == ExamSessionStatus.PENDING_VERIFY_REVIEW) {
 
-            // INITIAL VERIFY FAIL
+            // Tạo bản ghi INITIAL VERIFIED
+            verificationService.resetVerificationCounter(
+                    session,
+                    "INITIAL"
+            );
+
             examSessionStateService.updateStatus(
                     session,
                     ExamSessionStatus.IN_PROGRESS,
