@@ -20,13 +20,13 @@ public class UserProfileService {
     public UserProfileDTO getByUserId(Long id) {
         return repo.findByUserId(id)
                 .map(UserProfileMapper::toDTO)
-                .orElseThrow(() -> new RuntimeException("Profile not found"));
+                .orElseThrow(() -> new RuntimeException("Hồ sơ khng tồn tại"));
     }
 
     public UserProfileDTO getById(Long id) {
         return repo.findById(id)
                 .map(UserProfileMapper::toDTO)
-                .orElseThrow(() -> new RuntimeException("Profile not found"));
+                .orElseThrow(() -> new RuntimeException("Hồ sơ khng tồn tại"));
     }
 
     public Page<UserProfileDTO> getAll(String name, Pageable pageable) {
@@ -59,7 +59,7 @@ public class UserProfileService {
 
     public void update(Long id, UserProfileRequest request) {
         UserProfile entity = repo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Profile not found"));
+                .orElseThrow(() -> new RuntimeException("Hồ sơ không tồn tại"));
 
         UserProfileMapper.updateEntity(entity, request);
         repo.save(entity);

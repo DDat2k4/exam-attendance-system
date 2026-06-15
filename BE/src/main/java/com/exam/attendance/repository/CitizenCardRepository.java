@@ -10,4 +10,6 @@ public interface CitizenCardRepository extends JpaRepository<CitizenCard, Long> 
     Optional<CitizenCard> findByUserId(Long userId);
 
     Optional<CitizenCard> findByCitizenId(String citizenId);
+
+    Boolean existsByCitizenId(String citizenId);
 }
