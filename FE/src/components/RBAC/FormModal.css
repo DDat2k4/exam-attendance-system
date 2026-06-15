@@ -24,7 +24,7 @@
 
 .modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* đổi từ center sang flex-start */
   padding: 24px;
   border-bottom: 1px solid #e2e8f0;
 }
@@ -37,7 +37,7 @@
 }
 
 .modal-body {
-  padding: 20px 24px 24px;
+  padding: 10px 24px 24px;
   display: grid;
   gap: 14px;
   overflow-y: auto;
@@ -96,16 +96,15 @@
   gap: 12px;
   justify-content: flex-end;
   padding: 14px 24px 16px;
-  margin: 8px -24px -24px;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
+  margin: 23px 0px 2px;
+  background: #ffff;
   position: sticky;
   bottom: -1px;
   z-index: 2;
 }
 
 .modal-footer button {
-  padding: 10px 18px;
+  padding: 7px 18px;
   border-radius: 8px;
   border: none;
   cursor: pointer;
@@ -130,16 +129,17 @@
   color: #1e293b;
 }
 
-/* Ensure modal footer action buttons keep primary/light styles */
 .modal-footer .btn-primary {
   background: linear-gradient(135deg, var(--rbac-primary, #2563EB) 0%, var(--rbac-primary-hover, #1e40af) 100%) !important;
   color: var(--rbac-primary-contrast, #fff) !important;
   box-shadow: 0 2px 8px rgba(37,99,235,0.18) !important;
+    padding: 11px 28px;
 }
 .modal-footer .btn-light {
   background: #e2e8f0 !important;
   color: #475569 !important;
   border: 1px solid #cbd5e1 !important;
+  padding: 11px 28px;
 }
 
 
@@ -166,9 +166,6 @@
     max-height: 92vh;
   }
 
-  .modal-header {
-    padding: 18px;
-  }
 
   .modal-body {
     padding: 16px 18px 20px;
@@ -181,3 +178,26 @@
     padding: 12px 18px 14px;
   }
 }
+
+.modal-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  margin-left: auto;
+}
+
+.modal-close:hover {
+  color: #1e293b;
+}
+

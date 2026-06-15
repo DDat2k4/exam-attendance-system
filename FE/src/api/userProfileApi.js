@@ -59,19 +59,26 @@ export const getMyUserProfile = async ({ force = false } = {}) => {
     return inflightMyUserProfile;
   }
 
+  let request = null;
   try {
-    const request = dedupeGet(axiosClient, `${API_URL}/user-profiles/me`);
-    inflightMyUserProfile = request;
+    request = force
+      ? axiosClient.get(`${API_URL}/user-profiles/me`)
+      : dedupeGet(axiosClient, `${API_URL}/user-profiles/me`);
+
+    if (!force) {
+      inflightMyUserProfile = request;
+    }
 
     const profile = await request;
-    cachedMyUserProfile = profile ?? null;
+    const normalizedProfile = profile && typeof profile === "object" ? { ...profile } : (profile ?? null);
+    cachedMyUserProfile = normalizedProfile;
     cachedMyUserProfileAt = Date.now();
 
     return cachedMyUserProfile;
   } catch (err) {
     rethrow(err);
   } finally {
-    if (inflightMyUserProfile) {
+    if (!force && inflightMyUserProfile === request) {
       inflightMyUserProfile = null;
     }
   }
@@ -135,7 +142,9 @@ export const getUserProfiles = async ({
 // POST /user-profiles
 export const createUserProfile = async (profile) => {
   try {
-    return await axiosClient.post(`${API_URL}/user-profiles`, profile);
+    const res = await axiosClient.post(`${API_URL}/user-profiles`, profile);
+    clearMyUserProfileCache();
+    return res;
   } catch (err) {
     rethrow(err);
   }

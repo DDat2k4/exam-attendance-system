@@ -75,7 +75,7 @@ export default function ExamsSection({
               <table>
                 <thead>
                   <tr>
-                    <th>ID</th>
+                    <th>STT</th>
                     <th>Tiêu đề</th>
                     <th>Mã môn thi</th>
                     <th>Mã học kỳ</th>
@@ -87,9 +87,9 @@ export default function ExamsSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {exams.map((exam) => (
+                  {exams.map((exam, index) => (
                     <tr key={exam.id}>
-                      <td>{exam.id}</td>
+                      <td>{index + 1}</td>
                       <td>{exam.title || '-'}</td>
                       <td>{exam.examCode || '-'}</td>
                       <td>{exam.semester || '-'}</td>

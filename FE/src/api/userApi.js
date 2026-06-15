@@ -107,6 +107,36 @@ export const createUser = async ({ username, email, phone, password, passwordHas
   }
 };
 
+// POST /students
+export const createStudentAccount = async ({
+  username,
+  password,
+  email,
+  phone,
+  fullName,
+  birthDate,
+  gender,
+  citizenId,
+}) => {
+  try {
+    const payload = {
+      username,
+      password,
+      email,
+      phone,
+      fullName,
+      birthDate,
+      gender: Number(gender),
+      citizenId,
+    };
+
+    const res = await axiosClient.post(`${API_URL}/students`, payload);
+    return res;
+  } catch (err) {
+    rethrow(err);
+  }
+};
+
 // PUT /users/{id}
 export const updateUser = async (id, { email, password, passwordHash, active } = {}) => {
   try {

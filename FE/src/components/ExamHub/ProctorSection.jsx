@@ -872,14 +872,15 @@ export default function ProctorSection({
                 <table>
                   <thead>
                     <tr>
-                      <th>Student</th>
+                      <th>STT</th>
+                      <th>Tên sinh viên</th>
                       <th>CCCD</th>
-                      <th>Room</th>
-                      <th>Attendance</th>
-                      <th>Exam Status</th>
-                      <th>Risk</th>
-                      <th>Attempt</th>
-                      <th>Actions</th>
+                      <th>Phòng</th>
+                      <th>Điểm danh</th>
+                      <th>Trạng thái thi</th>
+                      <th>Rủi ro</th>
+                      <th>Lần vi phạm</th>
+                      <th>Hành động</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -889,6 +890,7 @@ export default function ProctorSection({
 
                       return (
                         <tr key={`${sessionId}-${idx}`} className={isSelected ? 'selected-row' : ''} onClick={() => fetchProctorHistory(item)}>
+                          <td>{idx + 1}</td>
                           <td>{item?.studentName ?? '-'}</td>
                           <td>{item?.citizenId ?? '-'}</td>
                           <td>{item?.roomCode ?? item?.roomId ?? item?.room?.id ?? '-'}</td>

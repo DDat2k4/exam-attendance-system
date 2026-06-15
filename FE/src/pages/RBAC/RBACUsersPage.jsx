@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { createUser, deleteUser, getUsers, updateUser } from '../../api/userApi'
+import { createStudentAccount, createUser, deleteUser, getUsers, updateUser } from '../../api/userApi'
 import { getRoles } from '../../api/roleApi'
 import { replaceUserRoles } from '../../api/userRoleApi'
 import UsersSection from '../../components/RBAC/UsersSection'
@@ -155,6 +155,51 @@ export default function RBACUsersPage() {
     }
   }
 
+  const handleCreateStudentAccount = async (studentForm) => {
+    clearNotice()
+
+    const username = String(studentForm?.username || '').trim()
+    const password = String(studentForm?.password || '').trim()
+    const email = String(studentForm?.email || '').trim()
+    const fullName = String(studentForm?.fullName || '').trim()
+    const birthDate = String(studentForm?.birthDate || '').trim()
+    const gender = Number(studentForm?.gender)
+    const citizenId = String(studentForm?.citizenId || '').trim()
+
+    if (!username || !password || !email || !fullName) {
+      setError('Vui lòng nhập đầy đủ tên đăng nhập, mật khẩu, email và họ tên sinh viên.')
+      return false
+    }
+
+    if (!Number.isInteger(gender) || ![0, 1, 2].includes(gender)) {
+      setError('Giới tính phải là Khác/Không xác định (0), Nam (1) hoặc Nữ (2).')
+      return false
+    }
+
+    setLoading(true)
+    try {
+      await createStudentAccount({
+        username,
+        password,
+        email,
+        phone: String(studentForm?.phone || '').trim() || undefined,
+        fullName,
+        birthDate: birthDate || undefined,
+        gender,
+        citizenId: citizenId || undefined,
+      })
+
+      setMessage('Tạo tài khoản sinh viên thành công')
+      await fetchUsers(page, roleFilter, pageSize, keyword)
+      return true
+    } catch (err) {
+      setError(err.message || 'Không thể tạo tài khoản sinh viên')
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="rbac-page">
       <div className="rbac-head">
@@ -189,6 +234,7 @@ export default function RBACUsersPage() {
         setSelectedRoleIds={setSelectedRoleIds}
         handleCreateOrUpdateUser={handleCreateOrUpdateUser}
         handleDeleteUser={handleDeleteUser}
+        handleCreateStudentAccount={handleCreateStudentAccount}
       />
     </div>
   )

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export default function AssignmentsSection({
   roleSelectorInput,
@@ -60,7 +61,7 @@ export default function AssignmentsSection({
   )
 
   const handleRoleClick = (role) => {
-    const roleDisplay = role.display || `${role.id} - ${role.label}`
+    const roleDisplay = role.label
     handleRoleSelectorInputChange(roleDisplay)
   }
 
@@ -83,7 +84,10 @@ export default function AssignmentsSection({
             <input
               type="text"
               value={roleSelectorInput}
-              onChange={(e) => handleRoleSelectorInputChange(e.target.value)}
+              onChange={(e) => {
+                handleRoleSelectorInputChange(e.target.value)
+                setRoleSearchKeyword(e.target.value)
+              }}
               placeholder="Tìm vai trò..."
             />
           </div>

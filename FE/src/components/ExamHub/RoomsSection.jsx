@@ -421,7 +421,7 @@ export default function RoomsSection({
             <table className="rooms-table">
               <thead>
                 <tr>
-                  <th>ID phòng</th>
+                  <th>STT</th>
                   <th>Mã phòng</th>
                   <th>Kỳ thi</th>
                   <th>Số lượng tối đa</th>
@@ -429,9 +429,9 @@ export default function RoomsSection({
                 </tr>
               </thead>
               <tbody>
-                {roomRows.map(({ examId, examTitle, room, roomId }) => (
+                {roomRows.map(({ examId, examTitle, room, roomId }, index) => (
                   <tr key={`${examId}-${roomId ?? 'room'}`}>
-                    <td>{roomId ?? '-'}</td>
+                    <td>{index + 1}</td>
                     <td>{room.roomCode || room.code || '-'}</td>
                     <td>{examTitle || `${examId}`}</td>
                     <td>{room.maxStudents ?? '-'}</td>

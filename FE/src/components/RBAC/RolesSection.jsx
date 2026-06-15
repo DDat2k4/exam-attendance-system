@@ -97,7 +97,7 @@ export default function RolesSection({
         <table>
           <thead>
             <tr>
-              <th>#</th>
+              <th>STT</th>
               <th>Tên</th>
               <th>Mô tả</th>
               <th>Thao tác</th>

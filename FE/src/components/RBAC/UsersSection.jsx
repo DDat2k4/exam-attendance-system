@@ -34,8 +34,20 @@ export default function UsersSection({
   setSelectedRoleIds,
   handleCreateOrUpdateUser,
   handleDeleteUser,
+  handleCreateStudentAccount,
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isStudentModalOpen, setIsStudentModalOpen] = useState(false)
+  const [studentForm, setStudentForm] = useState({
+    username: '',
+    password: '',
+    email: '',
+    phone: '',
+    fullName: '',
+    birthDate: '',
+    gender: '0',
+    citizenId: '',
+  })
 
   const filteredUsers = useMemo(() => {
     const term = keyword.trim().toLowerCase()
@@ -55,6 +67,42 @@ export default function UsersSection({
     setEditingUserId(null)
     setSelectedRoleIds([])
     setIsModalOpen(true)
+  }
+
+  const openCreateStudentModal = () => {
+    setStudentForm({
+      username: '',
+      password: '',
+      email: '',
+      phone: '',
+      fullName: '',
+      birthDate: '',
+      gender: '1',
+      citizenId: '',
+    })
+    setIsStudentModalOpen(true)
+  }
+
+  const closeStudentModal = () => {
+    setIsStudentModalOpen(false)
+    setStudentForm({
+      username: '',
+      password: '',
+      email: '',
+      phone: '',
+      fullName: '',
+      birthDate: '',
+      gender: '1',
+      citizenId: '',
+    })
+  }
+
+  const submitStudentForm = async (e) => {
+    e.preventDefault()
+    const ok = await handleCreateStudentAccount?.(studentForm)
+    if (ok) {
+      closeStudentModal()
+    }
   }
 
   const openEditModal = (user) => {
@@ -181,10 +229,16 @@ export default function UsersSection({
           </button>
         </div>
 
-        <button type="button" className="btn-new" onClick={openCreateModal} disabled={loading}>
-          <PlusIcon size={16} />
-          TẠO USER
-        </button>
+        <div className="inline-actions">
+          <button type="button" className="btn-new" onClick={openCreateStudentModal} disabled={loading}>
+            <PlusIcon size={16} />
+            CẤP TÀI KHOẢN SV
+          </button>
+          <button type="button" className="btn-new" onClick={openCreateModal} disabled={loading}>
+            <PlusIcon size={16} />
+            TẠO USER
+          </button>
+        </div>
       </div>
 
       <div className="rbac-toolbar">
@@ -217,6 +271,99 @@ export default function UsersSection({
           </select>
         </div>
       </div>
+
+      <FormModal
+        isOpen={isStudentModalOpen}
+        title="Cấp tài khoản sinh viên"
+        subtitle="Điền thông tin đăng nhập và hồ sơ cá nhân để tạo tài khoản cho sinh viên."
+        onClose={closeStudentModal}
+        onSubmit={submitStudentForm}
+      >
+        <div className="user-form-grid">
+          <div className="form-field">
+            <label>Tên đăng nhập</label>
+            <input
+              value={studentForm.username}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, username: e.target.value }))}
+              placeholder="Nhập tên đăng nhập"
+              required
+              autoFocus
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Mật khẩu</label>
+            <input
+              value={studentForm.password}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, password: e.target.value }))}
+              placeholder="Nhập mật khẩu"
+              type="password"
+              required
+              minLength={6}
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Email</label>
+            <input
+              value={studentForm.email}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, email: e.target.value }))}
+              placeholder="VD: student@example.com"
+              type="email"
+              required
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Số điện thoại</label>
+            <input
+              value={studentForm.phone}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, phone: e.target.value }))}
+              placeholder="VD: 0987654321"
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Họ và tên</label>
+            <input
+              value={studentForm.fullName}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, fullName: e.target.value }))}
+              placeholder="VD: Nguyễn Văn A"
+              required
+            />
+          </div>
+
+          <div className="form-field">
+            <label>CCCD</label>
+            <input
+              value={studentForm.citizenId}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, citizenId: e.target.value }))}
+              placeholder="VD: 001204123456"
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Ngày sinh</label>
+            <input
+              value={studentForm.birthDate}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, birthDate: e.target.value }))}
+              type="date"
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Giới tính</label>
+            <select
+              value={studentForm.gender}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, gender: e.target.value }))}
+              required
+            >
+              <option value="1">Nam</option>
+              <option value="2">Nữ</option>
+            </select>
+          </div>
+        </div>
+      </FormModal>
 
       <FormModal
         isOpen={isModalOpen}

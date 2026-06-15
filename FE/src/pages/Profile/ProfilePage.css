@@ -55,7 +55,7 @@
 .profile-grid .label { font-size: 13px; color: #5a6ecd; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px }
 .profile-grid .value { font-weight: 800; color: #0f1d3a; font-size: 20px }
 
-.profile-actions { margin-top: 28px; width:100%; display:flex; justify-content:center; position: relative; padding-bottom: 12px }
+.profile-actions { margin-top: 24px; width:100%; display:flex; justify-content:center; align-items:center; position: relative; padding-bottom: 4px }
 
 .change-password-form { display: grid; gap: 8px; max-width: 720px; width: 100%; margin: 0 auto; justify-items: center; align-items: center; position: relative; padding-bottom: 48px }
 
@@ -136,20 +136,18 @@
 }
 
 .floating-center {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 8px; /* inside card */
+  position: static;
+  transform: none;
   z-index: 40;
   box-shadow: 0 16px 36px rgba(37,99,235,0.12);
 }
 
 @media (max-width: 520px) {
-  .floating-center { left: 50%; bottom: 12px; transform: translateX(-50%); }
+  .floating-center { bottom: auto; }
 }
 
 .btn.primary.floating-center { transition: transform 0.18s cubic-bezier(.2,.9,.2,1), box-shadow 0.18s ease }
-.btn.primary.floating-center:hover { transform: translateX(-50%) translateY(-2px) scale(1.03); box-shadow: 0 20px 44px rgba(37,99,235,0.17) }
+.btn.primary.floating-center:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 20px 44px rgba(37,99,235,0.17) }
 
 @media (max-width: 880px) {
   .profile-grid { grid-template-columns: 1fr; gap: 12px; row-gap: 12px }
@@ -171,7 +169,14 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
-  align-items: center;
+  align-items: start;
+}
+
+.profile-modal .profile-popover__grid > div {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
 }
 
 .profile-modal label {
@@ -185,8 +190,9 @@
 .profile-modal input,
 .profile-modal select {
   width: 100%;
-  max-width: 520px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
   border: 1px solid #c8d2fa;
   border-radius: 10px;
   padding: 10px 12px;
@@ -202,5 +208,10 @@
 }
 
 .profile-modal .assign-room-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
   justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }

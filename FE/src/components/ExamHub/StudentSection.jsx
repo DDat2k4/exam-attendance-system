@@ -64,7 +64,7 @@ export default function StudentSection({
             <table>
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th>STT</th>
                   <th>Kỳ thi</th>
                   <th>Phòng thi</th>
                   <th>Đăng ký lúc</th>
@@ -75,7 +75,7 @@ export default function StudentSection({
                 </tr>
               </thead>
               <tbody>
-                {visibleRows.map((item) => {
+                {visibleRows.map((item, index) => {
                   // Disable only when session is DONE/BLOCKED or backend returned an explicit roomError
                   const isDisabled = item.sessionStatus === 'DONE' || item.sessionStatus === 'BLOCKED' || Boolean(item.roomError)
                   const isLoading = takingExamId === Number(item.examId ?? item.exam?.id)
@@ -109,7 +109,7 @@ export default function StudentSection({
 
                   return (
                     <tr key={item.id ?? `${item.examId}-${item.userId}`}>
-                      <td>{item.id ?? '-'}</td>
+                      <td>{index + 1}</td>
                       <td>{formatExamLabel(item.exam)}</td>
                       <td>
                         {item.roomInfo?.roomId

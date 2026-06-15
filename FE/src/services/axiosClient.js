@@ -10,9 +10,6 @@ const axiosClient = axios.create({
   },
 });
 
-// ============================================
-// Lock + Queue để tránh race condition 401
-// ============================================
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -52,10 +49,6 @@ axiosClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
-
-    // ============================================
-    // Handle 401 với lock + queue
-    // ============================================
     if (status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         // Đã có request đang refresh token → queue lại request này
@@ -96,9 +89,6 @@ axiosClient.interceptors.response.use(
       }
     }
 
-    // ============================================
-    // Handle other error codes
-    // ============================================
     let message = error.response?.data?.message || error.message || "Có lỗi xảy ra";
 
     if (status === 400) {

@@ -66,6 +66,7 @@ export default function useRbacManagement(options = {}) {
   const [selectedUserId, setSelectedUserId] = useState(null)
   const [selectedUserRoleIds, setSelectedUserRoleIds] = useState(new Set())
   const [roleSelectorInput, setRoleSelectorInput] = useState('')
+  const [roleSearchKeyword, setRoleSearchKeyword] = useState('')
   const [userSelectorInput, setUserSelectorInput] = useState('')
   const [assignmentPermissionSearch, setAssignmentPermissionSearch] = useState('')
   const [assignmentRoleSearch, setAssignmentRoleSearch] = useState('')
@@ -76,7 +77,7 @@ export default function useRbacManagement(options = {}) {
   )
 
   const roleSelectorOptions = useMemo(
-    () => availableRoleOptions.map((item) => ({ ...item, display: `${item.id} - ${item.label}` })),
+    () => availableRoleOptions.map((item) => ({ ...item, display: `${item.label}` })),
     [availableRoleOptions],
   )
 
@@ -127,13 +128,17 @@ export default function useRbacManagement(options = {}) {
   const assignmentPermissionIsLast =
     assignmentPermissionTotalPages === 0 || assignmentPermissionPage >= assignmentPermissionTotalPages
 
-  const filteredRoleSelectorOptions = useMemo(() => {
-    const keyword = roleSelectorInput.trim().toLowerCase()
-    if (!keyword) return roleSelectorOptions
-    return roleSelectorOptions.filter(
-      (item) => String(item?.label || '').toLowerCase().includes(keyword) || String(item?.id || '').includes(keyword),
-    )
-  }, [roleSelectorOptions, roleSelectorInput])
+const filteredRoleSelectorOptions = useMemo(() => {
+  const keyword = roleSearchKeyword.trim().toLowerCase()
+
+  if (!keyword) return roleSelectorOptions
+
+  return roleSelectorOptions.filter(
+    (item) =>
+      String(item?.label || '').toLowerCase().includes(keyword) ||
+      String(item?.id || '').includes(keyword),
+  )
+}, [roleSelectorOptions, roleSearchKeyword])
 
   const filteredUsers = useMemo(() => {
     const keyword = userSelectorInput.trim().toLowerCase()

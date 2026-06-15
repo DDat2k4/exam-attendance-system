@@ -85,6 +85,7 @@ export default function Home() {
     registrationsTotal: '—',
     mySessionsTotal: '—',
   })
+  const [upcomingEvents, setUpcomingEvents] = useState([]) 
   const roles = getRoleCodes(user)
   const activeRole = ACTIVE_ROLE_ORDER.find((role) => roles.includes(role)) || 'STUDENT'
   const canStudentTakeExam = canAccess(user, {
@@ -160,6 +161,24 @@ export default function Home() {
           (total, exam) => total + (Array.isArray(exam?.rooms) ? exam.rooms.length : 0),
           0,
         )
+
+        const now = new Date()
+
+        const upcoming = sessions
+          .filter((s) => s.startTime && new Date(s.startTime) > now)
+          .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+          .slice(0, 3)
+          .map((s) => {
+            const date = new Date(s.startTime)
+            const label = date.toLocaleString('vi-VN', {
+              weekday: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+            return `${label} - ${s.name ?? s.examName ?? 'Ca thi'}`
+          })
+
+        setUpcomingEvents(upcoming)
 
         setDashboardStats((prev) => ({
           ...prev,
@@ -322,11 +341,14 @@ export default function Home() {
             <h3>Hoạt động hôm nay</h3>
           </header>
 
-          <ul>
-            {resolvedDashboard.timeline.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
+        {upcomingEvents.length === 0
+          ? <p>Không có hoạt động sắp tới</p>
+          : <ul>
+              {upcomingEvents.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+        }
         </article>
 
         <article className="panel focus">

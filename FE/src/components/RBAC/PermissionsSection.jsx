@@ -169,14 +169,14 @@ export default function PermissionsSection({
         <table>
           <thead>
             <tr>
-              <th>#</th>
+              <th>STT</th>
               <th>Resource</th>
               <th>Actions</th>
               <th>Số quyền</th>
               <th>Thao tác</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody>   
             {paginatedPermissions.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>

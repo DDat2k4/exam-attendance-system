@@ -1,21 +1,33 @@
 import { useEffect, useState } from 'react'
-import { getMyUserProfile, updateUserProfile } from '../../api/userProfileApi'
+import { createUserProfile, getMyUserProfile, updateUserProfile } from '../../api/userProfileApi'
 import { useAuth } from '../../context/AuthContext'
 import './ProfilePage.css'
 
 export default function ProfilePage() {
   const { user } = useAuth()
+  const currentUserId = user?.id ?? user?.userId ?? null
+  const normalizedUserId = currentUserId === null || currentUserId === undefined ? null : Number(currentUserId)
   const [profile, setProfile] = useState(null)
+  const [profileRefreshNonce, setProfileRefreshNonce] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const refreshProfile = async () => {
+    const p = await getMyUserProfile({ force: true })
+    const nextProfile = p ? { ...p } : null
+    setProfile(nextProfile)
+    setProfileRefreshNonce((value) => value + 1)
+    return nextProfile
+  }
 
   useEffect(() => {
     let cancelled = false
     const load = async () => {
       try {
         setLoading(true)
-        const p = await getMyUserProfile()
-        if (!cancelled) setProfile(p ?? null)
+        setError('')
+        const p = await refreshProfile()
+        if (!cancelled && p === null) setProfile(null)
       } catch (err) {
         if (!cancelled) setError(err.message || 'Không thể tải thông tin.')
       } finally {
@@ -58,25 +70,37 @@ export default function ProfilePage() {
   const handleSave = async (e) => {
     e.preventDefault()
     setSaveMessage('')
-    if (!profile?.id) {
-      setSaveMessage('Không có profile để cập nhật.')
+
+    const citizenId = String(formState.citizenId || '').trim()
+    if (!/^\d{12}$/.test(citizenId)) {
+      setSaveMessage('CCCD phải gồm đúng 12 chữ số.')
       return
     }
+
     try {
       setSaveLoading(true)
       const payload = {
+        ...(normalizedUserId !== null && Number.isFinite(normalizedUserId)
+          ? { userId: normalizedUserId }
+          : {}),
         name: formState.name,
-        citizenId: formState.citizenId,
+        citizenId,
         gender: formState.gender === '' ? null : Number(formState.gender),
         birthDate: formState.birthDate || null,
       }
-      await updateUserProfile(profile.id, payload)
-      const refreshed = await getMyUserProfile({ force: true })
-      setProfile(refreshed ?? null)
+
+      if (profile?.id) {
+        await updateUserProfile(profile.id, payload)
+        setSaveMessage('Cập nhật hồ sơ thành công.')
+      } else {
+        await createUserProfile(payload)
+        setSaveMessage('Tạo hồ sơ thành công. Đang tải lại thông tin hồ sơ...')
+      }
+
+      await refreshProfile()
       setEditing(false)
-      setSaveMessage('Cập nhật hồ sơ thành công.')
     } catch (err) {
-      setSaveMessage(err.message || 'Không thể cập nhật hồ sơ.')
+      setSaveMessage(err.message || (profile?.id ? 'Không thể cập nhật hồ sơ.' : 'Không thể tạo hồ sơ.'))
     } finally {
       setSaveLoading(false)
     }
@@ -89,7 +113,7 @@ export default function ProfilePage() {
       {loading && <p>Đang tải...</p>}
       {error && <p className="error">{error}</p>}
       {!loading && !error && (
-        <div className="profile-grid">
+        <div key={profileRefreshNonce} className="profile-grid">
           <div>
             <p className="label">Họ tên</p>
             <p className="value">{profile?.name || user?.username || '-'}</p>
@@ -105,6 +129,8 @@ export default function ProfilePage() {
           <div>
             <p className="label">Ngày sinh</p>
             <p className="value">{profile?.birthDate || '-'}</p>
+          </div>
+          <div hidden style={{ display: 'none' }}>
           </div>
         </div>
       )}
