@@ -3,6 +3,7 @@
   padding: var(--space-md);
   display: grid;
   gap: var(--space-sm);
+  overflow: visible;
   background: linear-gradient(180deg, #f7f9ff 0%, #eff3ff 100%);
   text-align: left;
 }
@@ -207,12 +208,28 @@
   border-radius: 12px;
   padding: var(--space-sm);
   box-shadow: 0 8px 24px rgba(27, 37, 89, 0.08);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .panel h2 {
   margin: 0 0 12px;
   font-size: 20px;
   color: #263578;
+}
+
+.exam-list-panel,
+.room-list-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.exam-list-panel .table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .exam-filter-bar {
@@ -225,6 +242,7 @@
   border-radius: 14px;
   background: linear-gradient(180deg, #fbfcff 0%, #f4f7ff 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
 }
 
 .exam-filter-field {
@@ -2477,6 +2495,11 @@
 .assign-room-modal.exam-form-modal {
   animation: examModalEnter 0.22s ease-out;
   transform-origin: center top;
+  max-height: min(90vh, 760px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 @keyframes examModalEnter {
@@ -2496,6 +2519,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .assign-room-modal__header h3 {
@@ -2550,6 +2574,33 @@
 .assign-room-form {
   display: grid;
   gap: 10px;
+}
+
+.exam-form-grid {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding-right: 6px;
+  padding-bottom: 4px;
+  box-sizing: border-box;
+  scrollbar-gutter: stable;
+}
+
+.exam-form-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.exam-form-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.exam-form-grid::-webkit-scrollbar-thumb {
+  background: #c8d2fa;
+  border-radius: 999px;
+}
+
+.exam-form-grid::-webkit-scrollbar-thumb:hover {
+  background: #a0aee6;
 }
 
 .assign-room-form label {
@@ -3182,10 +3233,20 @@
 }
 
 .feedback {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
   margin: 0;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
   font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  max-width: min(760px, calc(100vw - 24px));
+  box-shadow: 0 16px 36px rgba(20, 34, 84, 0.22);
+  pointer-events: auto;
 }
 
 .feedback.error {
@@ -3208,7 +3269,7 @@
   display: grid;
   gap: 8px;
   width: min(760px, calc(100vw - 24px));
-  z-index: 1450;
+  z-index: 2147483647;
   pointer-events: none;
 }
 
@@ -3246,6 +3307,57 @@
   font-size: 22px;
   line-height: 1;
   padding: 0 2px;
+}
+
+.proctor-dashboard-table-shell {
+  border: 1px solid #dce4ff;
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.proctor-dashboard-table-shell .table-wrap {
+  width: 100%;
+  max-height: min(48vh, 420px);
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.proctor-dashboard-table-shell thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f7f9ff;
+  box-shadow: 0 1px 0 #e4e9ff;
+}
+
+.proctor-dashboard-table-shell .table-wrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.proctor-dashboard-table-shell .table-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.proctor-dashboard-table-shell .table-wrap::-webkit-scrollbar-thumb {
+  background: #c8d2fa;
+  border-radius: 999px;
+}
+
+.proctor-dashboard-table-shell .table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #a0aee6;
+}
+
+.exam-list-panel .table-wrap,
+.room-list-panel .table-wrap {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table-wrap {

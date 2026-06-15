@@ -13,6 +13,13 @@ import { formatExamLabel } from '../utils/examLabel'
 import { normalizeSessionStatus } from '../utils/examSessionStatus'
 import './TakeExamModal.css'
 
+const APPROVED_ENTRY_STATUSES = new Set(['IN_PROGRESS', 'APPROVED', 'VERIFIED'])
+
+const isEntryReadyState = (state) => {
+  const status = normalizeSessionStatus(state?.sessionStatus)
+  return Boolean(state?.canEnterExam) || APPROVED_ENTRY_STATUSES.has(status)
+}
+
 const verificationFlowCards = [
   {
     title: 'Xác minh ban đầu',
@@ -105,7 +112,9 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
           return
         }
 
-        if (state?.canEnterExam) {
+        if (isEntryReadyState(state)) {
+          setVerificationWaiting(false)
+          setDeviceApprovalWaiting(false)
           setStep('ready')
           setRealtimeNotice({
             variant: 'success',
@@ -276,7 +285,7 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
         return
       }
 
-      if (sessionStatus === 'CHECKED_IN' || sessionStatus === 'IN_PROGRESS') {
+      if (APPROVED_ENTRY_STATUSES.has(sessionStatus) || Boolean(alert?.canEnterExam)) {
         setSessionState((prev) => ({
           ...(prev || {}),
           sessionStatus,
@@ -473,6 +482,64 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
   useEffect(() => {}, [deviceApprovalWaiting])
 
   useEffect(() => {}, [externalFailures])
+
+  useEffect(() => {
+    if (!examId || step !== 'verification') return undefined
+
+    const pendingReviewStatuses = new Set(['PENDING_REVIEW', 'PENDING_DEVICE_APPROVAL', 'PENDING_VERIFY_REVIEW'])
+    const shouldPoll = verificationWaiting || deviceApprovalWaiting || pendingReviewStatuses.has(normalizeSessionStatus(sessionState?.sessionStatus)) || Boolean(sessionState?.waitingProctor)
+
+    if (!shouldPoll) return undefined
+
+    let cancelled = false
+
+    const syncFromBackend = async () => {
+      try {
+        const state = await getExamSessionState(examId)
+        if (cancelled) return
+
+        setSessionState(state || null)
+        const status = normalizeSessionStatus(state?.sessionStatus)
+
+        if (state?.blocked || status === 'BLOCKED' || status === 'DONE') {
+          setStep('ended')
+          setExamResult({ status: status || 'BLOCKED', message: state?.message || 'Phiên thi đã kết thúc.' })
+          return
+        }
+
+        if (isEntryReadyState(state)) {
+          setVerificationWaiting(false)
+          setDeviceApprovalWaiting(false)
+          setVerificationClearedAt(Date.now())
+          setRealtimeNotice({
+            variant: 'success',
+            title: 'Giám thị đã duyệt',
+            message: state?.message || 'Giám thị đã duyệt. Bạn có thể vào thi ngay.',
+          })
+          setStep('ready')
+          return
+        }
+
+        if (pendingReviewStatuses.has(status) || state?.waitingProctor) {
+          setVerificationWaiting(true)
+          setDeviceApprovalWaiting(status === 'PENDING_DEVICE_APPROVAL')
+          setRealtimeNotice(getPendingReviewNotice(status || 'PENDING_REVIEW', state?.message))
+        }
+      } catch {
+        // Ignore polling errors and keep the current UI state.
+      }
+    }
+
+    void syncFromBackend()
+    const intervalId = window.setInterval(() => {
+      void syncFromBackend()
+    }, 3000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [examId, step, verificationWaiting, deviceApprovalWaiting, sessionState?.sessionStatus, sessionState?.waitingProctor, getPendingReviewNotice])
 
   const handleStartVerification = () => {
     if (!canStartInitialVerification) {

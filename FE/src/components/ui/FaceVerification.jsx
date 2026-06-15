@@ -84,7 +84,7 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
         }
 
         const sessionStatus = String(session?.examSessionStatus || session?.status || '').toUpperCase()
-        const approvedStates = ['CHECKED_IN', 'IN_PROGRESS', 'APPROVED']
+        const approvedStates = ['CHECKED_IN', 'IN_PROGRESS', 'APPROVED', 'VERIFIED']
 
         if (sessionStatus === 'PENDING_DEVICE_APPROVAL') {
           setAwaitingProctorApproval(true)

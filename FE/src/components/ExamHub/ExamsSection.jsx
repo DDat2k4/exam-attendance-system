@@ -48,7 +48,7 @@ export default function ExamsSection({
   return (
     <>
       {canViewExams && (
-        <section className="panel">
+        <section className="panel exam-list-panel">
           <h2>Danh sách kỳ thi</h2>
           <form className="exam-filter-bar" onSubmit={handleSearchExams}>
             <div className="exam-filter-field">

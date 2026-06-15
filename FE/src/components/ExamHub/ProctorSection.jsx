@@ -867,75 +867,77 @@ export default function ProctorSection({
           <p>Chưa có phiên nào phù hợp với bộ lọc hiện tại.</p>
         ) : (
           <>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Student</th>
-                    <th>CCCD</th>
-                    <th>Room</th>
-                    <th>Attendance</th>
-                    <th>Exam Status</th>
-                    <th>Risk</th>
-                    <th>Attempt</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {proctorDashboard.map((item, idx) => {
-                    const sessionId = getSessionRecordId(item) ?? idx
-                    const isSelected = String(sessionId) === String(selectedProctorSessionId)
+            <div className="proctor-dashboard-table-shell">
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>CCCD</th>
+                      <th>Room</th>
+                      <th>Attendance</th>
+                      <th>Exam Status</th>
+                      <th>Risk</th>
+                      <th>Attempt</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {proctorDashboard.map((item, idx) => {
+                      const sessionId = getSessionRecordId(item) ?? idx
+                      const isSelected = String(sessionId) === String(selectedProctorSessionId)
 
-                    return (
-                      <tr key={`${sessionId}-${idx}`} className={isSelected ? 'selected-row' : ''} onClick={() => fetchProctorHistory(item)}>
-                        <td>{item?.studentName ?? '-'}</td>
-                        <td>{item?.citizenId ?? '-'}</td>
-                        <td>{item?.roomCode ?? item?.roomId ?? item?.room?.id ?? '-'}</td>
-                        <td>
-                            <span className={`status-badge badge-${statusToBadgeClass(item?.attendanceStatus || item?.examSessionStatus || '')}`}>
-                            {getSessionStatusLabel(item?.attendanceStatus || item?.examSessionStatus) || formatLabel(item?.attendanceStatus, {})}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`status-badge badge-${statusToBadgeClass(item?.examSessionStatus || '')}`}>
-                            {getSessionStatusLabel(item?.examSessionStatus) || formatLabel(item?.examSessionStatus, {})}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`risk-badge risk-${(item?.riskLevel || 'LOW').toLowerCase()}`}>
-                            {item?.riskLevel || 'LOW'}
-                          </span>
-                        </td>
-                        <td className="attempt-cell">{item?.attemptNo ?? '-'}</td>
-                        <td>
-                          <div className="table-actions">
-                            <button
-                              type="button"
-                              className="tiny-btn"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                void handleOpenAttendancePopup(item)
-                              }}
-                            >
-                              Điểm danh
-                            </button>
-                            <button
-                              type="button"
-                              className="tiny-btn"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                fetchProctorHistory(item)
-                              }}
-                            >
-                              Chi tiết
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                      return (
+                        <tr key={`${sessionId}-${idx}`} className={isSelected ? 'selected-row' : ''} onClick={() => fetchProctorHistory(item)}>
+                          <td>{item?.studentName ?? '-'}</td>
+                          <td>{item?.citizenId ?? '-'}</td>
+                          <td>{item?.roomCode ?? item?.roomId ?? item?.room?.id ?? '-'}</td>
+                          <td>
+                              <span className={`status-badge badge-${statusToBadgeClass(item?.attendanceStatus || item?.examSessionStatus || '')}`}>
+                              {getSessionStatusLabel(item?.attendanceStatus || item?.examSessionStatus) || formatLabel(item?.attendanceStatus, {})}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`status-badge badge-${statusToBadgeClass(item?.examSessionStatus || '')}`}>
+                              {getSessionStatusLabel(item?.examSessionStatus) || formatLabel(item?.examSessionStatus, {})}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`risk-badge risk-${(item?.riskLevel || 'LOW').toLowerCase()}`}>
+                              {item?.riskLevel || 'LOW'}
+                            </span>
+                          </td>
+                          <td className="attempt-cell">{item?.attemptNo ?? '-'}</td>
+                          <td>
+                            <div className="table-actions">
+                              <button
+                                type="button"
+                                className="tiny-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  void handleOpenAttendancePopup(item)
+                                }}
+                              >
+                                Điểm danh
+                              </button>
+                              <button
+                                type="button"
+                                className="tiny-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  fetchProctorHistory(item)
+                                }}
+                              >
+                                Chi tiết
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div className="registration-pagination" style={{ marginTop: '12px' }}>

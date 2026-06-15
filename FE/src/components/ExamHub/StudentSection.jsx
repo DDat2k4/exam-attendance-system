@@ -20,7 +20,7 @@ export default function StudentSection({
   const visibleRows = filteredStudentRegisteredExams ?? studentRegisteredExams
 
   return (
-    <section className="panel">
+    <section className="panel exam-list-panel">
       <h2>Kỳ thi đã đăng ký</h2>
 
       <div className="session-head">

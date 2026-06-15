@@ -130,37 +130,6 @@ export default function ProctorPage() {
       {error && <p className="feedback error">{error}</p>}
       {success && <p className="feedback success">{success}</p>}
 
-      {(error || success) && (
-        <div className="proctor-action-feedback-stack" aria-live="assertive" aria-relevant="additions text">
-          {error && (
-            <div className="proctor-action-feedback proctor-action-feedback--error" role="alert">
-              <span>{error}</span>
-              <button
-                type="button"
-                className="proctor-action-feedback__close"
-                onClick={() => setError('')}
-                aria-label="Đóng thông báo lỗi"
-              >
-                ×
-              </button>
-            </div>
-          )}
-          {success && (
-            <div className="proctor-action-feedback proctor-action-feedback--success" role="status">
-              <span>{success}</span>
-              <button
-                type="button"
-                className="proctor-action-feedback__close"
-                onClick={() => setSuccess('')}
-                aria-label="Đóng thông báo thành công"
-              >
-                ×
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
       <ProctorSection
         openProctorRoomModal={openProctorRoomModal}
         loadingProctorDashboard={loadingProctorDashboard}

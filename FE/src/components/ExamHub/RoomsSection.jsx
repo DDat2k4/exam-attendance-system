@@ -308,7 +308,7 @@ export default function RoomsSection({
         </div>
       )}
 
-      <section className="panel">
+      <section className="panel room-list-panel">
         <h2>Danh sách phòng thi</h2>
 
         <div className="rooms-toolbar">
