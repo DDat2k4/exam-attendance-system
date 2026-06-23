@@ -460,7 +460,7 @@ export default function UsersSection({
         <table>
           <thead>
             <tr>
-              <th>#</th>
+              <th>STT</th>
               <th>Tài khoản</th>
               <th>Email</th>
               <th>Số điện thoại</th>
@@ -483,12 +483,12 @@ export default function UsersSection({
                 </td>
               </tr>
             ) : (
-              filteredUsers.map((user) => {
+              filteredUsers.map((user, index) => {
                 const isUserActive = resolveUserActive(user)
 
                 return (
                   <tr key={user.id}>
-                    <td>{user.id}</td>
+                    <td>{index + 1}</td>
                     <td>{user.username || '-'}</td>
                     <td>{user.email || '-'}</td>
                     <td>{user.phone || '-'}</td>
