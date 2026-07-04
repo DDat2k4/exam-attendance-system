@@ -3,7 +3,7 @@ import { requestCameraAccess, captureFrame, getDeviceInfo } from '../../utils/fa
 import { getExamSessionById } from '../../api/examSessionApi'
 import { verifyIdentity } from '../../api/verificationApi'
 import './FaceVerification.css'
-
+const DEFAULT_MAX_ATTEMPTS = 3
 export default function FaceVerification({ examSessionId, onVerified, onFailed, onPending, onAttempt, onClose }) {
   const videoRef = useRef(null)
   const [cameraActive, setCameraActive] = useState(false)
@@ -11,8 +11,8 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [attempts, setAttempts] = useState(0)
-  const [maxAttempts, setMaxAttempts] = useState(3)
-  const [remainingAttempts, setRemainingAttempts] = useState(3)
+  const [maxAttempts, setMaxAttempts] = useState(DEFAULT_MAX_ATTEMPTS)
+  const [remainingAttempts, setRemainingAttempts] = useState(DEFAULT_MAX_ATTEMPTS)
   const [verificationResult, setVerificationResult] = useState(null)
   const [awaitingProctorApproval, setAwaitingProctorApproval] = useState(false)
   const streamRef = useRef(null)
@@ -345,7 +345,7 @@ export default function FaceVerification({ examSessionId, onVerified, onFailed, 
 
           <div className="verification-info">
             <p className="instruction">
-              Nhìn thẳng camera, giữ mặt rõ và đủ sáng. Fail 1-2 lần vẫn được thử lại; fail lần 3 sẽ chuyển chờ giám thị duyệt.
+              {`Nhìn thẳng camera, giữ mặt rõ và đủ sáng. Bạn có tối đa ${maxAttempts} lần xác minh. Sau khi hết số lần thử, phiên sẽ chuyển sang chờ giám thị duyệt.`}
             </p>
             <p className="instruction">
               Nếu bạn quay lại phiên thi bằng thiết bị cũ trong khoảng an toàn, hệ thống có thể cho reconnect tự động.

@@ -28,7 +28,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
   const RANDOM_COUNTDOWN_MIN = 3 // 3 seconds
   const RANDOM_COUNTDOWN_MAX = 5 // 5 seconds
   const CAMERA_PROMPT_DURATION = 6000 // keep camera visible after capture for random checks
-  const MAX_FAILURES = 3
+  const DEFAULT_MAX_FAILURES = 3
   const EXAM_DURATION = 3600 // 1 hour in seconds
   const approvalBlocked = verificationWaiting || deviceApprovalWaiting || awaitingReview || verificationStatus === 'needs_review'
   const failureLimit = Number.isInteger(maxFailures) && maxFailures > 0 ? maxFailures : MAX_FAILURES
@@ -42,7 +42,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
       setVerificationStatus(nextStatus)
       setTotalFailures((prev) => {
         const newFailures = prev + 1
-        if (newFailures >= MAX_FAILURES) {
+        if (newFailures >= failureLimit) {
           setVerificationStatus('needs_review')
           setAwaitingReview(true)
         } else {
@@ -52,7 +52,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
         return newFailures
       })
     },
-    [onSessionEnd],
+    [failureLimit],
   )
 
   // Initialize camera
@@ -114,7 +114,6 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
     if (!verificationClearedAt) return
     setAwaitingReview(false)
     setTotalFailures(0)
-    setMaxFailures(MAX_FAILURES)
     setVerificationStatus('idle')
     setVerificationLog([])
   }, [verificationClearedAt])
@@ -132,13 +131,13 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
       return prev
     })
 
-    if (externalFailures >= MAX_FAILURES) {
+    if (externalFailures >= failureLimit) {
       setVerificationStatus('needs_review')
       if (verificationWaiting) {
         setAwaitingReview(true)
       }
     }
-  }, [externalFailures, verificationWaiting, ignoreExternalUntil])
+  }, [externalFailures, verificationWaiting, ignoreExternalUntil, failureLimit])
 
   // Log combined failures for debugging display issues
   useEffect(() => {}, [totalFailures, externalFailures])
@@ -174,7 +173,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
   // Perform verification
   const performRandomVerification = useCallback(async () => {
     const combinedFailures = Math.max(totalFailures, externalFailures)
-    if (!videoRef.current || !cameraActive || approvalBlocked || (combinedFailures >= MAX_FAILURES && verificationWaiting)) {
+    if (!videoRef.current || !cameraActive || approvalBlocked || (combinedFailures >= failureLimit && verificationWaiting)) {
     
       return
     }
@@ -278,7 +277,6 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
         // Surface backend message if present
         setVerificationStatus('failed')
         setAwaitingReview(false)
-        setTotalFailures((prev) => prev + 1)
         setTimeout(() => setVerificationStatus('idle'), 2500)
     }
   }, [cameraActive, examSessionId, registerFailure, totalFailures, externalFailures, awaitingReview, verificationWaiting, approvalBlocked, failureLimit])
@@ -350,7 +348,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
       }
       setRandomCountdown(null)
     }
-  }, [cameraActive, totalFailures, approvalBlocked, awaitingReview, scheduleNextRandomVerification, failureLimit])
+  }, [cameraActive, totalFailures, approvalBlocked, awaitingReview, scheduleNextRandomVerification, failureLimit, externalFailures, verificationWaiting])
 
   // Manual verification
   const handleManualVerify = async () => {

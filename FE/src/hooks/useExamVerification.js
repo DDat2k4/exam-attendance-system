@@ -125,6 +125,7 @@ export const usePeriodicVerification = (examSessionId, options = {}) => {
   } = options
 
   const timerRef = useRef(null)
+  const isActiveRef = useRef(false)
   const [isActive, setIsActive] = useState(false)
   const [failureCount, setFailureCount] = useState(0)
   const verification = useExamVerification(examSessionId)
@@ -133,6 +134,7 @@ export const usePeriodicVerification = (examSessionId, options = {}) => {
    * Start periodic verification
    */
   const start = useCallback(async () => {
+    isActiveRef.current = true
     setIsActive(true)
 
     const scheduleVerification = async () => {
@@ -150,7 +152,7 @@ export const usePeriodicVerification = (examSessionId, options = {}) => {
         if (passed) {
           onSuccess?.()
         } else {
-          const newFailureCount = Number.isInteger(response?.attempt) ? response.attempt : failureCount + 1
+          const newFailureCount = Number.isInteger(response?.attempt) ? response.attempt : failureCount
           setFailureCount(newFailureCount)
 
           if (newFailureCount >= maxFailures) {
@@ -162,19 +164,20 @@ export const usePeriodicVerification = (examSessionId, options = {}) => {
         }
 
         // Schedule next verification if still active
-        if (isActive) {
+        if (isActiveRef.current) {
           scheduleVerification()
         }
       }, delay)
     }
 
     scheduleVerification()
-  }, [interval, randomize, verification, failureCount, maxFailures, onSuccess, onFailure, isActive])
+  }, [interval, randomize, verification, failureCount, maxFailures, onSuccess, onFailure])
 
   /**
    * Stop periodic verification
    */
   const stop = useCallback(() => {
+    isActiveRef.current = false
     setIsActive(false)
     if (timerRef.current) {
       clearTimeout(timerRef.current)

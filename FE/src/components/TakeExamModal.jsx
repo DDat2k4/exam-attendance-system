@@ -633,8 +633,6 @@ export default function TakeExamModal({ examId, exam, roomInfo, onClose, onExamE
     // Sync external failure count from FaceVerification if provided
     if (typeof attempt === 'number') {
       setExternalFailures(attempt)
-    } else {
-      setExternalFailures((prev) => Math.min(prev + 1, 3))
     }
 
     // Also do a quick status check to ensure we sync with backend
