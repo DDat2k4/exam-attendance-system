@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { SearchIcon } from '../ui/AppIcons'
 
 export default function RoomsSection({
@@ -671,6 +671,82 @@ export default function RoomsSection({
               {roomStudentsError ? <div className="feedback error">{roomStudentsError}</div> : null}
 
               <div className="room-students-modal__content">
+                {canManageRoomStudents ? (
+                  <div className="room-students-toolbar">
+                    <div className="room-students-toolbar__summary">
+                      <strong>{selectedRoomStudentIds.length > 0 ? `${selectedRoomStudentIds.length} sinh viên đã chọn` : 'Chưa chọn sinh viên nào'}</strong>
+                      <span>{filteredRoomStudents.length} / {roomStudents.length} sinh viên trong phòng</span>
+                    </div>
+
+                    <div className="room-students-toolbar__search">
+                      <input
+                        id="roomStudentsQuery"
+                        type="text"
+                        placeholder="Tìm theo họ tên, tên đăng nhập hoặc CCCD"
+                        value={roomStudentsQuery}
+                        onChange={(e) => setRoomStudentsQuery(e.target.value)}
+                        className="rooms-filter-input"
+                        disabled={loadingRoomStudents}
+                      />
+                      <button
+                        type="button"
+                        className="room-students-search-btn"
+                        onClick={() => setRoomStudentsQuery((value) => String(value || '').trim())}
+                        disabled={loadingRoomStudents}
+                        aria-label="Tìm kiếm sinh viên"
+                        title="Tìm kiếm"
+                      >
+                        <SearchIcon size={14} />
+                      </button>
+                    </div>
+
+                    <div className="room-students-toolbar__actions">
+                      <button type="button" className="tiny-btn" onClick={handleSelectAllRoomStudents} disabled={loadingRoomStudents || roomStudents.length === 0}>
+                        Chọn tất cả
+                      </button>
+                      <button type="button" className="tiny-btn" onClick={handleClearRoomStudentSelection} disabled={selectedRoomStudentIds.length === 0}>
+                        Bỏ chọn
+                      </button>
+                      <button
+                        type="button"
+                        className="tiny-btn danger"
+                        onClick={handleUnassignSelectedRoomStudents}
+                        disabled={selectedRoomStudentIds.length === 0 || processingRoomStudentBatch}
+                      >
+                        {processingRoomStudentBatch ? 'Đang bỏ gán...' : 'Bỏ gán đã chọn'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="room-students-toolbar room-students-toolbar--readonly">
+                    <div className="room-students-toolbar__summary">
+                      <strong>Chế độ xem</strong>
+                      <span>{filteredRoomStudents.length} / {roomStudents.length} sinh viên trong phòng</span>
+                    </div>
+                    <div className="room-students-toolbar__search">
+                      <input
+                        id="roomStudentsQuery"
+                        type="text"
+                        placeholder="Tìm theo họ tên, tên đăng nhập hoặc CCCD"
+                        value={roomStudentsQuery}
+                        onChange={(e) => setRoomStudentsQuery(e.target.value)}
+                        className="rooms-filter-input"
+                        disabled={loadingRoomStudents}
+                      />
+                      <button
+                        type="button"
+                        className="room-students-search-btn"
+                        onClick={() => setRoomStudentsQuery((value) => String(value || '').trim())}
+                        disabled={loadingRoomStudents}
+                        aria-label="Tìm kiếm sinh viên"
+                        title="Tìm kiếm"
+                      >
+                        <SearchIcon size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {loadingRoomStudents ? (
                   <p>Đang tải danh sách sinh viên...</p>
                 ) : roomStudents.length === 0 ? (
@@ -678,84 +754,7 @@ export default function RoomsSection({
                 ) : filteredRoomStudents.length === 0 ? (
                   <p>Không tìm thấy sinh viên phù hợp.</p>
                 ) : (
-                  <>
-                    {canManageRoomStudents ? (
-                      <div className="room-students-toolbar">
-                        <div className="room-students-toolbar__summary">
-                          <strong>{selectedRoomStudentIds.length > 0 ? `${selectedRoomStudentIds.length} sinh viên đã chọn` : 'Chưa chọn sinh viên nào'}</strong>
-                          <span>{filteredRoomStudents.length} / {roomStudents.length} sinh viên trong phòng</span>
-                        </div>
-
-                        <div className="room-students-toolbar__search">
-                          <input
-                            id="roomStudentsQuery"
-                            type="text"
-                            placeholder="Tìm theo họ tên, tên đăng nhập hoặc CCCD"
-                            value={roomStudentsQuery}
-                            onChange={(e) => setRoomStudentsQuery(e.target.value)}
-                            className="rooms-filter-input"
-                            disabled={loadingRoomStudents}
-                          />
-                          <button
-                            type="button"
-                            className="room-students-search-btn"
-                            onClick={() => setRoomStudentsQuery((value) => String(value || '').trim())}
-                            disabled={loadingRoomStudents}
-                            aria-label="Tìm kiếm sinh viên"
-                            title="Tìm kiếm"
-                          >
-                            <SearchIcon size={14} />
-                          </button>
-                        </div>
-
-                        <div className="room-students-toolbar__actions">
-                          <button type="button" className="tiny-btn" onClick={handleSelectAllRoomStudents} disabled={loadingRoomStudents || roomStudents.length === 0}>
-                            Chọn tất cả
-                          </button>
-                          <button type="button" className="tiny-btn" onClick={handleClearRoomStudentSelection} disabled={selectedRoomStudentIds.length === 0}>
-                            Bỏ chọn
-                          </button>
-                          <button
-                            type="button"
-                            className="tiny-btn danger"
-                            onClick={handleUnassignSelectedRoomStudents}
-                            disabled={selectedRoomStudentIds.length === 0 || processingRoomStudentBatch}
-                          >
-                            {processingRoomStudentBatch ? 'Đang bỏ gán...' : 'Bỏ gán đã chọn'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="room-students-toolbar room-students-toolbar--readonly">
-                        <div className="room-students-toolbar__summary">
-                          <strong>Chế độ xem</strong>
-                          <span>{filteredRoomStudents.length} / {roomStudents.length} sinh viên trong phòng</span>
-                        </div>
-                        <div className="room-students-toolbar__search">
-                          <input
-                            id="roomStudentsQuery"
-                            type="text"
-                            placeholder="Tìm theo họ tên, tên đăng nhập hoặc CCCD"
-                            value={roomStudentsQuery}
-                            onChange={(e) => setRoomStudentsQuery(e.target.value)}
-                            className="rooms-filter-input"
-                            disabled={loadingRoomStudents}
-                          />
-                          <button
-                            type="button"
-                            className="room-students-search-btn"
-                            onClick={() => setRoomStudentsQuery((value) => String(value || '').trim())}
-                            disabled={loadingRoomStudents}
-                            aria-label="Tìm kiếm sinh viên"
-                            title="Tìm kiếm"
-                          >
-                            <SearchIcon size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="table-wrap">
+                  <div className="table-wrap">
                     <table className="room-students-table">
                       <thead>
                         <tr>
@@ -823,8 +822,7 @@ export default function RoomsSection({
                         ))}
                       </tbody>
                     </table>
-                    </div>
-                  </>
+                  </div>
                 )}
               </div>
 
