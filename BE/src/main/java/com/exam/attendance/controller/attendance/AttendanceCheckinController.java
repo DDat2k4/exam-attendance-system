@@ -69,7 +69,7 @@ public class AttendanceCheckinController extends BaseController {
             CheckinRequest checkinRequest =
                     objectMapper.readValue(json, CheckinRequest.class);
 
-            AttendanceSession attendance =
+            AttendanceSessionResponse attendance =
                     attendanceCheckinService.checkin(checkinRequest);
 
             String message =
@@ -79,7 +79,7 @@ public class AttendanceCheckinController extends BaseController {
 
             return created(
                     message,
-                    AttendanceSessionMapper.toResponse(attendance)
+                    attendance
             );
 
         } catch (JsonProcessingException e) {

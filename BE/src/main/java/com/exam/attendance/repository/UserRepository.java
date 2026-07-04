@@ -34,19 +34,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // Search users
     @Query("""
-    SELECT DISTINCT u
-    FROM User u
-    LEFT JOIN UserProfile p ON p.user.id = u.id
-    LEFT JOIN UserRole ur ON ur.user.id = u.id
-    LEFT JOIN Role r ON r.id = ur.role.id
-    WHERE (:id IS NULL OR u.id = :id)
-    AND (:username IS NULL OR LOWER(u.username) LIKE LOWER(CONCAT('%', :username, '%')))
-    AND (:email IS NULL OR LOWER(u.email) LIKE LOWER(CONCAT('%', :email, '%')))
-    AND (:phone IS NULL OR u.phone LIKE CONCAT('%', :phone, '%'))
-    AND (:role IS NULL OR r.name = :role)
-    AND (:active IS NULL OR u.active = :active)
-    AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')))
-    """)
+SELECT DISTINCT u
+FROM User u
+LEFT JOIN UserProfile p ON p.user.id = u.id
+LEFT JOIN UserRole ur ON ur.user.id = u.id
+LEFT JOIN Role r ON r.id = ur.role.id
+WHERE (:id IS NULL OR u.id = :id)
+AND (:username IS NULL OR LOWER(u.username) LIKE LOWER(CONCAT('%', CAST(:username AS string), '%')))
+AND (:email IS NULL OR LOWER(u.email) LIKE LOWER(CONCAT('%', CAST(:email AS string), '%')))
+AND (:phone IS NULL OR u.phone LIKE CONCAT('%', CAST(:phone AS string), '%'))
+AND (:role IS NULL OR r.name = :role)
+AND (:active IS NULL OR u.active = :active)
+AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:name AS string), '%')))
+""")
     Page<User> searchUsers(
             @Param("id") Long id,
             @Param("username") String username,

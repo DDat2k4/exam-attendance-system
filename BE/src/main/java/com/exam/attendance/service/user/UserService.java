@@ -188,4 +188,29 @@ public class UserService {
         return userRepository.findByCitizenCard_CitizenId(citizenId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên"));
     }
+
+    @Transactional(readOnly = true)
+    public Page<UserDTO> searchUsers(
+            Long id,
+            String username,
+            String email,
+            String phone,
+            String role,
+            Short active,
+            String name,
+            Pageable pageable
+    ) {
+
+        return userRepository.searchUsers(
+                        id,
+                        username,
+                        email,
+                        phone,
+                        role,
+                        active,
+                        name,
+                        pageable
+                )
+                .map(this::buildUserDTO);
+    }
 }

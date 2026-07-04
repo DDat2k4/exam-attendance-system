@@ -393,4 +393,35 @@ public class CccdService {
                 .trim()
                 .toUpperCase(Locale.ROOT);
     }
+
+    @Transactional
+    public void updateCitizenCardFace(
+            CitizenCard card,
+            String base64FaceImage,
+            String embedding
+    ) {
+
+        // Xóa ảnh cũ
+        if (card.getFaceImagePublicId() != null) {
+            try {
+                fileUploadService.deleteImage(card.getFaceImagePublicId());
+            } catch (Exception e) {
+                log.warn("Delete old image fail", e);
+            }
+        }
+
+        // Upload ảnh mới
+        UploadResponse upload = fileUploadService
+                .uploadBase64Async(
+                        base64FaceImage,
+                        card.getUser().getId()
+                )
+                .join();
+
+        card.setFaceImageUrl(upload.getUrl());
+        card.setFaceImagePublicId(upload.getPublicId());
+        card.setFaceEmbedding(embedding);
+
+        citizenCardRepository.save(card);
+    }
 }

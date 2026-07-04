@@ -44,7 +44,7 @@ public class AiClientService {
             return response.getBody();
 
         } catch (Exception e) {
-            throw new RuntimeException("Không gọi được AI service: " + e.getMessage());
+            throw new RuntimeException("Không gọi được AI service");
         }
     }
 

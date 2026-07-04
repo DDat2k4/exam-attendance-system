@@ -47,7 +47,7 @@ public class VerificationService {
     private static final float MIN_CONFIDENCE = 0.7f;
     private static final int MAX_INITIAL_FAIL = 3;
     private static final int MAX_RANDOM_FAIL = 3;
-    private static final int RECONNECT_GRACE_MINUTES = 5;
+    private static final int RECONNECT_GRACE_MINUTES = 10;
 
     @Transactional
     public VerifyResponse handleVerify(

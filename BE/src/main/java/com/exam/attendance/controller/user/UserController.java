@@ -55,25 +55,25 @@ public class UserController extends BaseController {
         return success(UserMapper.toResponse(dto));
     }
 
-    @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR')")
-    public ResponseEntity<ApiResponse<Page<UserDetailResponse>>> getUsers(
-            @RequestParam(required = false) String role,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            Authentication auth
-    ) {
-
-        accessControlService.checkPermission(auth, Resource.USER, Action.READ);
-
-        Pageable pageable = PageRequest.of(page - 1, size);
-
-        Page<UserDetailResponse> result = userService
-                .getUsersByRole(role, pageable)
-                .map(UserMapper::toResponse);
-
-        return success(result);
-    }
+//    @GetMapping
+//    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR')")
+//    public ResponseEntity<ApiResponse<Page<UserDetailResponse>>> getUsers(
+//            @RequestParam(required = false) String role,
+//            @RequestParam(defaultValue = "1") int page,
+//            @RequestParam(defaultValue = "10") int size,
+//            Authentication auth
+//    ) {
+//
+//        accessControlService.checkPermission(auth, Resource.USER, Action.READ);
+//
+//        Pageable pageable = PageRequest.of(page - 1, size);
+//
+//        Page<UserDetailResponse> result = userService
+//                .getUsersByRole(role, pageable)
+//                .map(UserMapper::toResponse);
+//
+//        return success(result);
+//    }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -138,5 +138,39 @@ public class UserController extends BaseController {
         userService.deleteUser(id);
 
         return deleted();
+    }
+
+    @GetMapping()
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROCTOR')")
+    public ResponseEntity<ApiResponse<Page<UserDetailResponse>>> searchUsers(
+            @RequestParam(required = false) Long id,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) Short active,
+            @RequestParam(required = false) String name,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication auth
+    ) {
+
+        accessControlService.checkPermission(auth, Resource.USER, Action.READ);
+
+        Pageable pageable = PageRequest.of(page - 1, size);
+
+        Page<UserDetailResponse> result = userService.searchUsers(
+                        id,
+                        username,
+                        email,
+                        phone,
+                        role,
+                        active,
+                        name,
+                        pageable
+                )
+                .map(UserMapper::toResponse);
+
+        return success(result);
     }
 }

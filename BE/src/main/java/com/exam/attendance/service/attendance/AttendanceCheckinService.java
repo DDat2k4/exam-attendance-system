@@ -4,13 +4,16 @@ import com.exam.attendance.data.dto.FaceVerifyResultDTO;
 import com.exam.attendance.data.entity.*;
 import com.exam.attendance.data.enums.AttendanceStatus;
 import com.exam.attendance.data.enums.ExamSessionStatus;
+import com.exam.attendance.data.mapper.AttendanceSessionMapper;
 import com.exam.attendance.data.request.CheckinRequest;
+import com.exam.attendance.data.response.AttendanceSessionResponse;
 import com.exam.attendance.repository.AttendanceSessionRepository;
 import com.exam.attendance.repository.CitizenCardRepository;
 import com.exam.attendance.repository.ExamRegistrationRepository;
 import com.exam.attendance.repository.ExamSessionRepository;
 import com.exam.attendance.service.exam.ExamSessionStateService;
 import com.exam.attendance.service.ai.AiClientService;
+import com.exam.attendance.service.identity.CccdService;
 import com.exam.attendance.service.uploads.FileUploadService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +35,7 @@ public class AttendanceCheckinService {
     private final AttendanceSessionRepository attendanceRepo;
     private final CitizenCardRepository citizenCardRepo;
     private final AiClientService aiClientService;
+    private final CccdService  cccService;
     private final FileUploadService fileUploadService;
     private final ExamSessionStateService examSessionStateService;
     private final ExamRegistrationRepository registrationRepo;
@@ -43,7 +47,7 @@ public class AttendanceCheckinService {
     // OFFLINE CHECKIN
     // =========================================================
     @Transactional
-    public AttendanceSession checkin(CheckinRequest req) {
+    public AttendanceSessionResponse checkin(CheckinRequest req) {
 
         validateRequest(req);
 
@@ -116,15 +120,38 @@ public class AttendanceCheckinService {
             throw new RuntimeException("Embedding null");
         }
 
+//        try {
+//            card.setFaceEmbedding(objectMapper.writeValueAsString(embedding));
+////            citizenCardRepo.save(card);
+//        } catch (Exception e) {
+//            throw new RuntimeException("Convert embedding lỗi");
+//        }
+//
+//        String webcamUrl = uploadImage(req.getWebcamImage(), card.getUser().getId());
+//        String cccdUrl   = uploadImage(req.getFaceImage(),   card.getUser().getId());
+//        card.setFaceImageUrl(cccdUrl);
+//        citizenCardRepo.save(card);
+
+        String embeddingJson;
+
         try {
-            card.setFaceEmbedding(objectMapper.writeValueAsString(embedding));
-            citizenCardRepo.save(card);
+            embeddingJson = objectMapper.writeValueAsString(embedding);
         } catch (Exception e) {
             throw new RuntimeException("Convert embedding lỗi");
         }
 
-        String webcamUrl = uploadImage(req.getWebcamImage(), card.getUser().getId());
-        String cccdUrl   = uploadImage(req.getFaceImage(),   card.getUser().getId());
+        String webcamUrl = uploadImage(
+                req.getWebcamImage(),
+                card.getUser().getId()
+        );
+
+        cccService.updateCitizenCardFace(
+                card,
+                req.getFaceImage(),
+                embeddingJson
+        );
+
+        String cccdUrl = card.getFaceImageUrl();
 
         AttendanceSession attendance = attendanceRepo
                 .findByExamSessionId(session.getId())
@@ -191,7 +218,7 @@ public class AttendanceCheckinService {
             );
         }
 
-        return attendanceRepo.save(attendance);
+        return AttendanceSessionMapper.toResponse(attendanceRepo.save(attendance));
     }
 
     // =========================================================
