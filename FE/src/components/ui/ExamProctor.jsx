@@ -31,7 +31,7 @@ export default function ExamProctor({ examSessionId, onSessionEnd, questions = [
   const DEFAULT_MAX_FAILURES = 3
   const EXAM_DURATION = 3600 // 1 hour in seconds
   const approvalBlocked = verificationWaiting || deviceApprovalWaiting || awaitingReview || verificationStatus === 'needs_review'
-  const failureLimit = Number.isInteger(maxFailures) && maxFailures > 0 ? maxFailures : MAX_FAILURES
+  const failureLimit = Number.isInteger(maxFailures) && maxFailures > 0 ? maxFailures : DEFAULT_MAX_FAILURES
 
   useEffect(() => {
     showCameraRef.current = showCamera
