@@ -1098,6 +1098,34 @@
   gap: 8px;
 }
 
+.registration-user-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.registration-user-filter-grid input,
+.registration-user-filter-grid select {
+  width: 100%;
+  border: 1px solid #c8d2fa;
+  border-radius: 8px;
+  font-size: 13px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #2f3f82;
+  box-sizing: border-box;
+}
+
+.registration-user-filter-grid select {
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .registration-user-filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .registration-user-head {
   display: flex;
   gap: 8px;

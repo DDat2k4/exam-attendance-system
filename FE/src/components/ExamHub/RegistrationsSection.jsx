@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeftIcon, ChevronRightIcon, RefreshIcon, TrashIcon } from '../ui/AppIcons'
+import { ChevronLeftIcon, ChevronRightIcon, RefreshIcon, SearchIcon, TrashIcon } from '../ui/AppIcons'
 
 export default function RegistrationsSection({
   handleBatchRegister,
   registrationForm,
   onRegistrationChange,
   examOptions,
-  registrationUserQuery,
-  setRegistrationUserQuery,
-  registrationUserRole,
-  setRegistrationUserRole,
+  registrationUserFilters,
+  setRegistrationUserFilters,
+  registrationUserAppliedFilters,
   toggleSelectAllFilteredUsers,
   loadingRegistrationUsers,
   filteredRegistrationUsers,
-  fetchRegistrationUsers,
+  handleSearchRegistrationUsers,
+  registrationUserPage,
+  registrationUserTotalPages,
+  handlePrevRegistrationUserPage,
+  handleNextRegistrationUserPage,
   selectedRegistrationUserIds,
   toggleRegistrationUser,
   submittingRegistration,
@@ -110,23 +113,47 @@ export default function RegistrationsSection({
 
         <label htmlFor="registrationUserSearch">Danh sách sinh viên</label>
         <div className="registration-user-picker">
-          <div className="registration-user-head">
+          <div className="registration-user-filter-grid">
             <input
-              id="registrationUserSearch"
-              value={registrationUserQuery}
-              onChange={(e) => setRegistrationUserQuery(e.target.value)}
-              placeholder="Tìm theo ID, email hoặc tài khoản"
+              id="registrationUserName"
+              value={registrationUserFilters.name}
+              onChange={(e) => setRegistrationUserFilters((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="Tìm theo tên"
+            />
+            <input
+              id="registrationUserUsername"
+              value={registrationUserFilters.username}
+              onChange={(e) => setRegistrationUserFilters((prev) => ({ ...prev, username: e.target.value }))}
+              placeholder="Tìm theo tài khoản"
+            />
+            <input
+              id="registrationUserEmail"
+              value={registrationUserFilters.email}
+              onChange={(e) => setRegistrationUserFilters((prev) => ({ ...prev, email: e.target.value }))}
+              placeholder="Tìm theo email"
             />
             <select
-              value={registrationUserRole}
-              onChange={(e) => setRegistrationUserRole(e.target.value)}
+              value={registrationUserFilters.role}
+              onChange={(e) => setRegistrationUserFilters((prev) => ({ ...prev, role: e.target.value }))}
               title="Lọc theo role"
             >
-              <option value="ALL">Tất cả role</option>
               <option value="STUDENT">STUDENT</option>
               <option value="PROCTOR">PROCTOR</option>
               <option value="ADMIN">ADMIN</option>
+              <option value="ALL">Tất cả role</option>
             </select>
+            <select
+              value={registrationUserFilters.active}
+              onChange={(e) => setRegistrationUserFilters((prev) => ({ ...prev, active: e.target.value }))}
+              title="Lọc theo trạng thái"
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="1">Đang hoạt động</option>
+              <option value="0">Không hoạt động</option>
+            </select>
+          </div>
+
+          <div className="registration-user-head">
             <button
               type="button"
               className="tiny-btn"
@@ -138,13 +165,17 @@ export default function RegistrationsSection({
             <button
               type="button"
               className="tiny-btn"
-              onClick={() => fetchRegistrationUsers(registrationUserRole)}
+              onClick={handleSearchRegistrationUsers}
               disabled={loadingRegistrationUsers}
             >
-              <RefreshIcon size={14} />
-              {loadingRegistrationUsers ? 'Đang tải...' : 'Tải sinh viên'}
+              <SearchIcon size={14} />
+              {loadingRegistrationUsers ? 'Đang tìm...' : 'Search'}
             </button>
           </div>
+
+          {Object.values(registrationUserAppliedFilters || {}).some((value) => String(value || '').trim()) ? (
+            <small>Đang lọc theo nhiều tiêu chí đã nhập.</small>
+          ) : null}
 
           <div className="registration-user-list">
             {loadingRegistrationUsers ? (
@@ -168,6 +199,32 @@ export default function RegistrationsSection({
                 )
               })
             )}
+          </div>
+
+          <div className="registration-pagination">
+            <span>Trang {registrationUserPage} / {registrationUserTotalPages || 1}</span>
+            <div className="inline-actions">
+              <button
+                type="button"
+                className="tiny-btn icon-only-btn"
+                onClick={handlePrevRegistrationUserPage}
+                disabled={registrationUserPage <= 1 || loadingRegistrationUsers}
+                aria-label="Trang trước"
+                title="Trang trước"
+              >
+                <ChevronLeftIcon />
+              </button>
+              <button
+                type="button"
+                className="tiny-btn icon-only-btn"
+                onClick={handleNextRegistrationUserPage}
+                disabled={registrationUserPage >= (registrationUserTotalPages || 1) || loadingRegistrationUsers}
+                aria-label="Trang sau"
+                title="Trang sau"
+              >
+                <ChevronRightIcon />
+              </button>
+            </div>
           </div>
 
           <small>

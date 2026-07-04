@@ -47,16 +47,20 @@ export default function RegistrationsPage() {
     loadingRegistrations,
     processingRegistrationId,
     loadingRegistrationUsers,
-    registrationUserQuery,
-    setRegistrationUserQuery,
-    registrationUserRole,
-    setRegistrationUserRole,
+    registrationUserFilters,
+    setRegistrationUserFilters,
+    registrationUserAppliedFilters,
     selectedRegistrationUserIds,
+    registrationUserPage,
+    registrationUserTotalPages,
     registrationPage,
     registrationUsers,
     registrationTotalPages,
     filteredRegistrationUsers,
     fetchRegistrationUsers,
+    handleSearchRegistrationUsers,
+    handlePrevRegistrationUserPage,
+    handleNextRegistrationUserPage,
     fetchRegistrations,
     onRegistrationChange,
     toggleRegistrationUser,
@@ -111,14 +115,18 @@ export default function RegistrationsPage() {
         registrationForm={registrationForm}
         onRegistrationChange={onRegistrationChange}
         examOptions={examOptions}
-        registrationUserQuery={registrationUserQuery}
-        setRegistrationUserQuery={setRegistrationUserQuery}
-        registrationUserRole={registrationUserRole}
-        setRegistrationUserRole={setRegistrationUserRole}
+        registrationUserFilters={registrationUserFilters}
+        setRegistrationUserFilters={setRegistrationUserFilters}
+        registrationUserAppliedFilters={registrationUserAppliedFilters}
         toggleSelectAllFilteredUsers={toggleSelectAllFilteredUsers}
         loadingRegistrationUsers={loadingRegistrationUsers}
         filteredRegistrationUsers={filteredRegistrationUsers}
         fetchRegistrationUsers={fetchRegistrationUsers}
+        handleSearchRegistrationUsers={handleSearchRegistrationUsers}
+        registrationUserPage={registrationUserPage}
+        registrationUserTotalPages={registrationUserTotalPages}
+        handlePrevRegistrationUserPage={handlePrevRegistrationUserPage}
+        handleNextRegistrationUserPage={handleNextRegistrationUserPage}
         selectedRegistrationUserIds={selectedRegistrationUserIds}
         toggleRegistrationUser={toggleRegistrationUser}
         submittingRegistration={submittingRegistration}

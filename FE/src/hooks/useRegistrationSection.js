@@ -8,7 +8,7 @@ import { getExamById } from '../api/examApi'
 import { getUsers } from '../api/userApi'
 import { showConfirmDialog } from '../utils/confirmDialog'
 
-const REGISTRATION_USER_LOOKUP_SIZE = 100
+const REGISTRATION_USER_LOOKUP_SIZE = 10
 
 export default function useRegistrationSection({
   canManageRegistrations,
@@ -23,42 +23,85 @@ export default function useRegistrationSection({
   const [processingRegistrationId, setProcessingRegistrationId] = useState(null)
   const [registrationUsers, setRegistrationUsers] = useState([])
   const [loadingRegistrationUsers, setLoadingRegistrationUsers] = useState(false)
-  const [registrationUserQuery, setRegistrationUserQuery] = useState('')
-  const [registrationUserRole, setRegistrationUserRole] = useState('STUDENT')
+  const [registrationUserFilters, setRegistrationUserFilters] = useState({
+    username: '',
+    email: '',
+    name: '',
+    role: 'STUDENT',
+    active: '',
+  })
+  const [registrationUserAppliedFilters, setRegistrationUserAppliedFilters] = useState({
+    role: 'STUDENT',
+  })
   const [selectedRegistrationUserIds, setSelectedRegistrationUserIds] = useState([])
+  const [registrationUserPage, setRegistrationUserPage] = useState(1)
+  const [registrationUserTotalPages, setRegistrationUserTotalPages] = useState(0)
   const [registrationPage, setRegistrationPage] = useState(1)
   const [registrationTotalPages, setRegistrationTotalPages] = useState(0)
 
-  const filteredRegistrationUsers = useMemo(() => {
-    const q = String(registrationUserQuery || '').trim().toLowerCase()
-    if (!q) return registrationUsers
+  const buildSearchParams = (filters = {}) => {
+    const params = {
+      page: 1,
+      limit: REGISTRATION_USER_LOOKUP_SIZE,
+    }
 
-    return registrationUsers.filter((u) => {
-      const fields = [
-        String(u?.id ?? ''),
-        String(u?.username ?? ''),
-        String(u?.email ?? ''),
-        String(u?.name ?? ''),
-      ]
+    const username = String(filters.username || '').trim()
+    const email = String(filters.email || '').trim()
+    const name = String(filters.name || '').trim()
+    const role = String(filters.role || '').trim()
+    const active = String(filters.active ?? '').trim()
 
-      return fields.some((field) => field.toLowerCase().includes(q))
-    })
-  }, [registrationUsers, registrationUserQuery])
+    return {
+      ...params,
+      ...(username ? { username } : {}),
+      ...(email ? { email } : {}),
+      ...(name ? { name } : {}),
+      ...(role && role !== 'ALL' ? { role } : {}),
+      ...(active ? { active } : {}),
+    }
+  }
 
-  const fetchRegistrationUsers = async (role = registrationUserRole) => {
+  const filteredRegistrationUsers = useMemo(() => registrationUsers, [registrationUsers])
+
+  const fetchRegistrationUsers = async (filters = registrationUserAppliedFilters, page = 1) => {
     try {
       setLoadingRegistrationUsers(true)
       const result = await getUsers({
-        page: 1,
-        limit: REGISTRATION_USER_LOOKUP_SIZE,
-        ...(role && role !== 'ALL' ? { role } : {}),
+        ...buildSearchParams(filters),
+        page,
       })
       setRegistrationUsers(Array.isArray(result?.items) ? result.items : [])
+      setRegistrationUserPage(Number(result?.page ?? page) || page)
+      setRegistrationUserTotalPages(Number(result?.totalPages ?? 0))
     } catch (err) {
       setError(err.message || 'Không thể tải danh sách user để đăng ký.')
     } finally {
       setLoadingRegistrationUsers(false)
     }
+  }
+
+  const handlePrevRegistrationUserPage = () => {
+    const nextPage = Math.max(1, registrationUserPage - 1)
+    if (nextPage === registrationUserPage) return
+    setSelectedRegistrationUserIds([])
+    fetchRegistrationUsers(registrationUserAppliedFilters, nextPage)
+  }
+
+  const handleNextRegistrationUserPage = () => {
+    const nextPage = Math.min(registrationUserTotalPages || 1, registrationUserPage + 1)
+    if (nextPage === registrationUserPage) return
+    setSelectedRegistrationUserIds([])
+    fetchRegistrationUsers(registrationUserAppliedFilters, nextPage)
+  }
+
+  const handleSearchRegistrationUsers = async () => {
+    const nextFilters = {
+      ...registrationUserFilters,
+      role: registrationUserFilters.role || 'STUDENT',
+    }
+    setRegistrationUserAppliedFilters(nextFilters)
+    setSelectedRegistrationUserIds([])
+    await fetchRegistrationUsers(nextFilters, 1)
   }
 
   const fetchRegistrations = async (examIdValue, page = 1) => {
@@ -219,16 +262,19 @@ export default function useRegistrationSection({
 
   useEffect(() => {
     if (canManageRegistrations) {
-      fetchRegistrationUsers()
-    }
-  }, [canManageRegistrations])
-
-  useEffect(() => {
-    if (canManageRegistrations) {
       setSelectedRegistrationUserIds([])
-      fetchRegistrationUsers(registrationUserRole)
+      setRegistrationUserFilters({
+        username: '',
+        email: '',
+        name: '',
+        role: 'STUDENT',
+        active: '',
+      })
+      setRegistrationUserAppliedFilters({ role: 'STUDENT' })
+      fetchRegistrationUsers({ role: 'STUDENT' }, 1)
     }
-  }, [registrationUserRole, canManageRegistrations])
+    return undefined
+  }, [canManageRegistrations])
 
   return {
     registrationForm,
@@ -238,15 +284,19 @@ export default function useRegistrationSection({
     processingRegistrationId,
     registrationUsers,
     loadingRegistrationUsers,
-    registrationUserQuery,
-    setRegistrationUserQuery,
-    registrationUserRole,
-    setRegistrationUserRole,
+    registrationUserFilters,
+    setRegistrationUserFilters,
+    registrationUserAppliedFilters,
     selectedRegistrationUserIds,
+    registrationUserPage,
+    registrationUserTotalPages,
     registrationPage,
     registrationTotalPages,
     filteredRegistrationUsers,
     fetchRegistrationUsers,
+    handleSearchRegistrationUsers,
+    handlePrevRegistrationUserPage,
+    handleNextRegistrationUserPage,
     fetchRegistrations,
     onRegistrationChange,
     toggleRegistrationUser,

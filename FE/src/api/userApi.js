@@ -52,14 +52,31 @@ const normalizeActiveToShort = (active) => {
   return undefined;
 };
 
-// GET /users?page=&size=&role=
-export const getUsers = async ({ page = 1, limit = 10, role, keyword } = {}) => {
+// GET /users?page=&size=&id=&username=&email=&phone=&role=&active=&name=
+export const getUsers = async ({
+  page = 1,
+  limit = 10,
+  id,
+  username,
+  email,
+  phone,
+  role,
+  active,
+  name,
+  keyword,
+} = {}) => {
   try {
     const size = Number(limit) > 0 ? Number(limit) : 10;
     const res = await dedupeGet(axiosClient, `${API_URL}/users`, {
       params: {
+        ...(id !== undefined && id !== null && id !== '' ? { id } : {}),
+        ...(username ? { username } : {}),
+        ...(email ? { email } : {}),
+        ...(phone ? { phone } : {}),
         ...(role ? { role } : {}),
-        ...(keyword ? { keyword } : {}),
+        ...(active !== undefined && active !== null && active !== '' ? { active } : {}),
+        ...(name ? { name } : {}),
+        ...(keyword ? { name: keyword } : {}),
         page,
         size,
       },
