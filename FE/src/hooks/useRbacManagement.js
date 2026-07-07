@@ -18,6 +18,7 @@ const ROLE_LOOKUP_PAGE_SIZE = 100
 const emptyRoleForm = { name: '', description: '' }
 const emptyPermissionForm = { resource: '', action: '', description: '' }
 const ASSIGNMENT_PERMISSION_PAGE_SIZE = 100
+const NOTICE_AUTO_DISMISS_MS = 4000
 
 export default function useRbacManagement(options = {}) {
   const mode = options?.mode || 'full'
@@ -163,6 +164,17 @@ const filteredRoleSelectorOptions = useMemo(() => {
     setError('')
     setMessage('')
   }
+
+  useEffect(() => {
+    if (!error && !message) return undefined
+
+    const timerId = window.setTimeout(() => {
+      setError('')
+      setMessage('')
+    }, NOTICE_AUTO_DISMISS_MS)
+
+    return () => window.clearTimeout(timerId)
+  }, [error, message])
 
   const clampAssignmentPermissionPage = (nextPage) => {
     const totalPages = assignmentPermissionTotalPages || 1

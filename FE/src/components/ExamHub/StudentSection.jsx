@@ -1,23 +1,24 @@
 import { getSessionStatusLabel, statusToBadgeClass } from '../../utils/examSessionStatus'
 import { formatExamLabel } from '../../utils/examLabel'
-
+import { SearchIcon} from '../ui/AppIcons'
 export default function StudentSection({
   studentExamPage,
   fetchStudentRegisteredExams,
   loadingStudentExams,
   studentRegisteredExams,
-  filteredStudentRegisteredExams,
   formatDateTime,
   handleTakeExam,
   takingExamId,
   studentExamTotalPages,
-  examSearch,
-  setExamSearch,
+  examSearchInput,
+  setExamSearchInput,
+  appliedExamSearch,
+  onSearch,
 }) {
   // Note: per-row room assignment and errors are shown per item.
   // Do not rely on a single representative room across rows when deciding button state.
   const firstAssigned = studentRegisteredExams.find((r) => r.roomInfo && r.roomInfo.roomId)
-  const visibleRows = filteredStudentRegisteredExams ?? studentRegisteredExams
+  const visibleRows = studentRegisteredExams
 
   return (
     <section className="panel exam-list-panel">
@@ -39,10 +40,20 @@ export default function StudentSection({
               type="text"
               className="exam-filter-input"
               placeholder="Tìm theo tên hoặc mã kỳ thi"
-              value={examSearch}
-              onChange={(e) => setExamSearch?.(e.target.value)}
+              value={examSearchInput}
+              onChange={(e) => setExamSearchInput?.(e.target.value)}
             />
           </div>
+          <button
+            type="button"
+            className="search-compact-btn"
+            onClick={onSearch}
+            disabled={loadingStudentExams}
+            aria-label="Tìm kỳ thi"
+            title="Tìm"
+          >
+            {loadingStudentExams ? '…' : <SearchIcon size={14} />}
+          </button>
           <button
             type="button"
             className="exam-filter-button tiny-btn"
@@ -57,7 +68,7 @@ export default function StudentSection({
       {loadingStudentExams ? (
         <p>Đang tải danh sách kỳ thi...</p>
       ) : visibleRows.length === 0 ? (
-        <p>{examSearch ? 'Không tìm thấy kỳ thi phù hợp.' : 'Bạn chưa đăng ký kỳ thi nào.'}</p>
+        <p>{appliedExamSearch ? 'Không tìm thấy kỳ thi phù hợp.' : 'Bạn chưa đăng ký kỳ thi nào.'}</p>
       ) : (
         <>
           <div className="table-wrap">

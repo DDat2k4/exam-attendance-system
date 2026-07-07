@@ -251,6 +251,11 @@
   min-width: 0;
 }
 
+/* Limit the visual width of the search box to keep it compact */
+.exam-filter-field.student-exam-filter-field {
+  max-width: 720px;
+}
+
 .exam-filter-icon {
   position: absolute;
   left: 12px;
@@ -268,10 +273,32 @@
   background: #ffffff;
   color: #243577;
   font-size: 14px;
-  padding: 10px 12px 10px 36px;
+  height: 40px;
+  padding: 8px 16px 8px 36px;
   outline: none;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   box-sizing: border-box;
+}
+
+.search-compact-btn {
+  height: 40px;
+  min-width: 44px;
+  width: 44px;
+  border-radius: 12px;
+  border: 1px solid #c7d2ff;
+  background: linear-gradient(180deg, #ffffff 0%, #eef3ff 100%);
+  display: inline-grid;
+  place-items: center;
+  font-size: 16px;
+  color: #27408d;
+  cursor: pointer;
+  box-shadow: 0 6px 12px rgba(40, 68, 161, 0.06);
+  margin-left: 10px;
+}
+
+.search-inline-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .exam-filter-input::placeholder {
@@ -282,6 +309,114 @@
   border-color: #4f67d6;
   box-shadow: 0 0 0 3px rgba(79, 103, 214, 0.14);
   transform: translateY(-1px);
+}
+
+/* Proctor / modal search field with inline icon button */
+.proctor-search-field {
+  position: relative;
+}
+
+.proctor-search-field input {
+  padding-right: 48px;
+}
+
+/* Nudge the search button down slightly in the proctor modal */
+.proctor-search-field .search-inline-btn {
+  transform: translateY(2px);
+}
+
+/* Dropdown for proctor modal search (anchored to the proctor input) */
+.proctor-exam-dropdown {
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  left: 0 !important;
+  right: auto !important;
+  width: auto !important;
+  min-width: 260px !important;
+  max-width: 420px !important;
+  z-index: 9999 !important;
+  max-height: 220px !important;
+  overflow-y: auto !important;
+  border: 1px solid #ddd !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  padding: 6px !important;
+  box-shadow: 0 10px 24px rgba(27, 37, 89, 0.12) !important;
+  list-style: none !important;
+}
+
+.proctor-exam-dropdown li {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.proctor-exam-dropdown li:hover {
+  background: #f3f7ff;
+}
+
+.tiny-btn {
+  position: static;
+  right: auto;
+  top: auto;
+  transform: none;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 7px;
+  border: 1px solid #c9d3fb;
+  background: #ffffff;
+  color: #2e4288;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.tiny-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* search button placed inside inputs */
+.search-inline-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 36px;
+  width: 36px;
+  border-radius: 10px;
+  border: 1px solid #c7d2ff;
+  background: linear-gradient(180deg, #ffffff 0%, #eef3ff 100%);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  color: #27408d;
+  box-shadow: 0 6px 12px rgba(40, 68, 161, 0.06);
+}
+
+.search-inline-btn:disabled { opacity: 0.6 }
+
+/* For full-width form fields that include a tiny button */
+.exam-field.exam-field--full .tiny-btn {
+  right: 8px;
+}
+
+/* Toolbar/inline action buttons should not be absolutely positioned */
+.inline-actions .tiny-btn,
+.inline-actions .icon-only-btn.tiny-btn,
+.inline-actions .proctor-hero-icon-btn {
+  position: static;
+  right: auto;
+  top: auto;
+  transform: none;
+}
+
+/* Adjust modal input size to be slightly smaller */
+.proctor-room-modal input,
+.assign-room-modal input {
+  height: 40px;
+  padding: 8px 14px;
+  border-radius: 10px;
 }
 
 .exam-filter-button {
@@ -687,8 +822,11 @@
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  right: 0;
-  z-index: 10;
+  right: auto;
+  width: auto;
+  min-width: 260px;
+  max-width: 420px;
+  z-index: 60;
   max-height: 220px;
   overflow-y: auto;
   border: 1px solid #c8d2fa;
@@ -696,6 +834,7 @@
   background: #ffffff;
   box-shadow: 0 10px 24px rgba(27, 37, 89, 0.12);
   padding: 6px;
+  box-sizing: border-box;
 }
 
 .rooms-exam-dropdown__item,
@@ -1164,16 +1303,148 @@
 .registration-exam-combobox {
   position: relative;
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .registration-exam-combobox input {
-  width: 100%;
+  flex: 1 1 auto;
   border: 1px solid #c8d2fa;
   border-radius: 8px;
   font-size: 13px;
   padding: 8px 10px;
   background: #fff;
   color: #2f3f82;
+  box-sizing: border-box;
+}
+
+.registration-exam-combobox .tiny-btn {
+  height: 38px;
+  min-width: 40px;
+  padding: 6px 10px;
+  display: inline-grid;
+  place-items: center;
+}
+
+/* Rooms toolbar: align exam filter input with inline search button */
+.rooms-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rooms-filter-group .rooms-filter-input {
+  flex: 1 1 auto;
+}
+
+.rooms-filter-group .search-inline-btn {
+  position: static;
+  width: 40px;
+  height: 36px;
+  padding: 6px;
+}
+
+/* Stronger rules for toolbar input+button alignment */
+.rooms-toolbar .input-with-btn {
+  align-items: center;
+  position: relative; /* anchor dropdown inside the input container */
+}
+.rooms-toolbar .input-with-btn input,
+.rooms-toolbar .input-with-btn .rooms-filter-input,
+.rooms-toolbar .input-with-btn .exam-filter-input,
+.rooms-toolbar .input-with-btn .search-inline-btn {
+  height: 40px;
+  line-height: 40px;
+  box-sizing: border-box;
+  padding: 0 12px;
+}
+.rooms-toolbar .input-with-btn .search-inline-btn {
+  padding: 0;
+  width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+  margin: 0;
+}
+
+/* Nudge the search button down slightly for visual alignment */
+.rooms-toolbar .input-with-btn .search-inline-btn {
+  transform: translateY(1px);
+}
+
+/* Generic input + button inline group (input left, button attached right) */
+.input-with-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  vertical-align: middle;
+  position: relative; /* anchor any dropdowns inside this group */
+}
+
+/* Strong override to ensure dropdowns are anchored to their input container */
+.input-with-btn > .rooms-exam-dropdown {
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  left: 0 !important;
+  right: auto !important;
+  width: auto !important;
+  min-width: 260px !important;
+  max-width: 420px !important;
+  transform: none !important;
+  z-index: 9999 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+/* Fallback: if dropdown is placed inside an .exam-field (modal form), anchor there too */
+.exam-field .rooms-exam-dropdown {
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  left: 0 !important;
+  right: auto !important;
+  width: auto !important;
+  min-width: 260px !important;
+  max-width: 420px !important;
+  z-index: 9999 !important;
+}
+
+.input-with-btn input,
+.input-with-btn .rooms-filter-input,
+.input-with-btn .exam-filter-input {
+  flex: 1 1 auto;
+  margin: 0;
+  border-radius: 10px 0 0 10px;
+  height: 40px;
+  box-sizing: border-box;
+  border-right: 0;
+}
+
+.input-with-btn .search-inline-btn {
+  position: static;
+  border-left: 1px solid rgba(110,160,255,0.14);
+  border-radius: 0 10px 10px 0;
+  height: 40px;
+  width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  box-shadow: none;
+}
+
+.input-with-btn .rooms-exam-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: auto;
+  /* constrain popup to a small width anchored to the input */
+  width: auto;
+  min-width: 260px;
+  max-width: 420px;
+  z-index: 60; /* sit above table rows */
   box-sizing: border-box;
 }
 
@@ -1288,6 +1559,10 @@
   align-items: center;
   gap: 8px;
 }
+/* ensure header actions sit above surrounding panels and are not clipped */
+.session-head { position: relative; z-index: 3 }
+
+.proctor-panel .inline-actions { align-items: center }
 
 .student-exam-note {
   margin: 0;

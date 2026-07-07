@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getAllExams } from '../../api/examApi'
+import { SearchIcon } from '../../components/ui/AppIcons'
 import ProctorSection from '../../components/ExamHub/ProctorSection'
 import useProctorSection, { PROCTOR_STATUS_OPTIONS, formatProctorToastMeta } from '../../hooks/useProctorSection'
 import { useAuth } from '../../context/AuthContext'
@@ -23,6 +24,17 @@ export default function ProctorPage() {
   const [success, setSuccess] = useState('')
   const [activeSection, setActiveSection] = useState(HUB_SECTIONS.PROCTOR)
 
+  useEffect(() => {
+    if (!error && !success) return undefined
+
+    const timerId = window.setTimeout(() => {
+      setError('')
+      setSuccess('')
+    }, 4000)
+
+    return () => window.clearTimeout(timerId)
+  }, [error, success])
+
   const canControlSessions = canAccess(user, {
     allowRoles: ['ADMIN', 'PROCTOR'],
     allowPermissions: ['EXAM_MANAGE', 'EXAM_SESSION_START', 'EXAM_SESSION_END'],
@@ -34,6 +46,19 @@ export default function ProctorPage() {
       setLoading(true)
       setError('')
       const items = await getAllExams({ hydrateRooms: false })
+      setExams(Array.isArray(items) ? items : [])
+    } catch (err) {
+      setError(err.message || 'Cannot load exams.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function fetchExamsByKeyword(keyword) {
+    try {
+      setLoading(true)
+      setError('')
+      const items = await getAllExams({ keyword: String(keyword || '').trim(), hydrateRooms: false, size: 100 })
       setExams(Array.isArray(items) ? items : [])
     } catch (err) {
       setError(err.message || 'Cannot load exams.')
@@ -205,7 +230,7 @@ export default function ProctorPage() {
             <p>Flow chuẩn: Tìm kỳ thi → tải phòng theo kỳ thi → chọn phòng để mở dashboard.</p>
 
             <label htmlFor="proctorExamSelect">Kỳ thi</label>
-            <div className="proctor-search-field">
+            <div className="proctor-search-field input-with-btn">
               <input
                 type="text"
                 placeholder="Tìm kỳ thi..."
@@ -216,23 +241,18 @@ export default function ProctorPage() {
                 aria-haspopup="listbox"
               />
 
+              <button
+                type="button"
+                className="tiny-btn search-inline-btn"
+                onClick={() => fetchExamsByKeyword(examSearch)}
+                aria-label="Tìm kỳ thi"
+                disabled={loading}
+              >
+                <SearchIcon size={14} />
+              </button>
+
               {showExamDropdown && (
-                <ul
-                  role="listbox"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    right: 0,
-                    maxHeight: 200,
-                    overflowY: 'auto',
-                    background: 'white',
-                    border: '1px solid #ddd',
-                    zIndex: 50,
-                    padding: 0,
-                    margin: 0,
-                    listStyle: 'none',
-                  }}
-                >
+                <ul role="listbox" className="proctor-exam-dropdown">
                   {exams
                     .filter((exam) => formatExamLabel(exam).toLowerCase().includes((examSearch || '').toLowerCase()))
                     .map((exam) => (

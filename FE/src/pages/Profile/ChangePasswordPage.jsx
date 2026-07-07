@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { changePassword, logout } from '../../api/auth'
 import './ProfilePage.css'
 
@@ -10,6 +10,17 @@ export default function ChangePasswordPage() {
   const [showOld, setShowOld] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+
+  useEffect(() => {
+    if (!error && !success) return undefined
+
+    const timerId = window.setTimeout(() => {
+      setError('')
+      setSuccess('')
+    }, 4000)
+
+    return () => window.clearTimeout(timerId)
+  }, [error, success])
 
   const handleChange = (e) => {
     const { name, value } = e.target

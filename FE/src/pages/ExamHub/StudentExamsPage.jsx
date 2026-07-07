@@ -23,7 +23,19 @@ function StudentExamsPage() {
   const [myRoomInfo, setMyRoomInfo] = useState(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [examSearch, setExamSearch] = useState('')
+  const [examSearchInput, setExamSearchInput] = useState('')
+  const [appliedExamSearch, setAppliedExamSearch] = useState('')
+
+  useEffect(() => {
+    if (!error && !success) return undefined
+
+    const timerId = window.setTimeout(() => {
+      setError('')
+      setSuccess('')
+    }, 4000)
+
+    return () => window.clearTimeout(timerId)
+  }, [error, success])
 
   const canStudentTakeExam = canAccess(user, {
     allowRoles: ['STUDENT'],
@@ -42,26 +54,9 @@ function StudentExamsPage() {
     }).format(date)
   }
 
-  const filteredStudentRegisteredExams = useMemo(() => {
-    const keyword = examSearch.trim().toLowerCase()
-    if (!keyword) return studentRegisteredExams
-
-    const numericExamId = Number(keyword)
-    const isNumeric = Number.isInteger(numericExamId) && String(numericExamId) === keyword
-
-    return studentRegisteredExams.filter((item) => {
-      const examTitle = String(formatExamLabel(item?.exam) || '').toLowerCase()
-      const examId = Number(item?.examId ?? item?.exam?.id)
-      const examCode = String(item?.exam?.examCode || '').toLowerCase()
-      const semester = String(item?.exam?.semester || '').toLowerCase()
-
-      if (isNumeric) {
-        return examId === numericExamId
-      }
-
-      return examTitle.includes(keyword) || examCode.includes(keyword) || semester.includes(keyword)
-    })
-  }, [examSearch, studentRegisteredExams])
+  // Server-driven search: results come from backend. We keep an input state
+  // (`examSearchInput`) and an `appliedExamSearch` which is the last value
+  // submitted via the Search button.
 
   const loadMyRoomInfo = useCallback(async (examId) => {
     if (!canStudentTakeExam || !examId) return
@@ -77,12 +72,13 @@ function StudentExamsPage() {
     }
   }, [canStudentTakeExam])
 
-  const fetchStudentRegisteredExams = useCallback(async (page = 1) => {
+  const fetchStudentRegisteredExams = useCallback(async (page = 1, keyword) => {
     if (!canStudentTakeExam) return
 
     try {
       setLoadingStudentExams(true)
-      const result = await getMyExamRegistrations({ page, size: REGISTRATION_PAGE_SIZE })
+      const effectiveKeyword = typeof keyword === 'string' ? keyword : appliedExamSearch
+      const result = await getMyExamRegistrations({ page, size: REGISTRATION_PAGE_SIZE, keyword: effectiveKeyword })
       const registrations = Array.isArray(result?.content) ? result.content : []
 
       // Fetch sessions to determine completion status and get session IDs
@@ -155,7 +151,7 @@ function StudentExamsPage() {
     } finally {
       setLoadingStudentExams(false)
     }
-  }, [canStudentTakeExam])
+  }, [canStudentTakeExam, appliedExamSearch])
 
   const handleTakeExam = async (registrationRow) => {
     setError('')
@@ -264,13 +260,17 @@ function StudentExamsPage() {
         fetchStudentRegisteredExams={fetchStudentRegisteredExams}
         loadingStudentExams={loadingStudentExams}
         studentRegisteredExams={studentRegisteredExams}
-        filteredStudentRegisteredExams={filteredStudentRegisteredExams}
         formatDateTime={formatDateTime}
         handleTakeExam={handleTakeExam}
         takingExamId={takingExamId}
         studentExamTotalPages={studentExamTotalPages}
-        examSearch={examSearch}
-        setExamSearch={setExamSearch}
+        examSearchInput={examSearchInput}
+        setExamSearchInput={setExamSearchInput}
+        appliedExamSearch={appliedExamSearch}
+        onSearch={async () => {
+          setAppliedExamSearch(examSearchInput)
+          await fetchStudentRegisteredExams(1, examSearchInput)
+        }}
         myRoomInfo={myRoomInfo}
       />
 

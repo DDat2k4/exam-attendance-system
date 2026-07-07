@@ -57,8 +57,8 @@ export default function ExamsSection({
                 className="exam-filter-input"
                 value={examKeyword}
                 onChange={(e) => setExamKeyword(e.target.value)}
-                placeholder="Tìm theo tên kỳ thi, mã kỳ thi hoặc mã học kỳ"
-                aria-label="Tìm theo tên kỳ thi, mã kỳ thi hoặc mã học kỳ"
+                placeholder="Tìm theo tên hoặc mã kỳ thi"
+                aria-label="Tìm theo tên hoặc mã kỳ thi"
               />
             </div>
             <button type="submit" className="tiny-btn exam-filter-button icon-only-btn" disabled={loading} aria-label="Tìm kiếm" title="Tìm kiếm">

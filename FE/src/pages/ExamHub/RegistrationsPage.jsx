@@ -16,6 +16,17 @@ export default function RegistrationsPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  useEffect(() => {
+    if (!error && !success) return undefined
+
+    const timerId = window.setTimeout(() => {
+      setError('')
+      setSuccess('')
+    }, 4000)
+
+    return () => window.clearTimeout(timerId)
+  }, [error, success])
+
   const canManageRegistrations = canAccess(user, {
     allowRoles: ['ADMIN'],
     allowPermissions: ['EXAM_MANAGE'],
@@ -32,6 +43,19 @@ export default function RegistrationsPage() {
       setLoading(true)
       setError('')
       const items = await getAllExams()
+      setExams(Array.isArray(items) ? items : [])
+    } catch (err) {
+      setError(err.message || 'Cannot load exams.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function fetchExamsByKeyword(keyword) {
+    try {
+      setLoading(true)
+      setError('')
+      const items = await getAllExams({ keyword: String(keyword || '').trim(), size: 100 })
       setExams(Array.isArray(items) ? items : [])
     } catch (err) {
       setError(err.message || 'Cannot load exams.')
@@ -115,6 +139,7 @@ export default function RegistrationsPage() {
         registrationForm={registrationForm}
         onRegistrationChange={onRegistrationChange}
         examOptions={examOptions}
+        handleSearchExams={fetchExamsByKeyword}
         registrationUserFilters={registrationUserFilters}
         setRegistrationUserFilters={setRegistrationUserFilters}
         registrationUserAppliedFilters={registrationUserAppliedFilters}

@@ -17,6 +17,13 @@ export default function ExamOverviewPage() {
   const [registrations, setRegistrations] = useState([])
   const [studentExams, setStudentExams] = useState([])
 
+  useEffect(() => {
+    if (!error) return undefined
+
+    const timerId = window.setTimeout(() => setError(''), 4000)
+    return () => window.clearTimeout(timerId)
+  }, [error])
+
   const canViewExams = canAccess(user, {
     allowRoles: ['ADMIN', 'PROCTOR', 'STUDENT'],
     allowPermissions: ['EXAM_VIEW', 'EXAM_MANAGE'],

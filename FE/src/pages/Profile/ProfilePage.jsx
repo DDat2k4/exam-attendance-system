@@ -52,6 +52,18 @@ export default function ProfilePage() {
 
 
   useEffect(() => {
+    if (!error && !saveMessage) return undefined
+
+    const timerId = window.setTimeout(() => {
+      setError('')
+      setSaveMessage('')
+    }, 4000)
+
+    return () => window.clearTimeout(timerId)
+  }, [error, saveMessage])
+
+
+  useEffect(() => {
     if (profile) {
       setFormState({
         name: profile.name || '',

@@ -104,10 +104,14 @@ export const checkUserExamRegistration = async ({ userId, examId }) => {
 }
 
 // GET /exam-registrations/my-exams?page=&size=&examId=
-export const getMyExamRegistrations = async ({ page = 1, size = 10, examId } = {}) => {
+export const getMyExamRegistrations = async ({ page = 1, size = 10, examId, keyword } = {}) => {
   try {
+    const params = { page, size }
+    if (examId !== undefined && examId !== null && examId !== '') params.examId = examId
+    if (keyword !== undefined && keyword !== null && String(keyword).trim() !== '') params.keyword = String(keyword).trim()
+
     return await axiosClient.get(`${API_URL}/exam-registrations/my-exams`, {
-      params: { page, size, ...(examId !== undefined && examId !== null && examId !== '' ? { examId } : {}) },
+      params,
     })
   } catch (err) {
     rethrow(err)

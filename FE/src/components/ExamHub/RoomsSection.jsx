@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { SearchIcon } from '../ui/AppIcons'
 
 export default function RoomsSection({
@@ -57,6 +57,7 @@ export default function RoomsSection({
   handleCloseRoomStudents,
   showRoomFormModal,
   closeRoomFormModal,
+  fetchExamsByKeyword,
 }) {
   const [showRoomExamSearchDropdown, setShowRoomExamSearchDropdown] = useState(false)
   const [roomExamSearchText, setRoomExamSearchText] = useState('')
@@ -74,6 +75,12 @@ export default function RoomsSection({
     const selectedExam = examOptions.find((opt) => String(opt.id) === String(roomForm.examId))
     setRoomExamSearchText(selectedExam?.label || '')
   }, [examOptions, roomForm.examId, showRoomFormModal])
+
+  // Local search state and handler to trigger parent fetch (if provided)
+  const [localRoomExamQuery, setLocalRoomExamQuery] = useState('')
+  useEffect(() => {
+    setLocalRoomExamQuery(roomExamSearchText)
+  }, [roomExamSearchText])
 
   useEffect(() => {
     if (!roomFilterExamId) {
@@ -234,6 +241,7 @@ export default function RoomsSection({
                   onChange={(e) => {
                     const value = e.target.value
                     setRoomExamSearchText(value)
+                    setLocalRoomExamQuery(value)
                     if (!value) {
                       onRoomChange({ target: { name: 'examId', value: '' } })
                     }
@@ -243,6 +251,15 @@ export default function RoomsSection({
                   onBlur={() => setTimeout(() => setShowRoomExamSearchDropdown(false), 150)}
                   autoComplete="off"
                 />
+                <button
+                  type="button"
+                  className="tiny-btn search-inline-btn"
+                  onClick={() => {
+                    if (typeof fetchExamsByKeyword === 'function') fetchExamsByKeyword(localRoomExamQuery)
+                  }}
+                >
+                  <SearchIcon size={14} />
+                </button>
 
                 {showRoomExamSearchDropdown && filteredRoomExamOptions.length > 0 && (
                   <div className="rooms-exam-dropdown" role="listbox">
@@ -325,68 +342,80 @@ export default function RoomsSection({
               />
             </div>
 
-            <div className="rooms-filter-group rooms-filter-group--exam" style={{ position: 'relative' }}>
+            <div className="rooms-filter-group rooms-filter-group--exam">
               <label htmlFor="roomFilterExamId">Kỳ thi</label>
-              <input
-                id="roomFilterExamId"
-                type="text"
-                placeholder="Gõ để tìm kỳ thi..."
-                value={roomFilterExamText}
-                onChange={(e) => {
-                  const value = e.target.value
-                  setRoomFilterExamText(value)
-                  setRoomFilterExamId(value)
-                }}
-                onFocus={() => setShowRoomFilterExamDropdown(true)}
-                onBlur={() => setTimeout(() => setShowRoomFilterExamDropdown(false), 150)}
-                className="rooms-filter-input"
-              />
+              <div className="input-with-btn" style={{ width: '100%' }}>
+                <input
+                  id="roomFilterExamId"
+                  type="text"
+                  placeholder="Gõ để tìm kỳ thi..."
+                  value={roomFilterExamText}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setRoomFilterExamText(value)
+                    setRoomFilterExamId(value)
+                  }}
+                  onFocus={() => setShowRoomFilterExamDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowRoomFilterExamDropdown(false), 150)}
+                  className="rooms-filter-input"
+                />
+                <button
+                  type="button"
+                  className="tiny-btn search-inline-btn"
+                  onClick={() => {
+                    if (typeof fetchExamsByKeyword === 'function') fetchExamsByKeyword(roomFilterExamText)
+                  }}
+                  aria-label="Tìm kỳ thi"
+                >
+                  <SearchIcon size={14} />
+                </button>
 
-              {showRoomFilterExamDropdown && filteredRoomFilterExamOptions.length > 0 && (
-                <div className="rooms-exam-dropdown" role="listbox">
-                  {filteredRoomFilterExamOptions.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      className="rooms-exam-dropdown__item"
-                      onMouseDown={() => {
-                        setRoomFilterExamId(String(opt.id))
-                        setRoomFilterExamText(opt.label)
-                        setShowRoomFilterExamDropdown(false)
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+                {showRoomFilterExamDropdown && filteredRoomFilterExamOptions.length > 0 && (
+                  <div className="rooms-exam-dropdown" role="listbox">
+                    {filteredRoomFilterExamOptions.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        className="rooms-exam-dropdown__item"
+                        onMouseDown={() => {
+                          setRoomFilterExamId(String(opt.id))
+                          setRoomFilterExamText(opt.label)
+                          setShowRoomFilterExamDropdown(false)
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
 
-                  {roomFilterExamId && (
-                    <button
-                      type="button"
-                      className="rooms-exam-dropdown__clear rooms-icon-only-btn"
-                      aria-label="Xóa lọc kỳ thi"
-                      onMouseDown={() => {
-                        setRoomFilterExamId('')
-                        setRoomFilterExamText('')
-                        setShowRoomFilterExamDropdown(false)
-                      }}
-                    >
-                      <CloseIcon />
-                    </button>
-                  )}
-                </div>
-              )}
+                    {roomFilterExamId && (
+                      <button
+                        type="button"
+                        className="rooms-exam-dropdown__clear rooms-icon-only-btn"
+                        aria-label="Xóa lọc kỳ thi"
+                        onMouseDown={() => {
+                          setRoomFilterExamId('')
+                          setRoomFilterExamText('')
+                          setShowRoomFilterExamDropdown(false)
+                        }}
+                      >
+                        <CloseIcon />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="rooms-filter-group">
               <label htmlFor="roomFilterMaxStudents">Số lượng tối đa</label>
-            <input
-              id="roomFilterMaxStudents"
-              type="number"
-              placeholder="VD: 30"
-              value={roomFilterMaxStudents}
-              onChange={(e) => setRoomFilterMaxStudents(e.target.value)}
-              className="rooms-filter-input"
-            />
+              <input
+                id="roomFilterMaxStudents"
+                type="number"
+                placeholder="VD: 30"
+                value={roomFilterMaxStudents}
+                onChange={(e) => setRoomFilterMaxStudents(e.target.value)}
+                className="rooms-filter-input"
+              />
             </div>
           </div>
 
@@ -399,7 +428,7 @@ export default function RoomsSection({
               onClick={() => {
                 setRoomFilterCode('')
                 setRoomFilterExamId('')
-                setExamFilterText('')
+                setRoomFilterExamText('')
                 setRoomFilterMaxStudents('')
               }}
             >

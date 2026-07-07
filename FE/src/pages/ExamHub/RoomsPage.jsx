@@ -86,6 +86,19 @@ export default function RoomsPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  useEffect(() => {
+    if (!error && !success && !assignRoomError && !roomStudentsError) return undefined
+
+    const timerId = window.setTimeout(() => {
+      setError('')
+      setSuccess('')
+      setAssignRoomError('')
+      setRoomStudentsError('')
+    }, 4000)
+
+    return () => window.clearTimeout(timerId)
+  }, [error, success, assignRoomError, roomStudentsError])
+
   const examOptions = useMemo(
     () => exams.map((item) => ({ id: item.id, label: formatExamLabel(item) })),
     [exams],
@@ -169,6 +182,20 @@ export default function RoomsPage() {
     } catch (err) {
       setExams([])
       setRoomRows([])
+      setError(err.message || 'Cannot load exams.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function fetchExamsByKeyword(keyword) {
+    try {
+      setLoading(true)
+      setError('')
+      const items = await getAllExams({ keyword: String(keyword || '').trim(), size: 100 })
+      const examList = Array.isArray(items) ? items : []
+      setExams(examList)
+    } catch (err) {
       setError(err.message || 'Cannot load exams.')
     } finally {
       setLoading(false)
@@ -682,6 +709,7 @@ export default function RoomsPage() {
         handleCloseRoomStudents={handleCloseRoomStudents}
         showRoomFormModal={showRoomFormModal}
         closeRoomFormModal={closeRoomFormModal}
+        fetchExamsByKeyword={fetchExamsByKeyword}
       />
     </div>
   )

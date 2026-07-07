@@ -47,6 +47,18 @@ export default function ExamsPage() {
   const [importError, setImportError] = useState('')
   const keywordInitializedRef = useRef(false)
 
+  useEffect(() => {
+    if (!error && !success && !importError) return undefined
+
+    const timerId = window.setTimeout(() => {
+      setError('')
+      setSuccess('')
+      setImportError('')
+    }, 4000)
+
+    return () => window.clearTimeout(timerId)
+  }, [error, success, importError])
+
   const canCreateExams = hasRole(user, 'ADMIN')
 
   const canViewExams = canAccess(user, {

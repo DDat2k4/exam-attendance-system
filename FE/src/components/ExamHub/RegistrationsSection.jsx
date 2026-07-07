@@ -6,6 +6,7 @@ export default function RegistrationsSection({
   registrationForm,
   onRegistrationChange,
   examOptions,
+  handleSearchExams,
   registrationUserFilters,
   setRegistrationUserFilters,
   registrationUserAppliedFilters,
@@ -32,10 +33,12 @@ export default function RegistrationsSection({
 }) {
   const [examSearch, setExamSearch] = useState('')
   const [showExamDropdown, setShowExamDropdown] = useState(false)
+  const [localExamSearch, setLocalExamSearch] = useState('')
 
   useEffect(() => {
     const selectedLabel = examOptions.find((opt) => String(opt.id) === String(registrationForm.examId))?.label || ''
     setExamSearch(selectedLabel)
+    setLocalExamSearch(selectedLabel)
   }, [examOptions, registrationForm.examId])
 
   const findExamLabel = (examId) => {
@@ -73,14 +76,14 @@ export default function RegistrationsSection({
       <h2>Đăng ký danh sách thí sinh</h2>
       <form className="grid-form" onSubmit={handleBatchRegister}>
         <label htmlFor="registrationExamId">Kỳ thi</label>
-        <div className="registration-exam-combobox">
+          <div className="registration-exam-combobox">
           <input
             id="registrationExamId"
             type="text"
-            value={examSearch}
+            value={localExamSearch}
             placeholder="Tìm kỳ thi..."
             onChange={(e) => {
-              setExamSearch(e.target.value)
+              setLocalExamSearch(e.target.value)
               setShowExamDropdown(true)
               if (!e.target.value) {
                 onRegistrationChange({ target: { name: 'examId', value: '' } })
@@ -90,10 +93,20 @@ export default function RegistrationsSection({
             onBlur={() => setTimeout(() => setShowExamDropdown(false), 150)}
             autoComplete="off"
           />
+          <button
+            type="button"
+            className="tiny-btn"
+            onClick={() => {
+              if (typeof handleSearchExams === 'function') handleSearchExams(localExamSearch)
+            }}
+            style={{ marginLeft: 8 }}
+          >
+            <SearchIcon size={14} />
+          </button>
           {showExamDropdown && (
             <ul className="registration-exam-dropdown" role="listbox">
               {examOptions
-                .filter((opt) => (opt.label || '').toLowerCase().includes((examSearch || '').toLowerCase()))
+                .filter((opt) => (opt.label || '').toLowerCase().includes((localExamSearch || '').toLowerCase()))
                 .map((opt) => (
                   <li
                     key={opt.id}
@@ -101,6 +114,7 @@ export default function RegistrationsSection({
                     onMouseDown={() => {
                       onRegistrationChange({ target: { name: 'examId', value: String(opt.id) } })
                       setExamSearch(opt.label || '')
+                      setLocalExamSearch(opt.label || '')
                       setShowExamDropdown(false)
                     }}
                   >
@@ -264,7 +278,7 @@ export default function RegistrationsSection({
               <table>
                 <thead>
                   <tr>
-                    <th>Mã đăng ký</th>
+                    <th>STT</th>
                     <th>Kỳ thi</th>
                     <th>Thí sinh</th>
                     <th>Trạng thái</th>
@@ -273,9 +287,9 @@ export default function RegistrationsSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {registrationRows.map((row) => (
+                  {registrationRows.map((row, index) => (
                     <tr key={row.id ?? `${row.examId}-${row.userId}`}>
-                      <td>{row.id ?? '-'}</td>
+                      <td>{index + 1}</td>
                       <td>{findExamLabel(row.examId)}</td>
                       <td>{findUserLabel(row.userId)}</td>
                       <td>{renderStatus(row.status)}</td>

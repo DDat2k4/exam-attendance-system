@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login } from '../../api/auth'
 import './Login.css'
@@ -8,6 +8,13 @@ export default function Login() {
   const [form, setForm] = useState({ usernameOrEmail: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!error) return undefined
+
+    const timerId = window.setTimeout(() => setError(''), 4000)
+    return () => window.clearTimeout(timerId)
+  }, [error])
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
