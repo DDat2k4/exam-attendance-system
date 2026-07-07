@@ -128,6 +128,7 @@ public class ExamRegistrationController extends BaseController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Long examId,
+            @RequestParam(required = false) String keyword,
             Authentication auth
     ) {
 
@@ -135,10 +136,14 @@ public class ExamRegistrationController extends BaseController {
 
         Long userId = SecurityContextUtils.getCurrentUserId();
 
-        Pageable pageable = PageRequest.of(page - 1, size);
+        Pageable pageable = PageRequest.of(
+                Math.max(page - 1, 0),
+                size,
+                Sort.by(Sort.Direction.DESC, "registeredAt")
+        );
 
         var result = service
-                .getByUserId(userId, examId, pageable)
+                .getByUserId(userId, examId, keyword, pageable)
                 .map(ExamRegistrationMapper::toResponse);
 
         return success(result);

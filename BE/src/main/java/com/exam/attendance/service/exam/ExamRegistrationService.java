@@ -106,16 +106,26 @@ public class ExamRegistrationService {
         return examregistrationRepository.existsByUserIdAndExamId(userId, examId);
     };
 
+//    public Page<ExamRegistration> getByUserId(
+//            Long userId,
+//            Long examId,
+//            Pageable pageable
+//    ) {
+//
+//        if (examId != null) {
+//            return examregistrationRepository.findByUserIdAndExam_Id(userId, examId, pageable);
+//        }
+//
+//        return examregistrationRepository.findByUserId(userId, pageable);
+//    }
+
     public Page<ExamRegistration> getByUserId(
             Long userId,
             Long examId,
+            String keyword,
             Pageable pageable
     ) {
-
-        if (examId != null) {
-            return examregistrationRepository.findByUserIdAndExam_Id(userId, examId, pageable);
-        }
-
-        return examregistrationRepository.findByUserId(userId, pageable);
+        String kw = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
+        return examregistrationRepository.searchByUser(userId, examId, kw, pageable);
     }
 }

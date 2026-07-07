@@ -35,6 +35,7 @@ JOIN iv.examSession es
 JOIN iv.user u
 LEFT JOIN u.citizenCard cc
 WHERE es.room.id = :roomId
+  AND iv.confidence != 1
 """)
     List<VerificationReport> getVerificationReport(Long roomId);
 

@@ -81,4 +81,22 @@ AND up.citizenId = :citizenId
             @Param("roomCode") String roomCode,
             @Param("citizenId") String citizenId
     );
+
+    @Query("""
+    SELECT er FROM ExamRegistration er
+    JOIN er.exam e
+    WHERE er.user.id = :userId
+    AND (:examId IS NULL OR e.id = :examId)
+    AND (
+        :keyword IS NULL 
+        OR LOWER(e.title) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%'))
+        OR LOWER(e.examCode) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%'))
+    )
+    """)
+    Page<ExamRegistration> searchByUser(
+            @Param("userId") Long userId,
+            @Param("examId") Long examId,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
 }
